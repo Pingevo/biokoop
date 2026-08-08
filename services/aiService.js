@@ -133,6 +133,119 @@ export async function analyzeImage(imageBuffer, mimeType = "image/jpeg", userPro
   throw new Error(`Gemini API error (ทุกโมเดลในโควต้าขัดข้อง): ${lastErrorText}`);
 }
 
+// ─── OPENROUTER (โมเดลที่ 2 สำหรับ CROSS-CHECK หรือ FALLBACK) ───
+export async function analyzeImageOpenRouter(imageBuffer, mimeType = "image/jpeg", userProfile = {}) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("ไม่พบ OPENROUTER_API_KEY ใน .env");
+
+  const model = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
+  const imageBase64 = imageBuffer.toString("base64");
+
+  const gradeConfig = getGradeConfig();
+  const gradeRulesText = (gradeConfig.grades || [])
+    .map(g => `- คะแนน ${g.minScore}-${g.maxScore}: ได้เกรด ${g.grade} (${g.label})`)
+    .join("\n");
+
+  let userPromptText = SYSTEM_PROMPT;
+  if (gradeRulesText) {
+    userPromptText += `\n\nเกณฑ์การประเมินเกรดและคะแนนที่กำหนดโดยระบบ biokoop:\n${gradeRulesText}`;
+  }
+  if (userProfile && userProfile.nickname) {
+    userPromptText += `\n\nข้อมูลโปรไฟล์ผู้ใช้: ชื่อเล่น คุณ${userProfile.nickname}`;
+  }
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+      "HTTP-Referer": process.env.PUBLIC_BASE_URL || "https://biokoop.app",
+      "X-Title": "Biokoop Health Bot",
+    },
+    body: JSON.stringify({
+      model: model,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: userPromptText },
+            { type: "image_url", image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
+          ],
+        },
+      ],
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`OpenRouter API Error (${response.status}): ${errText}`);
+  }
+
+  const data = await response.json();
+  const rawText = data.choices?.[0]?.message?.content;
+  const usage = {
+    promptTokens: data.usage?.prompt_tokens || 0,
+    completionTokens: data.usage?.completion_tokens || 0,
+    totalTokens: data.usage?.total_tokens || 0,
+  };
+
+  return { ...parseAiResponse(rawText), model: `openrouter/${model}`, usage };
+}
+
+// ─── CROSS-CHECK MODEL (วิเคราะห์ด้วย Gemini และเปรียบเทียบกับ OpenRouter หากมั่นใจต่ำ) ───
+export async function analyzeImageWithCrossCheck(imageBuffer, mimeType = "image/jpeg", userProfile = {}) {
+  // 1. วิเคราะห์หลักด้วย Gemini
+  let primaryResponse = await analyzeImage(imageBuffer, mimeType, userProfile);
+
+  const confidenceThreshold = Number(process.env.CONFIDENCE_THRESHOLD || 0.7);
+  const openRouterApiKey = process.env.OPENROUTER_API_KEY;
+
+  // หากไม่มี OPENROUTER_API_KEY หรือผลจาก Gemini มั่นใจสูงแล้ว ให้คืนค่า Gemini ได้เลย
+  if (!openRouterApiKey || (primaryResponse.ok && primaryResponse.data?.confidence >= confidenceThreshold)) {
+    return { ...primaryResponse, needsReview: false };
+  }
+
+  console.log(`[aiService] 🔍 ความมั่นใจ Gemini ต่ำกว่า threshold (${primaryResponse.data?.confidence ?? 0} < ${confidenceThreshold}) เริ่มเรียก OpenRouter สำหรับ Cross-Check...`);
+
+  try {
+    const secondaryResponse = await analyzeImageOpenRouter(imageBuffer, mimeType, userProfile);
+
+    if (!secondaryResponse.ok || !secondaryResponse.data?.detected) {
+      console.warn("[aiService] ⚠️ OpenRouter วิเคราะห์ไม่สำเร็จ ใช้ผลลัพธ์ Gemini และติดธง needsReview");
+      return { ...primaryResponse, needsReview: true, crossCheckNotes: "OpenRouter ไม่พบข้อมูล" };
+    }
+
+    const gScore = Number(primaryResponse.data?.result?.score || 0);
+    const oScore = Number(secondaryResponse.data?.result?.score || 0);
+    const scoreDiff = Math.abs(gScore - oScore);
+
+    console.log(`[aiService] 📊 ผลการ Cross-Check: Gemini Score=${gScore}, OpenRouter Score=${oScore} (ผลต่าง=${scoreDiff})`);
+
+    // หากคะแนนต่างกันเกิน 15 คะแนน หรือผลการตรวจจับไม่ตรงกัน -> ติดธง needsReview ให้แอดมินดู
+    const needsReview = scoreDiff > 15 || primaryResponse.data?.confidence < 0.6;
+
+    // เลือกใช้ผลลัพธ์ที่มี confidence สูงกว่า
+    const bestResponse = (secondaryResponse.data?.confidence || 0) > (primaryResponse.data?.confidence || 0)
+      ? secondaryResponse
+      : primaryResponse;
+
+    return {
+      ...bestResponse,
+      needsReview,
+      crossCheck: {
+        geminiScore: gScore,
+        openRouterScore: oScore,
+        scoreDiff,
+      },
+    };
+  } catch (err) {
+    console.warn(`[aiService] ⚠️ OpenRouter Cross-check เกิดข้อผิดพลาด: ${err.message}`);
+    return { ...primaryResponse, needsReview: true, crossCheckNotes: err.message };
+  }
+}
+
 export function parseAiResponse(rawText) {
   if (!rawText) {
     return { ok: false, error: "AI_EMPTY_RESPONSE" };
@@ -177,3 +290,4 @@ export function validateAiResult(aiData, confidenceThreshold = 0.7) {
 
   return { valid: problems.length === 0, problems };
 }
+

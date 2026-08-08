@@ -15,7 +15,10 @@ const DEFAULT_CONFIG = {
   planMode: "free", // "free" | "paid"
   currency: "USD",
   defaultRates: { inputPer1M: 0, outputPer1M: 0 },
-  modelRates: {}
+  modelRates: {},
+  // โควต้าจำนวนคำขอสูงสุดต่อวัน (Requests Per Day) ของแต่ละโมเดล — ไม่ตั้งค่าเริ่มต้นให้เพราะตัวเลขจริงของ Google
+  // เปลี่ยนแปลงได้ตลอดเวลา แอดมินต้องเช็คค่าล่าสุดจาก https://ai.google.dev/gemini-api/docs/rate-limits แล้วกรอกเอง
+  dailyQuotaLimits: {}
 };
 
 let cachedConfig = null;
@@ -30,7 +33,8 @@ export function getPricingConfig() {
         planMode: data.planMode || DEFAULT_CONFIG.planMode,
         currency: data.currency || DEFAULT_CONFIG.currency,
         defaultRates: { ...DEFAULT_CONFIG.defaultRates, ...(data.defaultRates || {}) },
-        modelRates: { ...(data.modelRates || {}) }
+        modelRates: { ...(data.modelRates || {}) },
+        dailyQuotaLimits: { ...(data.dailyQuotaLimits || {}) }
       };
       return cachedConfig;
     }
@@ -48,7 +52,8 @@ export function savePricingConfig(newConfig) {
       planMode: newConfig.planMode || DEFAULT_CONFIG.planMode,
       currency: newConfig.currency || DEFAULT_CONFIG.currency,
       defaultRates: { ...DEFAULT_CONFIG.defaultRates, ...(newConfig.defaultRates || {}) },
-      modelRates: { ...(newConfig.modelRates || {}) }
+      modelRates: { ...(newConfig.modelRates || {}) },
+      dailyQuotaLimits: { ...(newConfig.dailyQuotaLimits || {}) }
     };
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(updated, null, 2), "utf8");
     cachedConfig = updated;
@@ -57,6 +62,18 @@ export function savePricingConfig(newConfig) {
     console.error("[apiPricingConfigService] Save error:", err.message);
     return { ok: false, error: err.message };
   }
+}
+
+// ราคามาตรฐานกลางตามประกาศของ Google / OpenRouter (สำหรับให้แอดมินคลิกกดเลือก Preset)
+export const OFFICIAL_PRESETS = {
+  "gemini-2.5-flash": { name: "Google Gemini 2.5 Flash", inputPer1M: 0.075, outputPer1M: 0.30 },
+  "gemini-3.5-flash-lite": { name: "Google Gemini 3.5 Flash Lite", inputPer1M: 0.075, outputPer1M: 0.30 },
+  "gemini-3.6-flash": { name: "Google Gemini 3.6 Flash", inputPer1M: 0.15, outputPer1M: 0.60 },
+  "openrouter/openai/gpt-4o-mini": { name: "OpenRouter (GPT-4o mini)", inputPer1M: 0.15, outputPer1M: 0.60 },
+};
+
+export function getPricingPresets() {
+  return OFFICIAL_PRESETS;
 }
 
 // คำนวณยอดเงินโดยประมาณจาก token (หากเป็นโหมดใช้งานฟรี planMode === "free" คืนค่า 0 ฟรี 100%)
@@ -70,3 +87,4 @@ export function estimateCost(modelName, promptTokens, completionTokens) {
   const outputCost = (completionTokens / 1_000_000) * (rates.outputPer1M || 0);
   return inputCost + outputCost;
 }
+

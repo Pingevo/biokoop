@@ -6,6 +6,7 @@ import webhookRoute from "./routes/webhook.js";
 import resultsRoute from "./routes/results.js";
 import adminRoute from "./routes/admin.js";
 import registerRoute from "./routes/register.js";
+import healthRoute from "./routes/health.js";
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use("/webhook", webhookRoute);
 app.use(express.json());
 app.use(express.static("public"));
 
+app.use("/health", healthRoute);
 app.use("/", registerRoute);
 app.use("/results", resultsRoute);
 app.use("/admin", adminRoute);

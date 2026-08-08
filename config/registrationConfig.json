@@ -1,0 +1,14 @@
+{
+  "mode": "any",
+  "isRequired": true,
+  "preventDuplicate": false,
+  "whitelistOnly": true,
+  "verifyWithDbWallet": true,
+  "customLabel": "",
+  "helpText": "กรุณาระบุเลขอุปกรณ์หรือคำสั่งซื้อของคุณเพื่อยืนยันการรับบริการ",
+  "allowedTypes": [
+    "imei",
+    "order_sn",
+    "order_id"
+  ]
+}

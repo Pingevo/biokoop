@@ -77,19 +77,6 @@ function esc(s = "") {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// เส้นคลื่นชีพจร (heartbeat/AI data) ตกแต่งพื้นหลัง hero แบบจางๆ
-function pulseLine(y, w, col, opacity) {
-  const x0 = 0;
-  const seg = w / 12;
-  let d = `M${x0} ${y}`;
-  for (let i = 0; i < 12; i++) {
-    const x = x0 + i * seg;
-    if (i % 4 === 1) d += ` L${x + seg * 0.25} ${y - 46} L${x + seg * 0.5} ${y + 60} L${x + seg * 0.75} ${y}`;
-    else d += ` L${x + seg} ${y}`;
-  }
-  return `<path d="${d}" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" opacity="${opacity}"/>`;
-}
-
 export function renderRichMenuImage() {
   const W = RICH_MENU_WIDTH;
   const H = RICH_MENU_HEIGHT;
@@ -102,9 +89,7 @@ export function renderRichMenuImage() {
 
   const hero = `
 <rect x="0" y="0" width="${W}" height="${heroH + 90}" fill="url(#heroGrad)"/>
-<circle cx="${W - 260}" cy="120" r="420" fill="url(#glowRed)"/>
-<circle cx="230" cy="${heroH - 120}" r="360" fill="url(#glowRed)"/>
-${pulseLine(camCy + 460, W, C.white, 0.08)}
+<circle cx="${W - 200}" cy="60" r="480" fill="url(#glowRed)"/>
 
 <!-- AI badge -->
 <rect x="100" y="80" width="540" height="108" rx="54" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>

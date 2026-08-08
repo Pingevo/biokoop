@@ -25,3 +25,15 @@ export function openDownloadStream(bucketName, id) {
   const bucket = getBucket(bucketName);
   return bucket.openDownloadStream(new mongoose.Types.ObjectId(id));
 }
+
+// ดึงข้อมูล metadata และขนาดไฟล์จาก GridFS
+export async function getFileMetadata(bucketName, id) {
+  try {
+    if (!id) return null;
+    const bucket = getBucket(bucketName);
+    const files = await bucket.find({ _id: new mongoose.Types.ObjectId(id) }).toArray();
+    return files[0] || null;
+  } catch {
+    return null;
+  }
+}

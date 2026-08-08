@@ -165,15 +165,44 @@ function stars(cx, cy, filled, total = 5, sz = 21, C = {}) {
 }
 
 // ─── Text Wrap Utility ───
+function visualLength(str = "") {
+  // ลบสระบน/ล่าง และวรรณยุกต์ไทยที่ไม่กินความกว้างแนวนอนออก ก่อนคำนวณความกว้างตัวอักษร
+  const baseOnly = str.replace(/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E\u0E4D]/g, "");
+  return baseOnly.length;
+}
+
 function wrapText(text, x, y, maxW, lh, fs, col, maxLines = 3) {
   const clean = prepareTextForSvg(text);
-  const cw = Number(fs) * 0.5;
-  const mxc = Math.max(12, Math.floor(maxW / cw));
-  const words = clean.split(/(?<=\s)|(?<=[.,!?:;])/);
+  const cw = Number(fs) * 0.55; // ความกว้างเฉลี่ยของฟอนต์ Kanit
+  const mxc = Math.max(10, Math.floor(maxW / cw));
+
+  // แยกคำตามช่องว่าง หรือสัญลักษณ์
+  const rawTokens = clean.split(/(?<=\s)|(?<=[.,!?:;])/);
+
+  // ถ้าเจอคำที่ยาวเกิน mxc (เช่น ข้อความภาษาไทยยาวติดกันโดยไม่มีช่องว่าง) ให้หั่นเป็นชิ้นย่อยๆ ตามตัวอักษร
+  const words = [];
+  for (const tok of rawTokens) {
+    if (visualLength(tok) > mxc) {
+      let sub = "";
+      for (const ch of tok) {
+        if (visualLength(sub + ch) > mxc && sub) {
+          words.push(sub);
+          sub = ch;
+        } else {
+          sub += ch;
+        }
+      }
+      if (sub) words.push(sub);
+    } else {
+      words.push(tok);
+    }
+  }
+
   const lines = [];
   let cur = "";
+
   for (const w of words) {
-    if ((cur + w).length > mxc && cur) {
+    if (visualLength(cur + w) > mxc && cur) {
       lines.push(cur.trim());
       cur = w;
     } else {
@@ -181,9 +210,22 @@ function wrapText(text, x, y, maxW, lh, fs, col, maxLines = 3) {
     }
   }
   if (cur) lines.push(cur.trim());
-  return lines.slice(0, maxLines).map((l, i) =>
-    `<text x="${x}" y="${y + i * Number(lh)}" font-family="Kanit" font-weight="400" font-size="${fs}" fill="${col}">${esc(l)}</text>`
-  ).join("\n");
+
+  // ตัดบรรทัดตาม maxLines และใส่ ... หากมีข้อความเกิน
+  const resultLines = lines.slice(0, maxLines);
+  if (lines.length > maxLines && resultLines.length > 0) {
+    let last = resultLines[resultLines.length - 1];
+    if (last.length > mxc - 3) {
+      last = last.slice(0, Math.max(0, mxc - 3));
+    }
+    resultLines[resultLines.length - 1] = last.trim() + "...";
+  }
+
+  return resultLines
+    .map((l, i) =>
+      `<text x="${x}" y="${y + i * Number(lh)}" font-family="Kanit" font-weight="400" font-size="${fs}" fill="${col}">${esc(l)}</text>`
+    )
+    .join("\n");
 }
 
 // ─── ZONE 2: Stat Card Items ───
@@ -274,48 +316,66 @@ function parseSleepTimes(sleepTimeRange = "") {
 
 // ─── DYNAMIC HYPNOGRAM GENERATOR ───
 function generateDynamicHypnogram(data) {
-  const dPct = (data.deepSleepPercent || (data.deepSleep && data.deepSleep.percent) || 20) / 100;
-  const lPct = (data.lightSleepPercent || (data.lightSleep && data.lightSleep.percent) || 60) / 100;
-  const rPct = (data.remSleepPercent || (data.remSleep && data.remSleep.percent) || 20) / 100;
+  // หาก AI มีข้อมูล hypnogramSegments ส่งมาโดยตรง ให้ใช้ข้อมูลจริงนั้น
+  if (Array.isArray(data.hypnogramSegments) && data.hypnogramSegments.length > 0) {
+    const rawSegs = data.hypnogramSegments;
+    const totalDuration = rawSegs.reduce((acc, s) => acc + (s.duration || 1), 0);
+    let cur = 0;
+    const segments = [];
+    rawSegs.forEach((seg) => {
+      const durPct = (seg.duration || 1) / totalDuration;
+      const level = seg.stage === "deep" ? 3 : seg.stage === "rem" ? 1 : 2;
+      segments.push({ s: cur, e: Math.min(1.0, cur + durPct), level });
+      cur += durPct;
+    });
+    if (segments.length > 0) segments[segments.length - 1].e = 1.0;
+    return { segments, restlessPcts: data.restlessPcts || [0.25, 0.65], awakePcts: data.awakePcts || [0.0, 0.99] };
+  }
+
+  // คำนวณอัตราส่วนเปอร์เซ็นต์จริงที่ AI สกัดได้จากภาพ
+  const rawDeep = (data.deepSleepPercent || (data.deepSleep && data.deepSleep.percent) || 20);
+  const rawLight = (data.lightSleepPercent || (data.lightSleep && data.lightSleep.percent) || 55);
+  const rawRem = (data.remSleepPercent || (data.remSleep && data.remSleep.percent) || 20);
+  const rawAwake = (data.awakePercent || (data.awake && data.awake.percent) || 5);
   const score = Number(data.score) || 75;
 
-  const seed = (score * 37 + (data.sleepTime ? data.sleepTime.length * 13 : 42)) % 100;
-  const numCycles = 4;
+  const total = (rawDeep + rawLight + rawRem) || 100;
+  const normDeep = rawDeep / total;
+  const normLight = rawLight / total;
+  const normRem = rawRem / total;
 
-  const total = dPct + lPct + rPct || 1;
-  const normDeep = dPct / total;
-  const normLight = lPct / total;
-  const normRem = rPct / total;
+  // จำลอง วงจรการนอน (Sleep Cycles) 4 รอบโดยปรับสัดส่วนในแต่ละรอบให้ตรงตาม normDeep, normLight, normRem รวมสุทธิ
+  const numCycles = 4;
+  const cycleW = 1.0 / numCycles;
 
   const rawSegments = [];
   let cur = 0;
-  const cycleW = 1.0 / numCycles;
 
   for (let c = 0; c < numCycles; c++) {
-    const deepWeight = c < 2 ? normDeep * 1.4 : normDeep * 0.4;
-    const remWeight = c >= 2 ? normRem * 1.5 : normRem * 0.5;
+    // ช่วงต้นคืน (c < 2) หลับลึกมากกว่า ช่วงปลายคืน (c >= 2) REM มากกว่า
+    const deepWeight = c < 2 ? normDeep * 1.5 : normDeep * 0.5;
+    const remWeight = c >= 2 ? normRem * 1.6 : normRem * 0.4;
     const lightWeight = normLight;
 
     const sumW = deepWeight + remWeight + lightWeight || 1;
     const deepDur = (deepWeight / sumW) * cycleW;
     const remDur = (remWeight / sumW) * cycleW;
     const lightDur = (lightWeight / sumW) * cycleW;
-
     const halfLight = lightDur / 2;
 
-    if (halfLight > 0.01) {
+    if (halfLight > 0.005) {
       rawSegments.push({ s: cur, e: cur + halfLight, level: 2 });
       cur += halfLight;
     }
-    if (deepDur > 0.01) {
+    if (deepDur > 0.005) {
       rawSegments.push({ s: cur, e: cur + deepDur, level: 3 });
       cur += deepDur;
     }
-    if (halfLight > 0.01) {
+    if (halfLight > 0.005) {
       rawSegments.push({ s: cur, e: cur + halfLight, level: 2 });
       cur += halfLight;
     }
-    if (remDur > 0.01) {
+    if (remDur > 0.005) {
       rawSegments.push({ s: cur, e: cur + remDur, level: 1 });
       cur += remDur;
     }
@@ -325,6 +385,7 @@ function generateDynamicHypnogram(data) {
     rawSegments[rawSegments.length - 1].e = 1.0;
   }
 
+  // รวมบล็อกที่ต่อเนื่องกันในระดับเดียวกัน
   const segments = [];
   for (const seg of rawSegments) {
     if (segments.length > 0 && segments[segments.length - 1].level === seg.level) {
@@ -334,15 +395,19 @@ function generateDynamicHypnogram(data) {
     }
   }
 
-  const restlessCount = Math.max(2, Math.min(10, Math.floor((100 - score) / 8)));
+  // คำนวณจุดกระสับกระส่าย (Restless) และตื่น (Awake) จากค่าคะแนนและ % การตื่นจริง
+  const restlessCount = Math.max(1, Math.min(8, Math.floor((100 - score) / 10)));
+  const seed = (score * 37 + 19) % 100;
   const restlessPcts = [];
   for (let i = 0; i < restlessCount; i++) {
-    const p = Number(((seed * 0.13 + i * 0.23 + 0.07) % 0.92 + 0.04).toFixed(3));
+    const p = Number(((seed * 0.13 + i * 0.27 + 0.08) % 0.88 + 0.06).toFixed(3));
     restlessPcts.push(p);
   }
 
   const awakePcts = [0.0];
-  if (score < 80) awakePcts.push(0.48);
+  if (rawAwake > 3 || score < 80) {
+    awakePcts.push(0.42);
+  }
   awakePcts.push(0.99);
 
   return { segments, restlessPcts, awakePcts };

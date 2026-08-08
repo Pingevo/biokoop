@@ -13,6 +13,11 @@ const REQUEST_STATUSES = [
 const requestSchema = new mongoose.Schema(
   {
     lineUserId: { type: String, required: true, index: true },
+    // ข้อมูลอุปกรณ์ / คำสั่งซื้อของคำขอนี้
+    imei: { type: String, default: "", index: true },
+    orderSn: { type: String, default: "", index: true },
+    orderId: { type: String, default: "", index: true },
+    verifiedIdentifier: { type: String, default: "", index: true },
     status: {
       type: String,
       enum: REQUEST_STATUSES,
@@ -30,6 +35,11 @@ const requestSchema = new mongoose.Schema(
     promptTokens: { type: Number, default: 0 },
     completionTokens: { type: Number, default: 0 },
     totalTokens: { type: Number, default: 0 },
+    // Ground Truth Feedback สำหรับพัฒนา/Fine-Tune AI
+    correctedResult: { type: mongoose.Schema.Types.Mixed },
+    correctedBy: { type: String },
+    correctedAt: { type: Date },
+    isDatasetVerified: { type: Boolean, default: false, index: true },
   },
   { timestamps: true }
 );

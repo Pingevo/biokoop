@@ -9,21 +9,55 @@ import {
   replyText,
   pushImage,
   pushText,
+  pushHealthAdviceFlex,
+  sendResultCardWithShare,
   showLoadingAnimation,
 } from "./lineService.js";
-import { analyzeImage, validateAiResult } from "./aiService.js";
-import { composeCard } from "./imageService.js";
+import { analyzeImageWithCrossCheck, validateAiResult } from "./aiService.js";
+import { composeCard, optimizeCardPng, optimizeImageForAi } from "./imageService.js";
 import { saveImage } from "./storageService.js";
+import { sendAdminAlert } from "./alertService.js";
 
 const CONFIDENCE_THRESHOLD = Number(process.env.CONFIDENCE_THRESHOLD || 0.7);
 const MIN_IMAGE_BYTES = 5 * 1024; // กันไฟล์เล็กผิดปกติ/เสีย
 
+// ─── CONCURRENCY QUEUE SYSTEM ───
+const MAX_CONCURRENT_JOBS = Number(process.env.MAX_CONCURRENT_AI_JOBS || 3);
+let activeJobs = 0;
+const jobQueue = [];
+
+function acquireSlot() {
+  if (activeJobs < MAX_CONCURRENT_JOBS) {
+    activeJobs++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => jobQueue.push(resolve));
+}
+
+function releaseSlot() {
+  activeJobs--;
+  if (jobQueue.length > 0) {
+    activeJobs++;
+    const next = jobQueue.shift();
+    next();
+  }
+}
+
+export function getQueueStats() {
+  return {
+    activeJobs,
+    queueLength: jobQueue.length,
+    maxConcurrent: MAX_CONCURRENT_JOBS,
+  };
+}
+
 // เรียกจาก webhook handler แบบไม่ await (ทำงานเบื้องหลังหลังตอบ 200 แล้ว)
 export async function processImageMessage({ lineUserId, messageId, replyToken }) {
+  await acquireSlot();
   let request;
   const startTime = Date.now();
   try {
-    console.log(`[pipeline] ⚡ เริ่มสปีดประมวลผลรูป messageId=${messageId}`);
+    console.log(`[pipeline] ⚡ เริ่มสปีดประมวลผลรูป messageId=${messageId} (Active Jobs: ${activeJobs}/${MAX_CONCURRENT_JOBS}, Queue: ${jobQueue.length})`);
 
     // 1. ตอบกลับผู้ใช้ทันทีภายใน 1 วินาทีแรกด้วย replyToken ให้ผู้ใช้ทราบว่าระบบได้รับภาพแล้ว
     replyText(
@@ -43,21 +77,27 @@ export async function processImageMessage({ lineUserId, messageId, replyToken })
 
     console.log(`[pipeline] ⚡ ดึงรูปสำเร็จ (${(imageBuffer.length / 1024).toFixed(1)} KB) ใน ${Date.now() - startTime}ms`);
 
-    // สร้าง Request Record ในฉากหลัง
+    // สร้าง Request Record พร้อมผูกข้อมูล IMEI / Order ID ของผู้ใช้ไว้ในบันทึกคำขอ
     request = new Request({
       lineUserId,
       status: REQUEST_STATUS.ANALYZING,
+      imei: user?.imei || "",
+      orderSn: user?.orderSn || "",
+      orderId: user?.orderId || "",
+      verifiedIdentifier: user?.verifiedIdentifier || "",
     });
     request.save().catch(() => {});
 
-    // 3. ส่ง AI Gemini วิเคราะห์ผล และเซฟรูปต้นฉบับลง GridFS ไปพร้อมกัน (Parallel)
-    console.log(`[pipeline] ⚡ ส่ง AI วิเคราะห์ และเซฟรูปต้นฉบับ...`);
+    // 3. Optimize รูปภาพก่อนส่ง AI (ย่อขนาด ปรับ JPEG) + ส่ง AI วิเคราะห์ + เซฟรูปต้นฉบับลง GridFS
+    console.log(`[pipeline] ⚡ Optimize รูปภาพและส่ง AI วิเคราะห์...`);
+    const optimizedImageBuffer = await optimizeImageForAi(imageBuffer);
+
     const [origId, aiResponse] = await Promise.all([
       saveImage("original_images", imageBuffer, `${messageId}.jpg`, "image/jpeg").catch((err) => {
         console.error("[pipeline] saveImage(original_images) error:", err);
         return null;
       }),
-      analyzeImage(imageBuffer, "image/jpeg", user || {}),
+      analyzeImageWithCrossCheck(optimizedImageBuffer, "image/jpeg", user || {}),
     ]);
 
     if (origId) {
@@ -82,18 +122,19 @@ export async function processImageMessage({ lineUserId, messageId, replyToken })
       return;
     }
 
-    // 4. ส่งข้อความบทวิเคราะห์เชิงลึกหาผู้ใช้ทันทีที่ AI ประมวลผลเสร็จ (ผู้ใช้ได้รับข้อความใน ~2-3 วินาที)
-    const healthAdvice = aiResponse.data?.result?.healthAdvice;
-    if (healthAdvice) {
-      pushText(lineUserId, healthAdvice).catch((err) =>
-        console.warn("[pipeline] pushText healthAdvice error:", err.message)
+    // 4. ส่ง Flex Message สรุปร่างกายและบทวิเคราะห์เชิงลึกหาผู้ใช้ทันทีที่ AI ประมวลผลเสร็จ (ผู้ใช้ได้รับข้อความใน ~2-3 วินาที)
+    const aiResult = aiResponse.data?.result || {};
+    if (aiResult.healthAdvice || aiResult.aiSummary) {
+      pushHealthAdviceFlex(lineUserId, aiResult).catch((err) =>
+        console.warn("[pipeline] pushHealthAdviceFlex error:", err.message)
       );
     }
     console.log(`[pipeline] ⚡ AI วิเคราะห์สำเร็จใน ${Date.now() - startTime}ms (ส่งข้อความแนะนำแล้ว)`);
 
-    // 5. ประกอบรูปการ์ด Infographic และส่งภาพตามหลังไปทันที
+    // 5. ประกอบรูปการ์ด Infographic และบีบอัดขนาดไฟล์ก่อนเซฟลง GridFS
     const cardData = mapAiResultToCardData(aiResponse.data.result);
-    const pngBuffer = composeCard(cardData);
+    const rawPngBuffer = composeCard(cardData);
+    const pngBuffer = await optimizeCardPng(rawPngBuffer);
 
     // เซฟรูปลง GridFS
     const resultImageId = await saveImage(
@@ -105,8 +146,8 @@ export async function processImageMessage({ lineUserId, messageId, replyToken })
 
     const imageUrl = `${process.env.PUBLIC_BASE_URL}/results/${resultImageId}.png`;
 
-    // ส่งรูปการ์ดผลลัพธ์ตามหลังมาติดๆ
-    await pushImage(lineUserId, imageUrl);
+    // ส่งรูปการ์ดผลลัพธ์พร้อมปุ่มแชร์และ Quick Reply ตามหลังมาติดๆ
+    await sendResultCardWithShare(lineUserId, imageUrl);
     console.log(`[pipeline] 🚀 ส่งรูปการ์ดเรียบร้อย! (ใช้เวลาทั้งหมด ${Date.now() - startTime}ms)`);
 
     await logStep({
@@ -117,20 +158,37 @@ export async function processImageMessage({ lineUserId, messageId, replyToken })
       data: { imageUrl },
     });
 
-    // บันทึกสถานะเสร็จสิ้นในฉากหลัง
-    request.status = REQUEST_STATUS.SENT;
+    // บันทึกสถานะเสร็จสิ้นในฉากหลัง (หากติดธง needsReview ให้ตั้งเป็น NEEDS_REVIEW)
+    request.status = aiResponse.needsReview ? REQUEST_STATUS.NEEDS_REVIEW : REQUEST_STATUS.SENT;
     request.aiResult = aiResponse.data?.result;
     request.resultImageId = resultImageId;
     request.completedAt = new Date();
     request.save().catch(() => {});
+
+    // เก็บแอป/แบรนด์ Smart Watch ที่ AI ตรวจจับได้ล่าสุดไว้ที่โปรไฟล์ผู้ใช้ เพื่อดูสถิติสินค้า/แอปที่ลูกค้าใช้งาน
+    if (aiResult.appName) {
+      User.findOneAndUpdate(
+        { lineUserId },
+        { $set: { lastDetectedApp: aiResult.appName, lastDetectedAppAt: new Date() } }
+      ).catch(() => {});
+    }
   } catch (err) {
     console.error("[pipeline] error:", err);
-    const isQuotaError = err.message?.includes("429") || err.message?.includes("โควต้า");
+    const isQuotaError = err.message?.includes("429") || err.message?.includes("โควต้า") || err.message?.includes("RESOURCE_EXHAUSTED");
     const userMsg = isQuotaError
       ? "ขออภัยค่ะ ขณะนี้ระบบ AI มีผู้ใช้งานเป็นจำนวนมาก กรุณารอสักครู่แล้วส่งภาพใหม่อีกครั้งนะคะ 🌿"
       : "ขออภัยค่ะ เกิดข้อผิดพลาดในการประมวลผลรูปภาพ กรุณาลองส่งภาพใหม่อีกครั้งนะคะ";
 
     await pushText(lineUserId, userMsg).catch(() => {});
+
+    // ส่งการแจ้งเตือนหา Admin เมื่อเกิดวิกฤต (เช่น โควต้าเต็ม)
+    sendAdminAlert({
+      key: isQuotaError ? "GEMINI_QUOTA_EXCEEDED" : "PIPELINE_ERROR",
+      title: isQuotaError ? "Gemini API Rate Limit / โควต้าเต็ม" : "Pipeline Processing Error",
+      message: `เกิดข้อผิดพลาดในการวิเคราะห์รูปภาพของผู้ใช้ ${lineUserId}`,
+      level: isQuotaError ? "CRITICAL" : "WARNING",
+      details: err.message,
+    }).catch(() => {});
 
     if (request) {
       request.status = REQUEST_STATUS.FAILED;
@@ -145,8 +203,11 @@ export async function processImageMessage({ lineUserId, messageId, replyToken })
         errorDetail: err.message,
       }).catch(() => {});
     }
+  } finally {
+    releaseSlot();
   }
 }
+
 
 // เลือกใช้ Reply API ถ้ายังทันเวลา ไม่งั้นสลับไป Push API พร้อม log ทั้งสองแบบ
 async function safeReplyOrPush(replyToken, lineUserId, text) {

@@ -5,13 +5,13 @@ const lineMessageLogSchema = new mongoose.Schema(
     lineUserId: { type: String, required: true, index: true },
     sendType: {
       type: String,
-      enum: ["reply", "push"],
+      enum: ["reply", "push", "incoming"],
       required: true,
       index: true,
     },
     messageType: {
       type: String,
-      enum: ["text", "image", "flex"],
+      enum: ["text", "image", "flex", "flex_image_share", "sticker", "file", "follow", "other"],
       required: true,
       index: true,
     },
