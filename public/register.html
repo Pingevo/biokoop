@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ลงทะเบียนผู้ใช้งาน - biokoop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #ffffff;
+      --bg-card: #ffffff;
+      --bg-input: #f8f8f8;
+      --border-color: #e5e5e5;
+      --text-main: #18181b;
+      --text-muted: #71717a;
+      --primary: #dc2626;
+      --primary-hover: #b91c1c;
+      --accent: #dc2626;
+      --danger: #dc2626;
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Kanit', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 16px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 480px;
+      padding: 28px 24px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 76px;
+      height: 76px;
+      margin-bottom: 14px;
+    }
+
+    .logo-badge img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 6px 16px rgba(220, 38, 38, 0.25));
+    }
+
+    .title {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .user-profile-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: var(--bg-input);
+      padding: 8px 16px;
+      border-radius: 20px;
+      margin: 16px auto 0;
+      width: fit-content;
+      border: 1px solid var(--border-color);
+    }
+
+    .user-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 20px 0 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+
+    .required {
+      color: var(--primary);
+      margin-left: 2px;
+    }
+
+    .optional-tag {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: normal;
+    }
+
+    input[type="text"],
+    input[type="date"],
+    input[type="tel"],
+    select {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      color: var(--text-main);
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 15px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--primary);
+    }
+
+    .gender-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .gender-option {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 4px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--text-main);
+      transition: all 0.2s;
+    }
+
+    .gender-option input {
+      display: none;
+    }
+
+    .gender-option.active {
+      background: rgba(220, 38, 38, 0.08);
+      border-color: var(--primary);
+      color: var(--primary);
+      font-weight: 500;
+    }
+
+    .already-registered-notice {
+      background: rgba(220, 38, 38, 0.06);
+      border: 1px solid rgba(220, 38, 38, 0.2);
+      color: var(--text-main);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 18px;
+    }
+
+    .pdpa-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 14px;
+      max-height: 180px;
+      overflow-y: auto;
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    .pdpa-consent-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 12px;
+      cursor: pointer;
+    }
+
+    .pdpa-consent-label input[type="checkbox"] {
+      margin-top: 3px;
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .pdpa-consent-label span {
+      font-size: 13px;
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn-submit {
+      width: 100%;
+      background: linear-gradient(135deg, #dc2626, #18181b);
+      color: #ffffff;
+      border: none;
+      padding: 14px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 24px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    }
+
+    .btn-submit:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .error-msg {
+      color: var(--danger);
+      font-size: 13px;
+      margin-top: 12px;
+      text-align: center;
+      display: none;
+    }
+
+    /* Success Modal Overlay */
+    .success-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(255, 255, 255, 0.97);
+      color: var(--text-main);
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+      text-align: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .success-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .success-logo {
+      width: 56px;
+      height: 56px;
+      object-fit: contain;
+      margin-bottom: 16px;
+    }
+
+    .line-return-btn {
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      max-width: 280px;
+      background: #06C755;
+      box-shadow: 0 4px 12px rgba(6, 199, 85, 0.3);
+    }
+
+    .line-return-btn:hover {
+      box-shadow: 0 4px 12px rgba(6, 199, 85, 0.3);
+    }
+
+    .line-return-btn .line-icon {
+      width: 20px;
+      height: 20px;
+      filter: brightness(0) invert(1);
+    }
+
+    .success-icon {
+      width: 72px;
+      height: 72px;
+      background: rgba(220, 38, 38, 0.08);
+      border: 2px solid var(--accent);
+      color: var(--accent);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 36px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="header">
+      <div class="logo-badge">
+        <img src="/assets/logo/kie-logo-wh.png" alt="Logo">
+      </div>
+      <h1 class="title" id="pageTitle">ลงทะเบียนผู้ใช้งาน</h1>
+      <p class="subtitle" id="pageSubtitle">กรอกข้อมูลสั้นๆ เพื่อเริ่มใช้งานระบบวิเคราะห์ biokoop</p>
+
+      <div id="userBadge" class="user-profile-badge" style="display: none;">
+        <img id="userAvatar" src="" class="user-avatar" alt="">
+        <span id="userDisplayName" style="font-size: 13px; font-weight: 500;"></span>
+      </div>
+    </div>
+
+    <div id="alreadyRegisteredNotice" class="already-registered-notice" style="display: none;">
+      ℹ️ คุณลงทะเบียนไว้แล้ว ระบบได้ดึงข้อมูลเดิมของคุณมาแสดงไว้ให้ — การกดยืนยันด้านล่างคือการ <strong>แก้ไขข้อมูล</strong> ไม่ใช่การลงทะเบียนใหม่
+    </div>
+
+    <form id="regForm" onsubmit="submitForm(event)">
+      <input type="hidden" id="lineUserId" name="lineUserId">
+
+      <!-- Required Fields Section -->
+      <div class="section-title">📌 ข้อมูลที่จำเป็น (Required)</div>
+
+      <div class="form-group">
+        <label>ชื่อเล่น <span class="required">*</span></label>
+        <input type="text" id="nickname" required placeholder="เช่น น้องบี, ต้น">
+      </div>
+
+      <div class="form-group">
+        <label>วันเกิด <span class="required">*</span></label>
+        <input type="date" id="birthdate" required>
+      </div>
+
+      <div class="form-group">
+        <label>เบอร์โทรศัพท์ <span class="required">*</span></label>
+        <input type="tel" id="phone" required placeholder="0812345678" maxlength="10">
+      </div>
+
+      <!-- Optional Fields Section -->
+      <div class="section-title">📝 ข้อมูลเพิ่มเติม <span class="optional-tag">(ไม่บังคับ)</span></div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <div class="form-group">
+          <label>ชื่อจริง <span class="optional-tag">(ถ้ามี)</span></label>
+          <input type="text" id="firstName" placeholder="ชื่อจริง">
+        </div>
+        <div class="form-group">
+          <label>นามสกุล <span class="optional-tag">(ถ้ามี)</span></label>
+          <input type="text" id="lastName" placeholder="นามสกุล">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>เพศ <span class="optional-tag">(ถ้ามี)</span></label>
+        <div class="gender-grid">
+          <label class="gender-option active" onclick="selectGender('unspecified', this)">
+            <input type="radio" name="gender" value="unspecified" checked> ไม่ระบุ
+          </label>
+          <label class="gender-option" onclick="selectGender('male', this)">
+            <input type="radio" name="gender" value="male"> ชาย
+          </label>
+          <label class="gender-option" onclick="selectGender('female', this)">
+            <input type="radio" name="gender" value="female"> หญิง
+          </label>
+          <label class="gender-option" onclick="selectGender('other', this)">
+            <input type="radio" name="gender" value="other"> อื่นๆ
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>จังหวัดที่อาศัยอยู่ <span class="optional-tag">(ถ้ามี)</span></label>
+        <select id="province">
+          <option value="">-- เลือกจังหวัด --</option>
+        </select>
+      </div>
+
+      <!-- PDPA Consent Section -->
+      <div class="section-title">🔒 ความยินยอมตาม PDPA</div>
+
+      <div class="pdpa-box">
+        <p style="margin-bottom: 8px;"><strong>biokoop</strong> เก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคลของท่านดังนี้:</p>
+        <ul style="padding-left: 18px; display: flex; flex-direction: column; gap: 4px;">
+          <li>ข้อมูลที่กรอกในแบบฟอร์มนี้ (ชื่อเล่น วันเกิด เบอร์โทรศัพท์ ชื่อ-นามสกุล เพศ จังหวัด)</li>
+          <li>ข้อมูลโปรไฟล์ LINE (ชื่อที่แสดง รูปโปรไฟล์)</li>
+          <li><strong>ข้อมูลสุขภาพ</strong> ที่วิเคราะห์ได้จากภาพหน้าจอผลการนอน/Smart Watch ที่ท่านส่งเข้ามา (ถือเป็นข้อมูลอ่อนไหวตามกฎหมาย)</li>
+        </ul>
+        <p style="margin-top: 8px;">เพื่อวัตถุประสงค์ในการให้บริการวิเคราะห์และสรุปผลข้อมูลสุขภาพการนอนผ่าน LINE เท่านั้น ระบบจะไม่เปิดเผยข้อมูลของท่านต่อบุคคลภายนอก ยกเว้นผู้ให้บริการที่จำเป็นต่อการประมวลผล (LINE, Google Gemini AI) ท่านสามารถขอลบ/แก้ไขข้อมูลได้โดยติดต่อทีมงานผ่านแชท LINE</p>
+      </div>
+
+      <label class="pdpa-consent-label">
+        <input type="checkbox" id="pdpaConsent" required>
+        <span>ข้าพเจ้าได้อ่านและยินยอมให้ biokoop เก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคลของข้าพเจ้า รวมถึงข้อมูลสุขภาพซึ่งเป็นข้อมูลอ่อนไหว ตามที่ระบุไว้ข้างต้น <span class="required">*</span></span>
+      </label>
+
+      <button type="submit" class="btn-submit" id="submitBtn" disabled><span id="submitBtnText">ยืนยันลงทะเบียน</span></button>
+      <div id="errorMsg" class="error-msg"></div>
+    </form>
+  </div>
+
+  <!-- Success Overlay -->
+  <div id="successOverlay" class="success-overlay">
+    <img src="/assets/logo/kie-logo-wh.png" alt="biokoop" class="success-logo">
+    <div class="success-icon">✓</div>
+    <h2 style="font-size: 24px; font-weight: 600; margin-bottom: 8px;" id="successTitle">ลงทะเบียนเรียบร้อยแล้ว!</h2>
+    <p style="color: var(--text-muted); font-size: 15px; max-width: 360px; margin-bottom: 24px;" id="successMsg">
+      ขอบคุณสำหรับการลงทะเบียนครับ สามารถปิดหน้านี้และกลับไปยังแชท LINE เพื่อเริ่มถ่ายรูปวิเคราะห์ผลได้ทันทีเลยค่ะ 🌿
+    </p>
+    <a href="https://line.me/R/ti/p/@116zezfn" class="btn-submit line-return-btn" onclick="return closeBackToLine(event)">
+      <img src="/assets/logo/line-logo.svg" alt="LINE" class="line-icon">
+      <span>กลับไปที่ LINE</span>
+    </a>
+  </div>
+
+  <script>
+    const provinces = [
+      "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น", "จันทบุรี",
+      "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตราด",
+      "ตาก", "นครนายก", "นครปฐม", "นครพนม", "นครราชสีมา", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี",
+      "นราธิวาส", "น่าน", "บึงกาฬ", "บุรีรัมย์", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปราจีนบุรี", "ปัตตานี",
+      "พระนครศรีอยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์",
+      "แพร่", "ภูเก็ต", "มหาสารคาม", "มุกดาหาร", "แม่ฮ่องสอน", "ยโสธร", "ยะลา", "ร้อยเอ็ด", "ระนอง",
+      "ระยอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "เลย", "ศรีสะเกษ", "สกลนคร", "สงขลา", "สตูล",
+      "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย",
+      "สุพรรณบุรี", "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ",
+      "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
+    ];
+
+    let selectedGenderVal = 'unspecified';
+    let isEditMode = false;
+
+    // พาไปที่ห้องแชท biokoop OA โดยตรง (ห้องแชท LINE เป็นหน้าจอ native ของแอป ไม่ใช่ web history
+    // จึงต้องใช้ลิงก์เจาะจง OA แทน history.back() ถึงจะกลับไปห้องแชทเดิมได้จริง)
+    function closeBackToLine(e) {
+      e.preventDefault();
+      window.location.href = e.currentTarget.href;
+      return false;
+    }
+
+    function applyEditModeUI() {
+      document.getElementById('alreadyRegisteredNotice').style.display = 'block';
+      document.getElementById('pageTitle').textContent = 'แก้ไขข้อมูลผู้ใช้งาน';
+      document.getElementById('pageSubtitle').textContent = 'คุณลงทะเบียนไว้แล้ว แก้ไขข้อมูลด้านล่างแล้วกดบันทึกได้เลย';
+      document.getElementById('submitBtnText').textContent = 'บันทึกการแก้ไขข้อมูล';
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      // 1. Render Provinces
+      const provSelect = document.getElementById('province');
+      provinces.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p;
+        opt.textContent = p;
+        provSelect.appendChild(opt);
+      });
+
+      // 2. Get lineUserId from Query Param
+      const urlParams = new URLSearchParams(window.location.search);
+      const userId = urlParams.get('userId');
+      if (userId) {
+        document.getElementById('lineUserId').value = userId;
+        fetchUserInfo(userId);
+      } else {
+        showError('ไม่พบรหัสผู้ใช้ LINE กรุณาเปิดลิงก์จากข้อความแชท LINE อีกครั้ง');
+      }
+
+      // 3. เปิด/ปิดปุ่มยืนยันตามสถานะติ๊กยินยอม PDPA
+      const pdpaCheckbox = document.getElementById('pdpaConsent');
+      pdpaCheckbox.addEventListener('change', () => {
+        document.getElementById('submitBtn').disabled = !pdpaCheckbox.checked;
+      });
+    });
+
+    async function fetchUserInfo(userId) {
+      try {
+        const res = await fetch(`/api/register/user-info?userId=${encodeURIComponent(userId)}`);
+        const data = await res.json();
+        if (data.ok && data.user) {
+          if (data.user.displayName) {
+            document.getElementById('userDisplayName').textContent = data.user.displayName;
+            document.getElementById('userAvatar').src = data.user.pictureUrl || 'https://via.placeholder.com/28';
+            document.getElementById('userBadge').style.display = 'flex';
+          }
+          if (data.user.isRegistered) {
+            isEditMode = true;
+            applyEditModeUI();
+            // Fill existing values
+            if (data.user.nickname) document.getElementById('nickname').value = data.user.nickname;
+            if (data.user.phone) document.getElementById('phone').value = data.user.phone;
+            if (data.user.birthdate) document.getElementById('birthdate').value = data.user.birthdate;
+            if (data.user.firstName) document.getElementById('firstName').value = data.user.firstName;
+            if (data.user.lastName) document.getElementById('lastName').value = data.user.lastName;
+            if (data.user.province) document.getElementById('province').value = data.user.province;
+            if (data.user.pdpaConsent) {
+              document.getElementById('pdpaConsent').checked = true;
+              document.getElementById('submitBtn').disabled = false;
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    function selectGender(val, el) {
+      selectedGenderVal = val;
+      document.querySelectorAll('.gender-option').forEach(opt => opt.classList.remove('active'));
+      el.classList.add('active');
+    }
+
+    function showError(msg) {
+      const err = document.getElementById('errorMsg');
+      err.textContent = msg;
+      err.style.display = 'block';
+    }
+
+    async function submitForm(e) {
+      e.preventDefault();
+      document.getElementById('errorMsg').style.display = 'none';
+
+      const lineUserId = document.getElementById('lineUserId').value;
+      const nickname = document.getElementById('nickname').value.trim();
+      const birthdate = document.getElementById('birthdate').value;
+      const phone = document.getElementById('phone').value.trim();
+      const firstName = document.getElementById('firstName').value.trim();
+      const lastName = document.getElementById('lastName').value.trim();
+      const province = document.getElementById('province').value;
+      const pdpaConsent = document.getElementById('pdpaConsent').checked;
+
+      if (!lineUserId) {
+        return showError('ไม่พบรหัสผู้ใช้ LINE กรุณาเปิดลิงก์ผ่าน LINE OA');
+      }
+      if (!nickname) return showError('กรุณาระบุชื่อเล่น');
+      if (!birthdate) return showError('กรุณาระบุวันเกิด');
+      if (!phone || phone.replace(/[^0-9]/g, '').length < 9) return showError('กรุณาระบุเบอร์โทรศัพท์ 9-10 หลัก');
+      if (!pdpaConsent) return showError('กรุณายินยอมให้เก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคล (PDPA) ก่อนลงทะเบียน');
+
+      const submitBtn = document.getElementById('submitBtn');
+      submitBtn.disabled = true;
+      document.getElementById('submitBtnText').textContent = 'กำลังบันทึกข้อมูล...';
+
+      try {
+        const res = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lineUserId,
+            nickname,
+            birthdate,
+            phone,
+            firstName,
+            lastName,
+            gender: selectedGenderVal,
+            province,
+            pdpaConsent
+          })
+        });
+
+        const data = await res.json();
+        if (data.ok) {
+          const wasEdit = data.wasAlreadyRegistered === true;
+          document.getElementById('successTitle').textContent = wasEdit ? 'แก้ไขข้อมูลเรียบร้อยแล้ว!' : 'ลงทะเบียนเรียบร้อยแล้ว!';
+          document.getElementById('successMsg').textContent = wasEdit
+            ? 'อัปเดตข้อมูลของคุณเรียบร้อยแล้วค่ะ สามารถปิดหน้านี้และกลับไปยังแชท LINE ได้เลยนะคะ 🌿'
+            : 'ขอบคุณสำหรับการลงทะเบียนค่ะ สามารถปิดหน้านี้และกลับไปยังแชท LINE เพื่อเริ่มถ่ายรูปวิเคราะห์ผลได้ทันทีเลยค่ะ 🌿';
+          document.getElementById('successOverlay').classList.add('active');
+        } else {
+          showError(data.error || 'เกิดข้อผิดพลาดในการลงทะเบียน');
+          submitBtn.disabled = false;
+          document.getElementById('submitBtnText').textContent = isEditMode ? 'บันทึกการแก้ไขข้อมูล' : 'ยืนยันลงทะเบียน';
+        }
+      } catch (err) {
+        showError('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+        submitBtn.disabled = false;
+        document.getElementById('submitBtnText').textContent = isEditMode ? 'บันทึกการแก้ไขข้อมูล' : 'ยืนยันลงทะเบียน';
+      }
+    }
+  </script>
+</body>
+</html>

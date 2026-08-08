@@ -1,0 +1,24 @@
+{
+  "name": "biokoop",
+  "version": "1.0.0",
+  "description": "LINE OA -> AI image analysis -> ส่งผลลัพธ์กลับเป็นรูปภาพ",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "worker": "node jobs/processor.js",
+    "setup:richmenu": "node scripts/setupRichMenu.js"
+  },
+  "dependencies": {
+    "@line/bot-sdk": "^9.4.2",
+    "@resvg/resvg-wasm": "^2.6.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongoose": "^8.5.0",
+    "pngjs": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

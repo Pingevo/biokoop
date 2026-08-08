@@ -1,0 +1,76 @@
+{
+  "canvasWidth": 1024,
+  "canvasHeight": 1536,
+  "colors": {
+    "navyDark": "#111111",
+    "greenAccent": "#DC2626",
+    "grayText": "#475569",
+    "grayLight": "#94A3B8",
+    "green": "#DC2626",
+    "greenDark": "#000000",
+    "greenLight": "#FEE2E2",
+    "greenBorder": "#FCA5A5",
+    "purple": "#7C3AED",
+    "purpleLight": "#F3E8FF",
+    "red": "#EF4444",
+    "redLight": "#FEE2E2",
+    "cyan": "#0284C7",
+    "cyanLight": "#E0F2FE",
+    "cyanBorder": "#38BDF8",
+    "blue": "#2563EB",
+    "blueLight": "#EFF6FF",
+    "yellow": "#CA8A04",
+    "yellowLight": "#FEF9C3",
+    "yellowBorder": "#FDE047",
+    "deepSleepBg": "#3730A3",
+    "lightSleepBg": "#3B82F6",
+    "remBg": "#E0F2FE",
+    "restlessBg": "#10B981",
+    "awakeBg": "#EF4444",
+    "bgCream": "#FFFFFF",
+    "cardBg": "#FFFFFF",
+    "border": "#E2E8F0",
+    "white": "#FFFFFF"
+  },
+  "textLabels": {
+    "headerSubtitle": "AI HEALTH INTELLIGENCE",
+    "headerSubtext": "คุณภาพการนอนที่ดี ช่วยสร้างรากฐานที่แข็งแรงให้กับวันของคุณ",
+    "sleepCompTitle": "องค์ประกอบการนอน",
+    "activitiesTitle": "วันนี้เหมาะกับ",
+    "tipsTitle": "TIPS",
+    "brandTitle": "Biokoop AI"
+  },
+  "sections": [
+    {
+      "id": "header",
+      "name": "ZONE 1 - HEADER & TITLE",
+      "visible": true
+    },
+    {
+      "id": "stats",
+      "name": "ZONE 2 - STAT ROW 3 คอลัมน์",
+      "visible": true
+    },
+    {
+      "id": "aiSummary",
+      "name": "ZONE 3 - AI SUMMARY BOX",
+      "visible": true
+    },
+    {
+      "id": "sleepComp",
+      "name": "ZONE 4 & 5 - องค์ประกอบการนอน & HYPNOGRAM CHART",
+      "visible": true
+    },
+    {
+      "id": "activities",
+      "name": "ZONE 6 - วันนี้เหมาะกับ",
+      "visible": true
+    },
+    {
+      "id": "tips",
+      "name": "ZONE 7 - TIPS BOX",
+      "visible": true
+    }
+  ],
+  "disclaimer": "หมายเหตุ: ข้อมูลจากอุปกรณ์สวมใส่ใช้สำหรับการติดตามสุขภาพทั่วไป ไม่สามารถใช้แทนคำแนะนำจากผู้เชี่ยวชาญได้"
+}

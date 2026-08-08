@@ -1,0 +1,2512 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>biokoop Admin Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #f8fafc;
+      --bg-card: #ffffff;
+      --bg-hover: #fef2f2;
+      --border-color: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --primary: #dc2626;
+      --primary-hover: #b91c1c;
+      --primary-light: #fef2f2;
+      --secondary: #000000;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --info: #0284c7;
+      --radius: 12px;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.04);
+      --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Kanit', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .header {
+      background: #ffffff;
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 16px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+      background: linear-gradient(135deg, #dc2626, #991b1b);
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 20px;
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+    }
+
+    .brand-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: -0.3px;
+    }
+
+    .brand-title span {
+      color: var(--primary);
+    }
+
+    .user-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: none;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      font-size: 14px;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(220, 38, 38, 0.25);
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+    }
+
+    .btn-outline {
+      background: #ffffff;
+      border: 1px solid var(--border-strong);
+      color: var(--text-main);
+    }
+
+    .btn-outline:hover {
+      background: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: #ffffff;
+    }
+
+    .btn-success:hover {
+      background: #15803d;
+    }
+
+    .btn-danger {
+      background: var(--danger);
+      color: #ffffff;
+    }
+
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+
+    /* Container & Layout */
+    .app-container {
+      display: flex;
+      flex: 1;
+    }
+
+    .sidebar {
+      width: 250px;
+      background: #ffffff;
+      border-right: 1px solid var(--border-color);
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .nav-item {
+      padding: 12px 16px;
+      border-radius: 10px;
+      color: #475569;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 500;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      border-left: 4px solid transparent;
+    }
+
+    .nav-item:hover {
+      background: #f8fafc;
+      color: var(--text-main);
+    }
+
+    .nav-item.active {
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 600;
+      border-left-color: var(--primary);
+    }
+
+    .main-content {
+      flex: 1;
+      padding: 32px;
+      max-width: 1400px;
+    }
+
+    /* Sub-Nav Bar for Unified Sections */
+    .sub-nav-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      background: #f1f5f9;
+      padding: 6px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      width: fit-content;
+      flex-wrap: wrap;
+    }
+
+    .sub-tab-btn, .settings-sub-tab-btn {
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 13.5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sub-tab-btn:hover, .settings-sub-tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    .sub-tab-btn.active, .settings-sub-tab-btn.active {
+      background: #ffffff;
+      color: var(--primary);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .sub-tab-content, .settings-sub-tab-content {
+      display: none;
+    }
+
+    .sub-tab-content.active, .settings-sub-tab-content.active {
+      display: block;
+    }
+
+    /* Stats Cards Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .stat-title {
+      font-size: 14px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--primary);
+    }
+
+    .stat-card.warning::before { background: var(--warning); }
+    .stat-card.success::before { background: var(--success); }
+    .stat-card.danger::before { background: var(--danger); }
+
+    /* Tables & Controls */
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .form-control {
+      background: #ffffff;
+      border: 1px solid var(--border-strong);
+      color: var(--text-main);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+    }
+
+    .table-container {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      overflow-x: auto;
+      box-shadow: var(--shadow-sm);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      background: #f8fafc;
+      color: var(--text-muted);
+      font-weight: 600;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    td {
+      padding: 16px 20px;
+      border-bottom: 1px solid #f1f5f9;
+      color: var(--text-main);
+    }
+
+    tr:hover {
+      background: var(--primary-light);
+    }
+
+    /* Badges */
+    .badge {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      display: inline-block;
+    }
+
+    .badge-sent { background: #dcfce7; color: #15803d; }
+    .badge-needs_review { background: #fef3c7; color: #b45309; }
+    .badge-failed { background: #fee2e2; color: #b91c1c; }
+    .badge-quality_failed { background: #fee2e2; color: #b91c1c; }
+    .badge-analyzing { background: #e0f2fe; color: #0369a1; }
+
+    .user-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .drag-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .drag-item {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: grab;
+      user-select: none;
+      transition: background 0.2s, transform 0.15s, border-color 0.2s;
+    }
+    .drag-item:hover {
+      border-color: var(--border-strong);
+      background: #f8fafc;
+    }
+    .drag-item:active { cursor: grabbing; opacity: 0.85; transform: scale(0.99); }
+    .drag-item.dragging { opacity: 0.4; border: 2px dashed var(--primary); }
+    .drag-handle {
+      font-size: 18px;
+      margin-right: 12px;
+      color: var(--text-muted);
+      cursor: grab;
+    }
+    .color-picker {
+      width: 100%;
+      height: 38px;
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      background: #ffffff;
+      cursor: pointer;
+      padding: 2px;
+    }
+
+    #cardPreviewContainer {
+      width: 100%;
+      max-width: 440px;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+      background: #ffffff;
+      min-height: 500px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      border: 1px solid var(--border-color);
+    }
+
+    #cardPreviewContainer svg {
+      width: 100% !important;
+      height: auto !important;
+      max-width: 100% !important;
+      display: block !important;
+    }
+
+    .preset-theme-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-strong);
+      background: #ffffff;
+      color: var(--text-main);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .preset-theme-btn:hover {
+      border-color: var(--primary);
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #e2e8f0;
+    }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 16px;
+      align-items: center;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(6px);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      width: 90%;
+      max-width: 900px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    .image-preview-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .image-box {
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .image-box img {
+      max-width: 100%;
+      max-height: 350px;
+      border-radius: 6px;
+      object-fit: contain;
+    }
+
+    .image-box h4 {
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    pre.json-box {
+      background: #0f172a;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #f87171;
+      overflow-x: auto;
+      max-height: 200px;
+    }
+
+    /* Login Screen */
+    .login-box {
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius);
+      padding: 32px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="brand">
+      <div class="brand-logo">B</div>
+      <div class="brand-title">biokoop <span>Admin</span></div>
+    </div>
+    <div class="user-actions">
+      <button class="btn btn-outline" onclick="fetchData()">🔄 รีเฟรช</button>
+      <button class="btn btn-outline" onclick="logout()">🚪 ออกจากระบบ</button>
+    </div>
+  </header>
+
+  <!-- Login Modal Overlay -->
+  <div id="loginOverlay" class="modal-overlay active">
+    <div class="login-box">
+      <div class="brand-logo" style="margin: 0 auto 16px auto; width: 48px; height: 48px; font-size: 24px;">B</div>
+      <h2 style="margin-bottom: 8px; font-weight: 700; color: #0f172a;">เข้าสู่ระบบ Admin</h2>
+      <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">กรุณากรอกรหัสผ่าน Admin เพื่อเข้าใช้งานระบบ biokoop</p>
+      <form onsubmit="handleLogin(event)">
+        <input type="password" id="adminPassword" class="form-control" style="width: 100%; margin-bottom: 16px; text-align: center;" placeholder="รหัสผ่าน Admin" required>
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">เข้าสู่ระบบ</button>
+      </form>
+      <p id="loginError" style="color: var(--danger); font-size: 13px; margin-top: 12px; display: none;"></p>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="nav-item active" onclick="switchTab('dashboard', this)">
+        <span>📊</span> สถิติ & การใช้งาน API
+      </div>
+      <div class="nav-item" onclick="switchTab('requests-logs', this)">
+        <span>📋</span> คำขอ & ประวัติการส่ง
+      </div>
+      <div class="nav-item" onclick="switchTab('users', this)">
+        <span>👥</span> ผู้ใช้งาน LINE
+      </div>
+      <div class="nav-item" onclick="switchTab('settings', this)">
+        <span>⚙️</span> ตั้งค่าบอท & การ์ด
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+
+      <!-- SECTION 1: DASHBOARD & API USAGE (รวมสถิติ + การใช้งาน API/ยอดเงิน) -->
+      <section id="tab-dashboard" class="tab-content active">
+        <h2 style="margin-bottom: 20px; font-weight: 700; color: #0f172a;">📊 ภาพรวมสถิติระบบ & การใช้งาน API</h2>
+        
+        <!-- System Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-title">คำขอทั้งหมด</div>
+            <div class="stat-value" id="statTotalRequests">-</div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-title">รอแอดมินตรวจสอบ (Needs Review)</div>
+            <div class="stat-value" id="statNeedsReview">-</div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-title">ส่งแล้วสำเร็จ (Sent)</div>
+            <div class="stat-value" id="statSent">-</div>
+          </div>
+          <div class="stat-card danger">
+            <div class="stat-title">ล้มเหลว (Failed)</div>
+            <div class="stat-value" id="statFailed">-</div>
+          </div>
+          <div class="stat-card" style="border-left-color: #0284c7;">
+            <div class="stat-title">ข้อความ LINE ที่ส่งทั้งหมด</div>
+            <div class="stat-value" id="statTotalLineMessages">-</div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 32px;">
+          <div style="flex: 1; min-width: 280px;" class="stat-card">
+            <div class="stat-title">คำขอในวันนี้</div>
+            <div class="stat-value" id="statTodayRequests">-</div>
+          </div>
+          <div style="flex: 1; min-width: 280px;" class="stat-card">
+            <div class="stat-title">ผู้ใช้งานทั้งหมด</div>
+            <div class="stat-value" id="statTotalUsers">-</div>
+          </div>
+          <div style="flex: 1; min-width: 280px;" class="stat-card">
+            <div class="stat-title">ข้อความ LINE ส่งวันนี้</div>
+            <div class="stat-value" id="statTodayLineMessages">-</div>
+          </div>
+        </div>
+
+        <!-- API Usage & Cost Calculator Section -->
+        <div style="border-top: 2px solid var(--border-color); padding-top: 28px;">
+          <div class="section-header">
+            <div>
+              <h3 style="font-size: 18px; font-weight: 700; color: #0f172a;">💵 สถิติการใช้งาน Gemini API & ค่าใช้จ่ายโดยประมาณ</h3>
+              <p style="color: var(--text-muted); font-size: 13px; margin-top: 2px;">
+                สรุปจำนวน Token ที่ใช้ไปจริง และคำนวณยอดเงินสะสม
+              </p>
+            </div>
+            <button class="btn btn-outline" onclick="loadUsageStats()">🔄 รีเฟรชสถิติ API</button>
+          </div>
+
+          <!-- Pricing Table Config & Plan Selector -->
+          <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; box-shadow: var(--shadow-sm);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--primary); margin: 0;">⚙️ เลือกแพ็กเกจ และ อัตราค่าบริการ (Gemini API Pricing Plan)</h4>
+              <span id="planModeBadge" class="badge" style="background:#dcfce7; color:#15803d; font-size:13px; font-weight:600; padding:6px 12px;">🎁 โหมดใช้งานฟรี (Free Tier - 0 บาท)</span>
+            </div>
+
+            <div style="display: flex; gap: 20px; align-items: center; background: #f8fafc; padding: 12px 16px; border-radius: 10px; margin-bottom: 14px; border: 1px solid var(--border-color); flex-wrap: wrap;">
+              <label style="font-weight: 700; color: var(--text-main); font-size: 13.5px;">เลือกประเภท API Key:</label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13.5px; font-weight: 600; color: #16a34a;">
+                <input type="radio" name="planMode" value="free" id="planModeFree" onchange="togglePlanModeUI('free')">
+                🎁 ใช้งานฟรี (Free Tier API Key — $0.00 / 0 บาท)
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13.5px; font-weight: 600; color: #0284c7;">
+                <input type="radio" name="planMode" value="paid" id="planModePaid" onchange="togglePlanModeUI('paid')">
+                💳 จ่ายตามใช้งานจริง (Pay-as-you-go Plan)
+              </label>
+            </div>
+
+            <p id="planModeDesc" style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 12px; background: #eff6ff; padding: 8px 12px; border-radius: 6px; border-left: 4px solid #3b82f6;">
+              💡 <strong>โหมดใช้งานฟรี (Free Tier)</strong>: Google Gemini เปิดให้ใช้งานฟรีสูงสุด 15 Requests/นาที (1,500 Requests/วัน) โดยไม่มีค่าใช้จ่าย ($0.00 / 0 บาท)
+            </p>
+
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 12px; font-size: 13px;">
+              <label style="color: var(--text-muted);">สกุลเงินสำหรับคำนวณ:</label>
+              <input type="text" id="pcCurrency" class="form-control" style="width: 100px;" placeholder="USD">
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>โมเดล Gemini</th>
+                    <th>สถานะแพ็กเกจฟรี</th>
+                    <th>Input ($/1M token)</th>
+                    <th>Output ($/1M token)</th>
+                  </tr>
+                </thead>
+                <tbody id="pricingTableBody"></tbody>
+              </table>
+            </div>
+            <button class="btn btn-primary" style="margin-top: 12px;" onclick="savePricingConfigToServer()">💾 บันทึกแพ็กเกจและอัตราค่าบริการ</button>
+          </div>
+
+          <!-- Usage Totals Grid -->
+          <div class="stats-grid" style="margin-bottom: 20px;">
+            <div class="stat-card">
+              <div class="stat-title">คำขอที่มี Token ทั้งหมด</div>
+              <div class="stat-value" id="usageStatTotalRequests">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-title">Prompt Tokens รวม</div>
+              <div class="stat-value" id="usageStatPromptTokens">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-title">Completion Tokens รวม</div>
+              <div class="stat-value" id="usageStatCompletionTokens">-</div>
+            </div>
+            <div class="stat-card" style="border-left-color: #16a34a;">
+              <div class="stat-title">ยอดเงินโดยประมาณรวม</div>
+              <div class="stat-value" id="usageStatTotalCost">-</div>
+            </div>
+          </div>
+
+          <!-- Per-user Breakdown Table -->
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>ผู้ใช้ LINE</th>
+                  <th>จำนวนคำขอ</th>
+                  <th>Prompt Tokens</th>
+                  <th>Completion Tokens</th>
+                  <th>Total Tokens</th>
+                  <th>ยอดเงินโดยประมาณ</th>
+                  <th>โมเดลที่ใช้</th>
+                  <th>รายละเอียด</th>
+                </tr>
+              </thead>
+              <tbody id="usageStatsTableBody">
+                <tr><td colspan="8" style="text-align: center;">กำลังโหลดข้อมูล...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 2: REQUESTS & LOGS (รวมรายการคำขอ + ประวัติ LINE + Audit Logs) -->
+      <section id="tab-requests-logs" class="tab-content">
+        <h2 style="margin-bottom: 16px; font-weight: 700; color: #0f172a;">📋 จัดการคำขอ & ประวัติการส่งข้อมูล</h2>
+        
+        <!-- Sub-Nav Bar -->
+        <div class="sub-nav-bar">
+          <button id="subbtn-requests" class="sub-tab-btn active" onclick="switchSubTab('requests')">📋 รายการคำขอวิเคราะห์รูป</button>
+          <button id="subbtn-line-messages" class="sub-tab-btn" onclick="switchSubTab('line-messages')">📱 ประวัติการส่ง LINE</button>
+          <button id="subbtn-logs" class="sub-tab-btn" onclick="switchSubTab('logs')">📜 Audit Logs (ประวัติระบบ)</button>
+        </div>
+
+        <!-- SUB-TAB 1: REQUESTS -->
+        <div id="subcontent-requests" class="sub-tab-content active">
+          <div class="section-header">
+            <h3 style="font-weight: 700; color: #0f172a;">รายการคำขอและการวิเคราะห์ภาพ</h3>
+            <div class="filter-group">
+              <select id="requestStatusFilter" class="form-control" onchange="loadRequests()">
+                <option value="all">สถานะทั้งหมด</option>
+                <option value="needs_review">รอการตรวจสอบ (needs_review)</option>
+                <option value="sent">ส่งเรียบร้อยแล้ว (sent)</option>
+                <option value="failed">ล้มเหลว (failed)</option>
+                <option value="quality_failed">ภาพไม่ชัด (quality_failed)</option>
+              </select>
+              <input type="text" id="requestSearchInput" class="form-control" placeholder="ค้นหาตาม User ID..." onkeyup="if(event.key==='Enter') loadRequests()">
+              <button class="btn btn-outline" onclick="loadRequests()">ค้นหา</button>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>เวลา</th>
+                  <th>ผู้ใช้ LINE</th>
+                  <th>สถานะ</th>
+                  <th>รูปต้นฉบับ</th>
+                  <th>รูปผลลัพธ์</th>
+                  <th>ข้อผิดพลาด</th>
+                  <th>การจัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="requestsTableBody">
+                <tr><td colspan="7" style="text-align: center;">กำลังโหลดข้อมูล...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <button class="btn btn-outline" id="prevPageBtn" onclick="changePage(-1)">ก่อนหน้า</button>
+            <span id="pageInfo" style="font-size: 14px; color: var(--text-muted);">หน้า 1/1</span>
+            <button class="btn btn-outline" id="nextPageBtn" onclick="changePage(1)">ถัดไป</button>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 2: LINE MESSAGES LOGS -->
+        <div id="subcontent-line-messages" class="sub-tab-content">
+          <div class="section-header">
+            <div>
+              <h3 style="font-weight: 700; color: #0f172a;">📱 ประวัติการส่งข้อความ LINE ทั้งหมด</h3>
+              <p style="color: var(--text-muted); font-size: 13px; margin-top: 2px;">
+                บันทึกอย่างละเอียดว่าส่งข้อความอะไร ไปให้ใคร กี่โมง ผ่านช่องทางใด
+              </p>
+            </div>
+            <div class="filter-group">
+              <select id="lineMsgSendTypeFilter" class="form-control" onchange="loadLineMessages()">
+                <option value="all">ช่องทางทั้งหมด (Reply/Push)</option>
+                <option value="reply">Reply API (ตอบกลับสด)</option>
+                <option value="push">Push API (ส่งย้อนหลัง)</option>
+              </select>
+              <select id="lineMsgTypeFilter" class="form-control" onchange="loadLineMessages()">
+                <option value="all">ประเภททั้งหมด</option>
+                <option value="text">ข้อความตัวอักษร (Text)</option>
+                <option value="image">รูปภาพ (Image)</option>
+                <option value="flex">การ์ด Flex Message</option>
+              </select>
+              <input type="text" id="lineMsgSearchInput" class="form-control" placeholder="ค้นหา User ID, ข้อความ..." onkeyup="if(event.key==='Enter') loadLineMessages()">
+              <button class="btn btn-outline" onclick="loadLineMessages()">ค้นหา</button>
+            </div>
+          </div>
+
+          <div class="stats-grid" style="margin-bottom: 20px;">
+            <div class="stat-card">
+              <div class="stat-title">ข้อความที่ส่งทั้งหมด</div>
+              <div class="stat-value" id="lineMsgTotalCount">-</div>
+            </div>
+            <div class="stat-card success">
+              <div class="stat-title">ส่งในวันนี้</div>
+              <div class="stat-value" id="lineMsgTodayCount">-</div>
+            </div>
+            <div class="stat-card" style="border-left-color: #0284c7;">
+              <div class="stat-title">Reply API (ตอบกลับสด)</div>
+              <div class="stat-value" id="lineMsgReplyCount">-</div>
+            </div>
+            <div class="stat-card warning">
+              <div class="stat-title">Push API (ส่งย้อนหลัง)</div>
+              <div class="stat-value" id="lineMsgPushCount">-</div>
+            </div>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>วันที่ / เวลา (กี่โมง)</th>
+                  <th>ผู้รับ (ส่งไปไหน)</th>
+                  <th>ช่องทางส่ง</th>
+                  <th>ประเภทข้อความ</th>
+                  <th>รายละเอียดข้อความ</th>
+                  <th>สถานะ</th>
+                </tr>
+              </thead>
+              <tbody id="lineMessagesTableBody">
+                <tr><td colspan="6" style="text-align: center;">กำลังโหลดข้อมูล...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <button class="btn btn-outline" id="prevLineMsgPageBtn" onclick="changeLineMsgPage(-1)">ก่อนหน้า</button>
+            <span id="lineMsgPageInfo" style="font-size: 14px; color: var(--text-muted);">หน้า 1/1</span>
+            <button class="btn btn-outline" id="nextLineMsgPageBtn" onclick="changeLineMsgPage(1)">ถัดไป</button>
+          </div>
+        </div>
+
+        <!-- SUB-TAB 3: AUDIT LOGS -->
+        <div id="subcontent-logs" class="sub-tab-content">
+          <div class="section-header">
+            <h3 style="font-weight: 700; color: #0f172a;">📜 Audit Logs (ประวัติการทำงานของระบบ)</h3>
+            <select id="logStepFilter" class="form-control" onchange="loadLogs()">
+              <option value="all">ทุก Step</option>
+              <option value="webhook_received">webhook_received</option>
+              <option value="ai_call">ai_call</option>
+              <option value="image_composed">image_composed</option>
+              <option value="line_push">line_push</option>
+              <option value="error">error</option>
+            </select>
+          </div>
+
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>เวลา</th>
+                  <th>Step</th>
+                  <th>สถานะ</th>
+                  <th>LINE User ID</th>
+                  <th>รายละเอียด / Data</th>
+                </tr>
+              </thead>
+              <tbody id="logsTableBody">
+                <tr><td colspan="5" style="text-align: center;">กำลังโหลดข้อมูล...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SECTION 3: USERS -->
+      <section id="tab-users" class="tab-content">
+        <div class="section-header">
+          <h2 style="font-weight: 700; color: #0f172a;">👥 รายชื่อผู้ใช้งาน (LINE Users)</h2>
+          <input type="text" id="userSearchInput" class="form-control" placeholder="ค้นหาชื่อ, ชื่อเล่น, เบอร์โทร, จังหวัด..." onkeyup="if(event.key==='Enter') loadUsers()">
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ผู้ใช้ LINE</th>
+                <th>สถานะลงทะเบียน</th>
+                <th>เบอร์โทร & วันเกิด</th>
+                <th>จังหวัด & เพศ</th>
+                <th>คำขอ</th>
+                <th>ใช้งานล่าสุด</th>
+                <th>การจัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr><td colspan="7" style="text-align: center;">กำลังโหลดข้อมูล...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SECTION 4: SETTINGS HUB (รวมตั้งค่าเกรดคะแนน + Card Builder + ข้อความบอท) -->
+      <section id="tab-settings" class="tab-content">
+        <h2 style="margin-bottom: 16px; font-weight: 700; color: #0f172a;">⚙️ ตั้งค่าระบบ & ปรับแต่งการตอบกลับ</h2>
+
+        <!-- Settings Sub-Nav Bar -->
+        <div class="sub-nav-bar">
+          <button id="settings-btn-grade-config" class="settings-sub-tab-btn active" onclick="switchSettingsSubTab('grade-config')">🏆 ตั้งค่าเกรด & คำพูด</button>
+          <button id="settings-btn-card-builder" class="settings-sub-tab-btn" onclick="switchSettingsSubTab('card-builder')">🎨 ปรับแต่งการ์ด (Card Builder)</button>
+          <button id="settings-btn-bot-messages" class="settings-sub-tab-btn" onclick="switchSettingsSubTab('bot-messages')">💬 ข้อความบอทอัตโนมัติ</button>
+        </div>
+
+        <!-- SETTINGS SUB-TAB 1: GRADE CONFIG -->
+        <div id="settings-content-grade-config" class="settings-sub-tab-content active">
+          <div class="section-header">
+            <div>
+              <h3 style="font-weight: 700; color: #0f172a;">🏆 ตั้งค่าระดับเกรด และช่วงคะแนน (Grade & Score Settings)</h3>
+              <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">
+                กำหนดช่วงคะแนน (Min - Max), ระดับเกรด (A, B, C, D), ป้ายกำกับ, สีประจำเกรด และข้อความคำพูดต้นแบบที่จะส่งให้ผู้ใช้งาน
+              </p>
+            </div>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-outline" onclick="addGradeTier()">➕ เพิ่มเกรดใหม่</button>
+              <button class="btn btn-primary" onclick="saveGradeConfigToServer()">💾 บันทึกการตั้งค่าเกรด</button>
+            </div>
+          </div>
+
+          <div id="gradeTiersContainer" style="display: flex; flex-direction: column; gap: 20px;">
+            <!-- Loaded dynamically via JS -->
+          </div>
+
+          <div style="display: flex; gap: 12px; margin-top: 24px;">
+            <button class="btn btn-primary" onclick="saveGradeConfigToServer()">💾 บันทึกการตั้งค่าเกรด</button>
+            <button class="btn btn-outline" onclick="resetDefaultGradeConfig()">🔄 ค่าเริ่มต้น</button>
+          </div>
+        </div>
+
+        <!-- SETTINGS SUB-TAB 2: CARD BUILDER -->
+        <div id="settings-content-card-builder" class="settings-sub-tab-content">
+          <div class="section-header">
+            <div>
+              <h3 style="font-weight: 700; color: #0f172a;">🎨 ปรับแต่งโครงสร้างการ์ด (Card Builder)</h3>
+              <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">
+                ลากสลับลำดับโซน (Drag & Drop), เปิด/ปิดการแสดงผล และปรับธีมสีของการ์ดสรุปสุขภาพได้ตามต้องการ
+              </p>
+            </div>
+            <button class="btn btn-primary" onclick="saveCardConfigToServer()">💾 บันทึกรูปแบบการ์ด</button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1.1fr; gap: 24px; align-items: start;">
+            <!-- Left Controls Panel -->
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 20px; box-shadow: var(--shadow-sm);">
+              
+              <!-- Drag & Drop Order Section -->
+              <div>
+                <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 8px; color: var(--primary);">🤚 ลำดับโซนบนการ์ด (Drag & Drop)</h4>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">ลากไอคอน ☰ เพื่อสลับลำดับบนลงล่างตามต้องการ</p>
+                
+                <div id="drag-sections-list" class="drag-list">
+                  <!-- Dynamic drag items loaded via JS -->
+                </div>
+              </div>
+
+              <!-- Color Palette Customizer -->
+              <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; color: var(--primary);">🎨 ปรับแต่งธีมสี (Theme Colors)</h4>
+                
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">
+                  <button class="preset-theme-btn" style="border-color: #dc2626; color: #dc2626; font-weight: 600;" onclick="applyPresetTheme('redwhite')">🔴 ขาว แดง ดำ (White Red Black)</button>
+                  <button class="preset-theme-btn" onclick="applyPresetTheme('nature')">🌿 Nature Green</button>
+                  <button class="preset-theme-btn" onclick="applyPresetTheme('dark')">🌙 Midnight Dark</button>
+                  <button class="preset-theme-btn" onclick="applyPresetTheme('ocean')">🌊 Ocean Blue</button>
+                  <button class="preset-theme-btn" onclick="applyPresetTheme('rose')">🌸 Rose Gold</button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px;">
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">พื้นหลัง Canvas:</label>
+                    <input type="color" id="colBgCream" value="#FFFFFF" class="color-picker" onchange="updateLivePreview()">
+                  </div>
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">สีกรมท่า/ดำหลัก (Text):</label>
+                    <input type="color" id="colNavyDark" value="#0F172A" class="color-picker" onchange="updateLivePreview()">
+                  </div>
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">สีแดงหลัก (Accent):</label>
+                    <input type="color" id="colGreenAccent" value="#DC2626" class="color-picker" onchange="updateLivePreview()">
+                  </div>
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">สีพื้น Footer:</label>
+                    <input type="color" id="colGreenDark" value="#7F1D1D" class="color-picker" onchange="updateLivePreview()">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section Text Customizer -->
+              <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; color: var(--text-main);">📝 ข้อความหัวข้อแต่ละส่วน (Section Texts)</h4>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px;">
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">ZONE 1 ชื่อแบรนด์ / โลโก้บนสุด:</label>
+                    <input type="text" id="txtBrandTitle" class="form-control" style="width: 100%;" value="Biokoop" oninput="updateLivePreview()">
+                  </div>
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">ZONE 1 Subtitle (คำกำกับบนสุด):</label>
+                    <input type="text" id="txtHeaderSubtitle" class="form-control" style="width: 100%;" value="MORNING HEALTH CARD" oninput="updateLivePreview()">
+                  </div>
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">ZONE 1 Subtext (คำโปรยใต้หัวข้อ):</label>
+                    <input type="text" id="txtHeaderSubtext" class="form-control" style="width: 100%;" value="คุณภาพการนอนที่ดี ช่วยสร้างรากฐานที่แข็งแรงให้กับวันของคุณ" oninput="updateLivePreview()">
+                  </div>
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">ZONE 4 หัวข้อองค์ประกอบการนอน:</label>
+                    <input type="text" id="txtSleepCompTitle" class="form-control" style="width: 100%;" value="องค์ประกอบการนอน" oninput="updateLivePreview()">
+                  </div>
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">ZONE 6 หัวข้อแนะนำกิจกรรม:</label>
+                    <input type="text" id="txtActivitiesTitle" class="form-control" style="width: 100%;" value="วันนี้เหมาะกับ" oninput="updateLivePreview()">
+                  </div>
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">ZONE 7 หัวข้อกล่อง TIPS:</label>
+                    <input type="text" id="txtTipsTitle" class="form-control" style="width: 100%;" value="TIPS" oninput="updateLivePreview()">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Disclaimer Customizer -->
+              <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 8px; color: var(--text-muted);">📌 ข้อความ disclaimer ด้านล่าง</h4>
+                <textarea id="disclaimerInput" class="form-control" style="width: 100%; height: 60px; font-size: 13px;" oninput="updateLivePreview()"></textarea>
+              </div>
+
+              <div style="display: flex; gap: 12px; margin-top: 8px;">
+                <button class="btn btn-primary" style="flex: 1; justify-content: center;" onclick="saveCardConfigToServer()">💾 บันทึกรูปแบบการ์ดนี้</button>
+                <button class="btn btn-outline" onclick="resetDefaultCardConfig()">🔄 ค่าเริ่มต้น</button>
+              </div>
+            </div>
+
+            <!-- Right Live Preview -->
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; align-items: center; position: sticky; top: 85px; box-shadow: var(--shadow-sm);">
+              <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <h4 style="font-size: 15px; font-weight: 700; color: var(--text-main);">👁️ ตัวอย่างการ์ดจริง (Live Preview)</h4>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="openCardZoomModal()">🔍 ดูเต็มจอ</button>
+                  <span id="previewStatusBadge" class="badge badge-sent">⚡ อัปเดตสด</span>
+                </div>
+              </div>
+              
+              <div id="cardPreviewContainer">
+                <span style="color: var(--text-muted); font-size: 14px;">กำลังโหลดตัวอย่างการ์ด...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SETTINGS SUB-TAB 3: BOT MESSAGES -->
+        <div id="settings-content-bot-messages" class="settings-sub-tab-content">
+          <div class="section-header">
+            <div>
+              <h3 style="font-weight: 700; color: #0f172a;">💬 ตั้งค่าข้อความบอท LINE (Bot Auto-reply Messages)</h3>
+              <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">
+                แก้ไขข้อความและสีของ Flex Message ชวนลงทะเบียน และข้อความตอบกลับอัตโนมัติต่างๆ ที่บอทส่งให้ผู้ใช้ใน LINE
+              </p>
+            </div>
+            <button class="btn btn-primary" onclick="saveBotMessagesConfigToServer()">💾 บันทึกข้อความบอท</button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start;">
+            <!-- Left: Registration Flex Message -->
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 14px; box-shadow: var(--shadow-sm);">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--primary);">📝 Flex Message ชวนลงทะเบียน</h4>
+
+              <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-size: 13px;">ป้ายแบรนด์ (บรรทัดเล็กบนสุด):</label>
+                <input type="text" id="bmBrandLabel" class="form-control" style="width: 100%;">
+              </div>
+              <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-size: 13px;">หัวข้อ:</label>
+                <input type="text" id="bmTitle" class="form-control" style="width: 100%;">
+              </div>
+              <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-size: 13px;">ข้อความเนื้อหา:</label>
+                <textarea id="bmBodyText" class="form-control" style="width: 100%; height: 80px;"></textarea>
+              </div>
+              <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-size: 13px;">ข้อความบนปุ่ม:</label>
+                <input type="text" id="bmButtonLabel" class="form-control" style="width: 100%;">
+              </div>
+
+              <div style="border-top: 1px solid var(--border-color); padding-top: 14px;">
+                <h4 style="font-size: 13.5px; font-weight: 700; margin-bottom: 4px; color: var(--text-main);">✏️ สำหรับคนที่ลงทะเบียนไปแล้ว</h4>
+                <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">แสดงชุดข้อความนี้แทน เมื่อผู้ที่ลงทะเบียนแล้วกดปุ่ม/พิมพ์ "ลงทะเบียน" ซ้ำ</p>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-size: 13px;">หัวข้อ (โหมดแก้ไข):</label>
+                    <input type="text" id="bmEditTitle" class="form-control" style="width: 100%;">
+                  </div>
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-size: 13px;">ข้อความเนื้อหา (โหมดแก้ไข):</label>
+                    <textarea id="bmEditBodyText" class="form-control" style="width: 100%; height: 70px;"></textarea>
+                  </div>
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-size: 13px;">ข้อความบนปุ่ม (โหมดแก้ไข):</label>
+                    <input type="text" id="bmEditButtonLabel" class="form-control" style="width: 100%;">
+                  </div>
+                </div>
+              </div>
+
+              <div style="border-top: 1px solid var(--border-color); padding-top: 14px;">
+                <h4 style="font-size: 13.5px; font-weight: 700; margin-bottom: 10px; color: var(--text-main);">🎨 สี</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px;">
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">พื้นหลัง:</label>
+                    <input type="color" id="bmBgColor" class="color-picker">
+                  </div>
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">สีแบรนด์/ปุ่ม:</label>
+                    <input type="color" id="bmBrandColor" class="color-picker">
+                  </div>
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">สีหัวข้อ:</label>
+                    <input type="color" id="bmTitleColor" class="color-picker">
+                  </div>
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">สีข้อความเนื้อหา:</label>
+                    <input type="color" id="bmBodyTextColor" class="color-picker">
+                  </div>
+                  <div>
+                    <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">สีปุ่ม:</label>
+                    <input type="color" id="bmButtonColor" class="color-picker">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Auto Reply Texts -->
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 14px; box-shadow: var(--shadow-sm);">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--primary);">🤖 ข้อความตอบกลับอัตโนมัติ</h4>
+
+              <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-size: 13px;">คำทักทาย (สวัสดี/hi/hello — เฉพาะผู้ที่ลงทะเบียนแล้ว):</label>
+                <textarea id="bmGreeting" class="form-control" style="width: 100%; height: 60px;"></textarea>
+              </div>
+              <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-size: 13px;">วิธีใช้งาน:</label>
+                <textarea id="bmHowTo" class="form-control" style="width: 100%; height: 90px;"></textarea>
+              </div>
+              <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-size: 13px;">ติดต่อสอบถาม:</label>
+                <textarea id="bmContact" class="form-control" style="width: 100%; height: 60px;"></textarea>
+              </div>
+              <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-size: 13px;">พร้อมรับภาพวิเคราะห์ (กด "เลือกภาพเพื่อวิเคราะห์" แล้ว):</label>
+                <textarea id="bmSendPhotoReady" class="form-control" style="width: 100%; height: 60px;"></textarea>
+              </div>
+              <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-size: 13px;">ยังไม่มีผลลัพธ์ล่าสุด:</label>
+                <textarea id="bmNoResult" class="form-control" style="width: 100%; height: 50px;"></textarea>
+              </div>
+              <div>
+                <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-size: 13px;">ข้อความ Fallback (ส่งข้อความอื่นๆ ที่ไม่ใช่รูปภาพ):</label>
+                <textarea id="bmTextFallback" class="form-control" style="width: 100%; height: 60px;"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 12px; margin-top: 20px;">
+            <button class="btn btn-primary" onclick="saveBotMessagesConfigToServer()">💾 บันทึกข้อความบอท</button>
+            <button class="btn btn-outline" onclick="resetDefaultBotMessagesConfig()">🔄 ค่าเริ่มต้น</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Detail Modal -->
+  <div id="detailModal" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modalTitle" style="color: #0f172a; font-weight: 700;">รายละเอียดคำขอ</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+
+      <div class="image-preview-grid">
+        <div class="image-box">
+          <h4>รูปภาพต้นฉบับลูกค้า</h4>
+          <div id="originalImgContainer">
+            <span style="color: var(--text-muted);">ไม่มีรูปภาพ</span>
+          </div>
+        </div>
+        <div class="image-box">
+          <h4>รูปภาพการ์ดผลลัพธ์ (AI Composed)</h4>
+          <div id="resultImgContainer">
+            <span style="color: var(--text-muted);">ยังไม่ได้สร้างรูปภาพ</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin-bottom: 8px; color: var(--text-muted);">การอนุมัติและส่งข้อมูล</h4>
+        <div style="display: flex; gap: 12px;">
+          <button class="btn btn-success" id="approveSendBtn" onclick="approveAndSend()">🚀 อนุมัติ & ส่งรูปผ่าน LINE Push</button>
+          <button class="btn btn-danger" onclick="markAsFailed()">❌ ทำเป็นล้มเหลว (Mark Failed)</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin-bottom: 8px; color: var(--text-muted);">ข้อมูล AI Response JSON Payload</h4>
+        <pre class="json-box" id="aiResultJson">-</pre>
+      </div>
+
+      <div>
+        <h4 style="margin-bottom: 8px; color: var(--text-muted);">Audit Logs ของคำขอนี้</h4>
+        <div id="requestLogTimeline" style="font-size: 13px; color: var(--text-muted);"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card Zoom Modal -->
+  <div id="cardZoomModal" class="modal-overlay">
+    <div class="modal" style="max-width: 580px; text-align: center;">
+      <div class="modal-header">
+        <h3 style="color: #0f172a; font-weight: 700;">🔍 การ์ดผลลัพธ์แบบเต็มจอ (Full View)</h3>
+        <button class="modal-close" onclick="closeCardZoomModal()">&times;</button>
+      </div>
+      <div id="zoomModalContainer" style="width: 100%; background: #ffffff; border-radius: 14px; overflow: hidden; padding: 8px; max-height: 80vh; overflow-y: auto; border: 1px solid var(--border-color);"></div>
+    </div>
+  </div>
+
+  <!-- User Usage Breakdown Modal -->
+  <div id="userUsageModal" class="modal-overlay">
+    <div class="modal" style="max-width: 960px; width: 95%;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <img id="uumUserAvatar" src="https://via.placeholder.com/40" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);" alt="">
+          <div>
+            <h3 id="uumUserName" style="color: #0f172a; font-weight: 700; margin: 0; font-size: 17px;">ประวัติรายการใช้งาน Token</h3>
+            <span id="uumUserId" style="font-size: 12px; color: var(--text-muted);"></span>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeUserUsageModal()">&times;</button>
+      </div>
+
+      <div class="table-container" style="max-height: 500px; overflow-y: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>วัน-เวลา</th>
+              <th>สถานะ</th>
+              <th>โมเดล AI</th>
+              <th>Prompt Tokens</th>
+              <th>Completion Tokens</th>
+              <th>Total Tokens</th>
+              <th>ค่าบริการ</th>
+              <th>ภาพคำขอ</th>
+            </tr>
+          </thead>
+          <tbody id="userUsageModalTableBody">
+            <tr><td colspan="8" style="text-align: center;">กำลังโหลดรายการ...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentToken = localStorage.getItem('biokoop_admin_token') || '';
+    let currentPage = 1;
+    let currentLineMsgPage = 1;
+    let selectedRequestId = null;
+
+    // Check login status on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      if (currentToken) {
+        document.getElementById('loginOverlay').classList.remove('active');
+        fetchData();
+      }
+    });
+
+    async function apiFetch(url, options = {}) {
+      options.headers = options.headers || {};
+      options.headers['Authorization'] = `Bearer ${currentToken}`;
+      options.headers['Content-Type'] = 'application/json';
+
+      const res = await fetch(url, options);
+      if (res.status === 401) {
+        localStorage.removeItem('biokoop_admin_token');
+        document.getElementById('loginOverlay').classList.add('active');
+        throw new Error('Unauthorized');
+      }
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await res.text();
+        throw new Error(`Server returned status ${res.status}`);
+      }
+      return res.json();
+    }
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const password = document.getElementById('adminPassword').value;
+      const errEl = document.getElementById('loginError');
+      errEl.style.display = 'none';
+
+      try {
+        const res = await fetch('/admin/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          currentToken = data.token;
+          localStorage.setItem('biokoop_admin_token', currentToken);
+          document.getElementById('loginOverlay').classList.remove('active');
+          fetchData();
+        } else {
+          errEl.innerText = data.error || 'เข้าสู่ระบบไม่สำเร็จ';
+          errEl.style.display = 'block';
+        }
+      } catch (err) {
+        errEl.innerText = 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์';
+        errEl.style.display = 'block';
+      }
+    }
+
+    function logout() {
+      if (currentToken) {
+        apiFetch('/admin/api/logout', { method: 'POST' }).catch(() => {});
+      }
+      localStorage.removeItem('biokoop_admin_token');
+      currentToken = '';
+      document.getElementById('loginOverlay').classList.add('active');
+    }
+
+    // Unified Main Tab Switcher
+    function switchTab(tabName, el) {
+      // Compatibility aliases
+      if (['requests', 'line-messages', 'logs'].includes(tabName)) {
+        const parentEl = document.querySelector(".nav-item[onclick*='requests-logs']");
+        switchTab('requests-logs', parentEl);
+        switchSubTab(tabName);
+        return;
+      }
+      if (['card-builder', 'bot-messages', 'grade-config'].includes(tabName)) {
+        const parentEl = document.querySelector(".nav-item[onclick*='settings']");
+        switchTab('settings', parentEl);
+        switchSettingsSubTab(tabName);
+        return;
+      }
+      if (tabName === 'usage-stats') {
+        const parentEl = document.querySelector(".nav-item[onclick*='dashboard']");
+        switchTab('dashboard', parentEl);
+        return;
+      }
+
+      document.querySelectorAll('.sidebar .nav-item').forEach(item => item.classList.remove('active'));
+      document.querySelectorAll('.main-content > .tab-content').forEach(content => content.classList.remove('active'));
+
+      if (el) el.classList.add('active');
+      const targetSection = document.getElementById(`tab-${tabName}`);
+      if (targetSection) targetSection.classList.add('active');
+
+      if (tabName === 'dashboard') {
+        loadStats();
+        loadUsageStats();
+      } else if (tabName === 'requests-logs') {
+        const activeSub = document.querySelector('#tab-requests-logs .sub-tab-btn.active');
+        const subName = activeSub ? activeSub.id.replace('subbtn-', '') : 'requests';
+        switchSubTab(subName);
+      } else if (tabName === 'users') {
+        loadUsers();
+      } else if (tabName === 'settings') {
+        const activeSet = document.querySelector('#tab-settings .settings-sub-tab-btn.active');
+        const subName = activeSet ? activeSet.id.replace('settings-btn-', '') : 'grade-config';
+        switchSettingsSubTab(subName);
+      }
+    }
+
+    // Sub-Tab Switcher for Requests & Logs Section
+    function switchSubTab(subName) {
+      document.querySelectorAll('#tab-requests-logs .sub-tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#tab-requests-logs .sub-tab-content').forEach(c => c.classList.remove('active'));
+
+      const btn = document.getElementById(`subbtn-${subName}`);
+      const content = document.getElementById(`subcontent-${subName}`);
+      if (btn) btn.classList.add('active');
+      if (content) content.classList.add('active');
+
+      if (subName === 'requests') loadRequests();
+      if (subName === 'line-messages') loadLineMessages();
+      if (subName === 'logs') loadLogs();
+    }
+
+    // Sub-Tab Switcher for Settings Hub
+    function switchSettingsSubTab(subName) {
+      document.querySelectorAll('#tab-settings .settings-sub-tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#tab-settings .settings-sub-tab-content').forEach(c => c.classList.remove('active'));
+
+      const btn = document.getElementById(`settings-btn-${subName}`);
+      const content = document.getElementById(`settings-content-${subName}`);
+      if (btn) btn.classList.add('active');
+      if (content) content.classList.add('active');
+
+      if (subName === 'grade-config') loadGradeConfig();
+      if (subName === 'card-builder') loadCardBuilder();
+      if (subName === 'bot-messages') loadBotMessages();
+    }
+
+    function fetchData() {
+      loadStats();
+      const activeTab = document.querySelector('.main-content > .tab-content.active')?.id;
+      if (activeTab === 'tab-dashboard') {
+        loadUsageStats();
+      } else if (activeTab === 'tab-requests-logs') {
+        const activeSub = document.querySelector('#tab-requests-logs .sub-tab-btn.active')?.id;
+        if (activeSub === 'subbtn-requests') loadRequests();
+        if (activeSub === 'subbtn-line-messages') loadLineMessages();
+        if (activeSub === 'subbtn-logs') loadLogs();
+      } else if (activeTab === 'tab-users') {
+        loadUsers();
+      } else if (activeTab === 'tab-settings') {
+        const activeSet = document.querySelector('#tab-settings .settings-sub-tab-btn.active')?.id;
+        if (activeSet === 'settings-btn-grade-config') loadGradeConfig();
+        if (activeSet === 'settings-btn-card-builder') loadCardBuilder();
+        if (activeSet === 'settings-btn-bot-messages') loadBotMessages();
+      }
+    }
+
+    async function loadStats() {
+      try {
+        const data = await apiFetch('/admin/api/stats');
+        if (data.ok) {
+          document.getElementById('statTotalRequests').innerText = data.stats.totalRequests;
+          document.getElementById('statNeedsReview').innerText = data.stats.needsReview;
+          document.getElementById('statSent').innerText = data.stats.sent;
+          document.getElementById('statFailed').innerText = data.stats.failed;
+          document.getElementById('statTodayRequests').innerText = data.stats.todayRequests;
+          document.getElementById('statTotalUsers').innerText = data.stats.totalUsers;
+          if (document.getElementById('statTotalLineMessages')) {
+            document.getElementById('statTotalLineMessages').innerText = data.stats.totalLineMessages || 0;
+          }
+          if (document.getElementById('statTodayLineMessages')) {
+            document.getElementById('statTodayLineMessages').innerText = data.stats.todayLineMessages || 0;
+          }
+        }
+      } catch (e) {}
+    }
+
+    async function loadRequests() {
+      const status = document.getElementById('requestStatusFilter').value;
+      const search = document.getElementById('requestSearchInput').value;
+      const tbody = document.getElementById('requestsTableBody');
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">กำลังโหลดข้อมูล...</td></tr>';
+
+      try {
+        const res = await apiFetch(`/admin/api/requests?page=${currentPage}&limit=15&status=${status}&search=${encodeURIComponent(search)}`);
+        if (!res.ok) return;
+
+        if (res.data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">ไม่พบข้อมูลคำขอ</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = res.data.map(item => `
+          <tr>
+            <td>${new Date(item.createdAt).toLocaleString('th-TH')}</td>
+            <td>
+              <div class="user-cell">
+                <img src="${item.user.pictureUrl || 'https://via.placeholder.com/36'}" class="avatar" alt="">
+                <div>
+                  <div style="font-weight: 600;">${item.user.displayName || 'ผู้ใช้ LINE'}</div>
+                  <div style="font-size: 11px; color: var(--text-muted);">${item.lineUserId}</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="badge badge-${item.status}">${item.status}</span></td>
+            <td>${item.hasOriginalImage ? '✅ มี' : '❌ ไม่มี'}</td>
+            <td>${item.hasResultImage ? '✅ มี' : '❌ ไม่มี'}</td>
+            <td style="color: var(--danger); font-size: 12px;">${item.errorMessage || '-'}</td>
+            <td>
+              <button class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="openDetailModal('${item._id}')">🔍 รายละเอียด</button>
+            </td>
+          </tr>
+        `).join('');
+
+        document.getElementById('pageInfo').innerText = `หน้า ${res.pagination.page} / ${res.pagination.totalPages}`;
+      } catch (e) {}
+    }
+
+    function changePage(delta) {
+      currentPage = Math.max(1, currentPage + delta);
+      loadRequests();
+    }
+
+    async function openDetailModal(id) {
+      selectedRequestId = id;
+      const modal = document.getElementById('detailModal');
+      modal.classList.add('active');
+
+      try {
+        const res = await apiFetch(`/admin/api/requests/${id}`);
+        if (!res.ok) return;
+
+        const r = res.request;
+        document.getElementById('modalTitle').innerText = `คำขอ #${r._id}`;
+        
+        const origBox = document.getElementById('originalImgContainer');
+        origBox.innerHTML = r.originalImageUrl ? `<img src="${r.originalImageUrl}?token=${currentToken}&t=${Date.now()}" alt="Original">` : '<span style="color: var(--text-muted);">ไม่มีรูปภาพต้นฉบับ</span>';
+
+        const resBox = document.getElementById('resultImgContainer');
+        resBox.innerHTML = r.resultImageUrl ? `<img src="${r.resultImageUrl}?token=${currentToken}&t=${Date.now()}" alt="Result">` : '<span style="color: var(--text-muted);">ยังไม่ได้สร้างรูปภาพ</span>';
+
+        document.getElementById('aiResultJson').innerText = JSON.stringify(r.aiResult || {}, null, 2);
+
+        const logsEl = document.getElementById('requestLogTimeline');
+        if (r.logs && r.logs.length > 0) {
+          logsEl.innerHTML = r.logs.map(l => `
+            <div style="margin-bottom: 6px; padding: 6px; background: #f8fafc; border-radius: 6px;">
+              <strong style="color: var(--text-main);">${l.step}</strong> [${l.status}] - ${new Date(l.createdAt).toLocaleTimeString('th-TH')}
+              ${l.errorDetail ? `<div style="color: var(--danger); font-size: 11px;">${l.errorDetail}</div>` : ''}
+            </div>
+          `).join('');
+        } else {
+          logsEl.innerHTML = '<span>ไม่มี log บันทึกไว้</span>';
+        }
+      } catch (e) {}
+    }
+
+    function closeModal() {
+      document.getElementById('detailModal').classList.remove('active');
+    }
+
+    async function approveAndSend() {
+      if (!selectedRequestId) return;
+      if (!confirm('ยืนยันอนุมัติและส่งรูปให้ลูกค้าผ่าน LINE?')) return;
+
+      try {
+        const res = await apiFetch(`/admin/api/requests/${selectedRequestId}/approve`, { method: 'POST' });
+        if (res.ok) {
+          alert('อนุมัติและส่งรูปให้ลูกค้าสำเร็จ!');
+          closeModal();
+          loadRequests();
+        } else {
+          alert(`ล้มเหลว: ${res.error}`);
+        }
+      } catch (e) {
+        alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
+      }
+    }
+
+    async function markAsFailed() {
+      if (!selectedRequestId) return;
+      const reason = prompt('กรุณาระบุเหตุผลที่ปฏิเสธ/ทำเป็นล้มเหลว:');
+      if (!reason) return;
+
+      try {
+        const res = await apiFetch(`/admin/api/requests/${selectedRequestId}/fail`, {
+          method: 'POST',
+          body: JSON.stringify({ reason })
+        });
+        if (res.ok) {
+          alert('ทำเป็นล้มเหลวเรียบร้อย');
+          closeModal();
+          loadRequests();
+        } else {
+          alert(`ล้มเหลว: ${res.error}`);
+        }
+      } catch (e) {
+        alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
+      }
+    }
+
+    async function loadUsers() {
+      const search = document.getElementById('userSearchInput').value;
+      const tbody = document.getElementById('usersTableBody');
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">กำลังโหลดข้อมูล...</td></tr>';
+
+      try {
+        const res = await apiFetch(`/admin/api/users?search=${encodeURIComponent(search)}`);
+        if (!res.ok) return;
+
+        if (res.data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">ไม่พบข้อมูลผู้ใช้งาน</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = res.data.map(u => {
+          const isRegistered = u.registration && u.registration.fullName;
+          const regBadge = isRegistered ? `<span class="badge badge-sent">ลงทะเบียนแล้ว</span>` : `<span class="badge badge-needs_review">ยังไม่ลงทะเบียน</span>`;
+          const phoneBirth = isRegistered ? `${u.registration.phone || '-'}<br><small style="color:var(--text-muted);">${u.registration.birthDate || '-'}</small>` : '-';
+          const provinceGender = isRegistered ? `${u.registration.province || '-'}<br><small style="color:var(--text-muted);">${u.registration.gender || '-'}</small>` : '-';
+          
+          return `
+            <tr>
+              <td>
+                <div class="user-cell">
+                  <img src="${u.pictureUrl || 'https://via.placeholder.com/36'}" class="avatar" alt="">
+                  <div>
+                    <div style="font-weight: 600;">${u.displayName || 'ผู้ใช้ LINE'}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">${u.lineUserId}</div>
+                  </div>
+                </div>
+              </td>
+              <td>${regBadge}</td>
+              <td>${phoneBirth}</td>
+              <td>${provinceGender}</td>
+              <td><strong>${u.requestCount || 0}</strong> คำขอ</td>
+              <td>${u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleString('th-TH') : '-'}</td>
+              <td>
+                <button class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="viewUserDetail('${u.lineUserId}')">🔍 ข้อมูล</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {}
+    }
+
+    function viewUserDetail(lineUserId) {
+      document.getElementById('requestSearchInput').value = lineUserId;
+      switchTab('requests-logs');
+      switchSubTab('requests');
+    }
+
+    async function loadLineMessages() {
+      const sendType = document.getElementById('lineMsgSendTypeFilter').value;
+      const msgType = document.getElementById('lineMsgTypeFilter').value;
+      const search = document.getElementById('lineMsgSearchInput').value;
+      const tbody = document.getElementById('lineMessagesTableBody');
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">กำลังโหลดข้อมูล...</td></tr>';
+
+      try {
+        const res = await apiFetch(`/admin/api/line-messages?page=${currentLineMsgPage}&limit=15&sendType=${sendType}&msgType=${msgType}&search=${encodeURIComponent(search)}`);
+        if (!res.ok) return;
+
+        if (res.stats) {
+          document.getElementById('lineMsgTotalCount').innerText = res.stats.total || 0;
+          document.getElementById('lineMsgTodayCount').innerText = res.stats.today || 0;
+          document.getElementById('lineMsgReplyCount').innerText = res.stats.replyCount || 0;
+          document.getElementById('lineMsgPushCount').innerText = res.stats.pushCount || 0;
+        }
+
+        if (res.data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">ไม่พบประวัติการส่งข้อความ</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = res.data.map(m => {
+          const sendTypeBadge = m.sendType === 'reply' 
+            ? `<span class="badge" style="background:#e0f2fe; color:#0369a1;">Reply (ตอบกลับ)</span>`
+            : `<span class="badge" style="background:#fef3c7; color:#b45309;">Push (ส่งตรง)</span>`;
+
+          const statusBadge = m.status === 'success'
+            ? `<span class="badge badge-sent">สำเร็จ</span>`
+            : `<span class="badge badge-failed">ล้มเหลว</span>`;
+
+          return `
+            <tr>
+              <td><strong>${m.sentTimeStr}</strong><br><small style="color:var(--text-muted);">${m.sentDateStr}</small></td>
+              <td>
+                <div class="user-cell">
+                  <img src="${m.user.pictureUrl || 'https://via.placeholder.com/36'}" class="avatar" alt="">
+                  <div>
+                    <div style="font-weight: 600;">${m.user.displayName || 'ผู้ใช้ LINE'}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">${m.lineUserId}</div>
+                  </div>
+                </div>
+              </td>
+              <td>${sendTypeBadge}</td>
+              <td><span class="badge" style="background:#f1f5f9; color:#475569;">${m.msgType}</span></td>
+              <td style="max-width: 320px;">
+                <div style="font-size: 13px; font-weight: 600;">${m.previewText}</div>
+                ${m.detail ? `<div style="font-size: 11px; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${m.detail}</div>` : ''}
+              </td>
+              <td>${statusBadge}</td>
+            </tr>
+          `;
+        }).join('');
+
+        document.getElementById('lineMsgPageInfo').innerText = `หน้า ${res.pagination.page} / ${res.pagination.totalPages}`;
+      } catch (e) {}
+    }
+
+    function changeLineMsgPage(delta) {
+      currentLineMsgPage = Math.max(1, currentLineMsgPage + delta);
+      loadLineMessages();
+    }
+
+    async function loadLogs() {
+      const step = document.getElementById('logStepFilter').value;
+      const tbody = document.getElementById('logsTableBody');
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">กำลังโหลดข้อมูล...</td></tr>';
+
+      try {
+        const res = await apiFetch(`/admin/api/logs?step=${step}&limit=30`);
+        if (!res.ok) return;
+
+        if (res.data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center;">ไม่พบข้อมูล Log</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = res.data.map(l => `
+          <tr>
+            <td>${new Date(l.createdAt).toLocaleString('th-TH')}</td>
+            <td><strong style="color: var(--primary);">${l.step}</strong></td>
+            <td><span class="badge badge-${l.status}">${l.status}</span></td>
+            <td style="font-size: 12px; font-family: monospace;">${l.lineUserId || '-'}</td>
+            <td style="font-size: 12px;">${l.errorDetail ? `<span style="color: var(--danger);">${l.errorDetail}</span>` : JSON.stringify(l.data || {})}</td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    // CARD BUILDER SYSTEM
+    let currentCardConfig = null;
+    let draggedIndex = null;
+
+    const DEFAULT_CARD_SECTIONS = [
+      { id: "header", name: "ZONE 1 - HEADER & TITLE", visible: true },
+      { id: "stats", name: "ZONE 2 - STAT ROW 3 คอลัมน์", visible: true },
+      { id: "aiSummary", name: "ZONE 3 - AI SUMMARY BOX", visible: true },
+      { id: "sleepComp", name: "ZONE 4 & 5 - องค์ประกอบการนอน & HYPNOGRAM CHART", visible: true },
+      { id: "activities", name: "ZONE 6 - วันนี้เหมาะกับ", visible: true },
+      { id: "tips", name: "ZONE 7 - TIPS BOX", visible: true }
+    ];
+
+    async function loadCardBuilder() {
+      try {
+        const res = await apiFetch('/admin/api/card-config');
+        if (res.ok) {
+          currentCardConfig = res.config;
+          populateCardBuilderUI();
+          updateLivePreview();
+        }
+      } catch (e) {}
+    }
+
+    function populateCardBuilderUI() {
+      if (!currentCardConfig) return;
+      renderDragItems();
+
+      const c = currentCardConfig.colors || {};
+      if (document.getElementById('colBgCream')) document.getElementById('colBgCream').value = c.bgCream || "#FFFFFF";
+      if (document.getElementById('colNavyDark')) document.getElementById('colNavyDark').value = c.navyDark || "#0F172A";
+      if (document.getElementById('colGreenAccent')) document.getElementById('colGreenAccent').value = c.greenAccent || "#DC2626";
+      if (document.getElementById('colGreenDark')) document.getElementById('colGreenDark').value = c.greenDark || "#7F1D1D";
+
+      const t = currentCardConfig.textLabels || {};
+      if (document.getElementById('txtBrandTitle')) document.getElementById('txtBrandTitle').value = t.brandTitle || "Biokoop";
+      if (document.getElementById('txtHeaderSubtitle')) document.getElementById('txtHeaderSubtitle').value = t.headerSubtitle || "MORNING HEALTH CARD";
+      if (document.getElementById('txtHeaderSubtext')) document.getElementById('txtHeaderSubtext').value = t.headerSubtext || "คุณภาพการนอนที่ดี ช่วยสร้างรากฐานที่แข็งแรงให้กับวันของคุณ";
+      if (document.getElementById('txtSleepCompTitle')) document.getElementById('txtSleepCompTitle').value = t.sleepCompTitle || "องค์ประกอบการนอน";
+      if (document.getElementById('txtActivitiesTitle')) document.getElementById('txtActivitiesTitle').value = t.activitiesTitle || "วันนี้เหมาะกับ";
+      if (document.getElementById('txtTipsTitle')) document.getElementById('txtTipsTitle').value = t.tipsTitle || "TIPS";
+
+      if (document.getElementById('disclaimerInput')) document.getElementById('disclaimerInput').value = currentCardConfig.disclaimer || "";
+    }
+
+    function renderDragItems() {
+      const container = document.getElementById('drag-sections-list');
+      if (!container || !currentCardConfig || !currentCardConfig.sections) return;
+
+      container.innerHTML = currentCardConfig.sections.map((sec, idx) => `
+        <div class="drag-item" draggable="true" data-index="${idx}" ondragstart="onDragStart(event)" ondragover="onDragOver(event)" ondrop="onDrop(event)">
+          <div style="display: flex; align-items: center;">
+            <span class="drag-handle">☰</span>
+            <span style="font-weight: 600; font-size: 13.5px; color: var(--text-main);">${sec.name}</span>
+          </div>
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 12.5px; color: var(--text-muted);">
+            <input type="checkbox" ${sec.visible !== false ? 'checked' : ''} onchange="toggleSectionVisible(${idx}, this.checked)"> แสดงผล
+          </label>
+        </div>
+      `).join('');
+    }
+
+    function onDragStart(e) {
+      draggedIndex = Number(e.currentTarget.dataset.index);
+      e.currentTarget.classList.add('dragging');
+    }
+
+    function onDragOver(e) {
+      e.preventDefault();
+    }
+
+    function onDrop(e) {
+      e.preventDefault();
+      const dropIndex = Number(e.currentTarget.dataset.index);
+      if (draggedIndex === null || draggedIndex === dropIndex) return;
+
+      const items = [...currentCardConfig.sections];
+      const [movedItem] = items.splice(draggedIndex, 1);
+      items.splice(dropIndex, 0, movedItem);
+      currentCardConfig.sections = items;
+      draggedIndex = null;
+
+      renderDragItems();
+      updateLivePreview();
+    }
+
+    function toggleSectionVisible(index, checked) {
+      if (currentCardConfig && currentCardConfig.sections[index]) {
+        currentCardConfig.sections[index].visible = checked;
+        updateLivePreview();
+      }
+    }
+
+    function applyPresetTheme(preset) {
+      if (!currentCardConfig) return;
+      let colors = {};
+
+      if (preset === 'redwhite') {
+        colors = {
+          navyDark: "#111111", greenAccent: "#DC2626", grayText: "#475569", grayLight: "#94A3B8",
+          green: "#DC2626", greenDark: "#000000", greenLight: "#FEE2E2", greenBorder: "#FCA5A5",
+          purple: "#7C3AED", purpleLight: "#F3E8FF", red: "#EF4444", redLight: "#FEE2E2",
+          cyan: "#0284C7", cyanLight: "#E0F2FE", cyanBorder: "#38BDF8", blue: "#2563EB",
+          blueLight: "#EFF6FF", yellow: "#CA8A04", yellowLight: "#FEF9C3", yellowBorder: "#FDE047",
+          bgCream: "#FFFFFF", cardBg: "#FFFFFF", border: "#E2E8F0", white: "#FFFFFF"
+        };
+      } else if (preset === 'nature') {
+        colors = {
+          navyDark: "#0F291E", greenAccent: "#16A34A", grayText: "#475569", grayLight: "#94A3B8",
+          green: "#16A34A", greenDark: "#052E16", greenLight: "#DCFCE7", greenBorder: "#86EFAC",
+          purple: "#7C3AED", purpleLight: "#F3E8FF", red: "#EF4444", redLight: "#FEE2E2",
+          cyan: "#0284C7", cyanLight: "#E0F2FE", cyanBorder: "#38BDF8", blue: "#2563EB",
+          blueLight: "#EFF6FF", yellow: "#CA8A04", yellowLight: "#FEF9C3", yellowBorder: "#FDE047",
+          bgCream: "#FFFFFF", cardBg: "#FFFFFF", border: "#E2E8F0", white: "#FFFFFF"
+        };
+      } else if (preset === 'ocean') {
+        colors = {
+          navyDark: "#0C4A6E", greenAccent: "#0284C7", grayText: "#475569", grayLight: "#94A3B8",
+          green: "#0284C7", greenDark: "#075985", greenLight: "#E0F2FE", greenBorder: "#7DD3FC",
+          purple: "#7C3AED", purpleLight: "#F3E8FF", red: "#EF4444", redLight: "#FEE2E2",
+          cyan: "#0284C7", cyanLight: "#E0F2FE", cyanBorder: "#38BDF8", blue: "#2563EB",
+          blueLight: "#EFF6FF", yellow: "#CA8A04", yellowLight: "#FEF9C3", yellowBorder: "#FDE047",
+          bgCream: "#FFFFFF", cardBg: "#FFFFFF", border: "#E2E8F0", white: "#FFFFFF"
+        };
+      } else if (preset === 'dark') {
+        colors = {
+          navyDark: "#F8FAFC", greenAccent: "#F43F5E", grayText: "#94A3B8", grayLight: "#64748B",
+          green: "#F43F5E", greenDark: "#0F172A", greenLight: "#881337", greenBorder: "#9F1239",
+          purple: "#A855F7", purpleLight: "#3B0764", red: "#F87171", redLight: "#450A0A",
+          cyan: "#38BDF8", cyanLight: "#0C4A6E", cyanBorder: "#0284C7", blue: "#60A5FA",
+          blueLight: "#1E3A8A", yellow: "#FACC15", yellowLight: "#713F12", yellowBorder: "#CA8A04",
+          bgCream: "#0F172A", cardBg: "#1E293B", border: "#334155", white: "#FFFFFF"
+        };
+      } else if (preset === 'rose') {
+        colors = {
+          navyDark: "#4C0519", greenAccent: "#E11D48", grayText: "#475569", grayLight: "#94A3B8",
+          green: "#E11D48", greenDark: "#881337", greenLight: "#FFE4E6", greenBorder: "#FDA4AF",
+          purple: "#7C3AED", purpleLight: "#F3E8FF", red: "#EF4444", redLight: "#FEE2E2",
+          cyan: "#0284C7", cyanLight: "#E0F2FE", cyanBorder: "#38BDF8", blue: "#2563EB",
+          blueLight: "#EFF6FF", yellow: "#CA8A04", yellowLight: "#FEF9C3", yellowBorder: "#FDE047",
+          bgCream: "#FFFFFF", cardBg: "#FFFFFF", border: "#E2E8F0", white: "#FFFFFF"
+        };
+      }
+
+      currentCardConfig.colors = { ...currentCardConfig.colors, ...colors };
+      populateCardBuilderUI();
+      updateLivePreview();
+    }
+
+    function gatherCurrentCardConfigFromInputs() {
+      if (!currentCardConfig) return null;
+
+      const colors = {
+        ...currentCardConfig.colors,
+        bgCream: document.getElementById('colBgCream')?.value || "#FFFFFF",
+        navyDark: document.getElementById('colNavyDark')?.value || "#0F172A",
+        greenAccent: document.getElementById('colGreenAccent')?.value || "#DC2626",
+        green: document.getElementById('colGreenAccent')?.value || "#DC2626",
+        greenDark: document.getElementById('colGreenDark')?.value || "#7F1D1D"
+      };
+
+      const textLabels = {
+        ...currentCardConfig.textLabels,
+        brandTitle: document.getElementById('txtBrandTitle')?.value || "Biokoop",
+        headerSubtitle: document.getElementById('txtHeaderSubtitle')?.value || "MORNING HEALTH CARD",
+        headerSubtext: document.getElementById('txtHeaderSubtext')?.value || "คุณภาพการนอนที่ดี ช่วยสร้างรากฐานที่แข็งแรงให้กับวันของคุณ",
+        sleepCompTitle: document.getElementById('txtSleepCompTitle')?.value || "องค์ประกอบการนอน",
+        activitiesTitle: document.getElementById('txtActivitiesTitle')?.value || "วันนี้เหมาะกับ",
+        tipsTitle: document.getElementById('txtTipsTitle')?.value || "TIPS"
+      };
+
+      return {
+        ...currentCardConfig,
+        colors,
+        textLabels,
+        disclaimer: document.getElementById('disclaimerInput')?.value || ""
+      };
+    }
+
+    let previewDebounceTimer = null;
+    async function updateLivePreview() {
+      const badge = document.getElementById('previewStatusBadge');
+      if (badge) badge.innerText = "⏳ กำลังสร้างรูปภาพ...";
+
+      clearTimeout(previewDebounceTimer);
+      previewDebounceTimer = setTimeout(async () => {
+        const configToPreview = gatherCurrentCardConfigFromInputs();
+        if (!configToPreview) return;
+
+        try {
+          const res = await apiFetch('/admin/api/card-preview', {
+            method: 'POST',
+            body: JSON.stringify({ config: configToPreview })
+          });
+          if (res.ok && res.svg) {
+            const container = document.getElementById('cardPreviewContainer');
+            if (container) container.innerHTML = res.svg;
+            if (badge) badge.innerText = "⚡ อัปเดตสด";
+          }
+        } catch (e) {
+          if (badge) badge.innerText = "⚠️ ผิดพลาด";
+        }
+      }, 300);
+    }
+
+    async function saveCardConfigToServer() {
+      const configToSave = gatherCurrentCardConfigFromInputs();
+      if (!configToSave) return;
+
+      try {
+        const res = await apiFetch('/admin/api/card-config', {
+          method: 'POST',
+          body: JSON.stringify({ config: configToSave })
+        });
+        if (res.ok) {
+          alert('บันทึกรูปแบบและลำดับการ์ดสำเร็จเรียบร้อย!');
+          currentCardConfig = res.config;
+          updateLivePreview();
+        } else {
+          alert(`ล้มเหลว: ${res.error}`);
+        }
+      } catch (e) {
+        alert('เกิดข้อผิดพลาดในการบันทึกรูปแบบการ์ด');
+      }
+    }
+
+    async function resetDefaultCardConfig() {
+      if (!confirm('ยืนยันคืนค่ารูปแบบการ์ดกลับเป็นค่าเริ่มต้น?')) return;
+      currentCardConfig.sections = JSON.parse(JSON.stringify(DEFAULT_CARD_SECTIONS));
+      applyPresetTheme('redwhite');
+      await saveCardConfigToServer();
+    }
+
+    function openCardZoomModal() {
+      const previewSvg = document.getElementById('cardPreviewContainer')?.innerHTML;
+      if (!previewSvg) return;
+      const zoomContainer = document.getElementById('zoomModalContainer');
+      if (zoomContainer) zoomContainer.innerHTML = previewSvg;
+      document.getElementById('cardZoomModal').classList.add('active');
+    }
+
+    function closeCardZoomModal() {
+      document.getElementById('cardZoomModal').classList.remove('active');
+    }
+
+    // BOT MESSAGES CONFIG SYSTEM
+    let currentBotMessagesConfig = null;
+
+    async function loadBotMessages() {
+      try {
+        const res = await apiFetch('/admin/api/bot-messages-config');
+        if (res.ok) {
+          currentBotMessagesConfig = res.config;
+          populateBotMessagesUI();
+        }
+      } catch (e) {}
+    }
+
+    function populateBotMessagesUI() {
+      if (!currentBotMessagesConfig) return;
+      const c = currentBotMessagesConfig;
+
+      const reg = c.registrationFlex || {};
+      if (document.getElementById('bmBrandLabel')) document.getElementById('bmBrandLabel').value = reg.brandLabel || "";
+      if (document.getElementById('bmTitle')) document.getElementById('bmTitle').value = reg.title || "";
+      if (document.getElementById('bmBodyText')) document.getElementById('bmBodyText').value = reg.bodyText || "";
+      if (document.getElementById('bmButtonLabel')) document.getElementById('bmButtonLabel').value = reg.buttonLabel || "";
+
+      if (document.getElementById('bmEditTitle')) document.getElementById('bmEditTitle').value = reg.editTitle || "";
+      if (document.getElementById('bmEditBodyText')) document.getElementById('bmEditBodyText').value = reg.editBodyText || "";
+      if (document.getElementById('bmEditButtonLabel')) document.getElementById('bmEditButtonLabel').value = reg.editButtonLabel || "";
+
+      const style = reg.style || {};
+      if (document.getElementById('bmBgColor')) document.getElementById('bmBgColor').value = style.bgColor || "#FFFFFF";
+      if (document.getElementById('bmBrandColor')) document.getElementById('bmBrandColor').value = style.brandColor || "#DC2626";
+      if (document.getElementById('bmTitleColor')) document.getElementById('bmTitleColor').value = style.titleColor || "#0F172A";
+      if (document.getElementById('bmBodyTextColor')) document.getElementById('bmBodyTextColor').value = style.bodyTextColor || "#475569";
+      if (document.getElementById('bmButtonColor')) document.getElementById('bmButtonColor').value = style.buttonColor || "#DC2626";
+
+      const r = c.autoReplies || {};
+      if (document.getElementById('bmGreeting')) document.getElementById('bmGreeting').value = r.greeting || "";
+      if (document.getElementById('bmHowTo')) document.getElementById('bmHowTo').value = r.howTo || "";
+      if (document.getElementById('bmContact')) document.getElementById('bmContact').value = r.contact || "";
+      if (document.getElementById('bmSendPhotoReady')) document.getElementById('bmSendPhotoReady').value = r.sendPhotoReady || "";
+      if (document.getElementById('bmNoResult')) document.getElementById('bmNoResult').value = r.noResult || "";
+      if (document.getElementById('bmTextFallback')) document.getElementById('bmTextFallback').value = r.textFallback || "";
+    }
+
+    function gatherBotMessagesConfigFromInputs() {
+      return {
+        registrationFlex: {
+          brandLabel: document.getElementById('bmBrandLabel')?.value || "",
+          title: document.getElementById('bmTitle')?.value || "",
+          bodyText: document.getElementById('bmBodyText')?.value || "",
+          buttonLabel: document.getElementById('bmButtonLabel')?.value || "",
+          editTitle: document.getElementById('bmEditTitle')?.value || "",
+          editBodyText: document.getElementById('bmEditBodyText')?.value || "",
+          editButtonLabel: document.getElementById('bmEditButtonLabel')?.value || "",
+          style: {
+            bgColor: document.getElementById('bmBgColor')?.value || "#FFFFFF",
+            brandColor: document.getElementById('bmBrandColor')?.value || "#DC2626",
+            titleColor: document.getElementById('bmTitleColor')?.value || "#0F172A",
+            bodyTextColor: document.getElementById('bmBodyTextColor')?.value || "#475569",
+            buttonColor: document.getElementById('bmButtonColor')?.value || "#DC2626"
+          }
+        },
+        autoReplies: {
+          greeting: document.getElementById('bmGreeting')?.value || "",
+          howTo: document.getElementById('bmHowTo')?.value || "",
+          contact: document.getElementById('bmContact')?.value || "",
+          sendPhotoReady: document.getElementById('bmSendPhotoReady')?.value || "",
+          noResult: document.getElementById('bmNoResult')?.value || "",
+          textFallback: document.getElementById('bmTextFallback')?.value || ""
+        }
+      };
+    }
+
+    async function saveBotMessagesConfigToServer() {
+      const configToSave = gatherBotMessagesConfigFromInputs();
+      try {
+        const res = await apiFetch('/admin/api/bot-messages-config', {
+          method: 'POST',
+          body: JSON.stringify({ config: configToSave })
+        });
+        if (res.ok) {
+          alert('บันทึกข้อความบอทอัตโนมัติสำเร็จเรียบร้อย!');
+          currentBotMessagesConfig = res.config;
+        } else {
+          alert(`ล้มเหลว: ${res.error}`);
+        }
+      } catch (e) {
+        alert('เกิดข้อผิดพลาดในการบันทึกข้อความบอท');
+      }
+    }
+
+    async function resetDefaultBotMessagesConfig() {
+      if (!confirm('ยืนยันคืนค่าข้อความบอทกลับเป็นค่าเริ่มต้น?')) return;
+      try {
+        const res = await apiFetch('/admin/api/bot-messages-config/reset', { method: 'POST' });
+        if (res.ok) {
+          alert('คืนค่าข้อความบอทเป็นค่าเริ่มต้นสำเร็จ');
+          currentBotMessagesConfig = res.config;
+          populateBotMessagesUI();
+        }
+      } catch (e) {}
+    }
+
+    // USAGE STATS & PRICING SYSTEM
+    let currentPricingConfig = null;
+
+    async function loadUsageStats() {
+      const tbody = document.getElementById('usageStatsTableBody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">กำลังโหลดข้อมูล...</td></tr>';
+
+      try {
+        const res = await apiFetch('/admin/api/usage-stats');
+        if (!res.ok) return;
+
+        if (res.pricing) {
+          currentPricingConfig = res.pricing;
+          renderPricingTable();
+        }
+
+        if (res.totals) {
+          if (document.getElementById('usageStatTotalRequests')) document.getElementById('usageStatTotalRequests').innerText = (res.totals.totalRequests || 0).toLocaleString();
+          if (document.getElementById('usageStatPromptTokens')) document.getElementById('usageStatPromptTokens').innerText = (res.totals.promptTokens || 0).toLocaleString();
+          if (document.getElementById('usageStatCompletionTokens')) document.getElementById('usageStatCompletionTokens').innerText = (res.totals.completionTokens || 0).toLocaleString();
+
+          const cur = res.pricing?.currency || 'USD';
+          const costStr = res.totals.costFormatted || `${cur} 0.000000`;
+          if (document.getElementById('usageStatTotalCost')) document.getElementById('usageStatTotalCost').innerText = costStr;
+        }
+
+        if (!tbody) return;
+        if (!res.users || res.users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">ไม่พบข้อมูลการใช้ API (ยังไม่มีคำขอที่บันทึก Token)</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = res.users.map(u => `
+          <tr>
+            <td>
+              <div class="user-cell">
+                <img src="${u.user?.pictureUrl || 'https://via.placeholder.com/36'}" class="avatar" alt="">
+                <div>
+                  <div style="font-weight: 600;">${u.user?.displayName || 'ผู้ใช้ LINE'}</div>
+                  <div style="font-size: 11px; color: var(--text-muted);">${u.lineUserId}</div>
+                </div>
+              </div>
+            </td>
+            <td><strong>${u.requestsCount}</strong> ครั้ง</td>
+            <td>${u.promptTokens.toLocaleString()}</td>
+            <td>${u.completionTokens.toLocaleString()}</td>
+            <td><strong>${u.totalTokens.toLocaleString()}</strong></td>
+            <td><strong style="color: var(--success);">${u.estimatedCostFormatted}</strong></td>
+            <td style="font-size: 12px; color: var(--text-muted);">${u.modelsUsed.join(', ') || '-'}</td>
+            <td>
+              <button class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="openUserUsageDetailModal('${u.lineUserId}')">🔍 ดูทุกรายการ</button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function openUserUsageDetailModal(lineUserId) {
+      const modal = document.getElementById('userUsageModal');
+      const tbody = document.getElementById('userUsageModalTableBody');
+      const avatar = document.getElementById('uumUserAvatar');
+      const nameEl = document.getElementById('uumUserName');
+      const idEl = document.getElementById('uumUserId');
+
+      if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">กำลังโหลดประวัติคำขอ...</td></tr>';
+      if (modal) modal.classList.add('active');
+
+      try {
+        const res = await apiFetch(`/admin/api/users/${lineUserId}/usage-requests`);
+        if (!res.ok) {
+          if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger);">ล้มเหลว: ${res.error}</td></tr>`;
+          return;
+        }
+
+        if (avatar) avatar.src = res.user?.pictureUrl || 'https://via.placeholder.com/40';
+        if (nameEl) nameEl.innerText = `ประวัติ Token ของ ${res.user?.displayName || 'ผู้ใช้ LINE'}`;
+        if (idEl) idEl.innerText = `Line User ID: ${lineUserId}`;
+
+        if (!res.requests || res.requests.length === 0) {
+          if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align: center;">ไม่พบประวัติรายการคำขอของผู้ใช้นี้</td></tr>';
+          return;
+        }
+
+        const statusMap = {
+          received: { label: 'รับภาพแล้ว', bg: '#f1f5f9', color: '#475569' },
+          analyzing: { label: 'กำลังวิเคราะห์', bg: '#fef3c7', color: '#d97706' },
+          needs_review: { label: 'รอแอดมินตรวจ', bg: '#e0f2fe', color: '#0369a1' },
+          sent: { label: 'ส่งสำเร็จ', bg: '#dcfce7', color: '#15803d' },
+          failed: { label: 'ล้มเหลว', bg: '#fee2e2', color: '#dc2626' },
+          quality_failed: { label: 'รูปไม่ชัด', bg: '#fef3c7', color: '#b45309' }
+        };
+
+        tbody.innerHTML = res.requests.map(r => {
+          const dt = r.createdAt ? new Date(r.createdAt).toLocaleString('th-TH') : '-';
+          const st = statusMap[r.status] || { label: r.status, bg: '#f1f5f9', color: '#475569' };
+          const imgBtn = r.hasOriginalImage 
+            ? `<button class="btn btn-outline" style="padding: 2px 8px; font-size: 11px;" onclick="openDetailModal('${r._id}')">🖼️ ดูรูปภาพ</button>`
+            : '-';
+
+          return `
+            <tr>
+              <td style="font-size: 12px;">${dt}</td>
+              <td><span class="badge" style="background: ${st.bg}; color: ${st.color}; font-size: 11px;">${st.label}</span></td>
+              <td><strong style="font-size: 12px; color: var(--primary);">${r.aiModel}</strong></td>
+              <td>${r.promptTokens.toLocaleString()}</td>
+              <td>${r.completionTokens.toLocaleString()}</td>
+              <td><strong>${r.totalTokens.toLocaleString()}</strong></td>
+              <td><strong style="color: var(--success); font-size: 12px;">${r.costFormatted}</strong></td>
+              <td>${imgBtn}</td>
+            </tr>
+          `;
+        }).join('');
+
+      } catch (e) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--danger);">เกิดข้อผิดพลาดในการดึงข้อมูล</td></tr>';
+      }
+    }
+
+    function closeUserUsageModal() {
+      const modal = document.getElementById('userUsageModal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    function togglePlanModeUI(mode) {
+      const isFree = mode === 'free';
+      const badge = document.getElementById('planModeBadge');
+      const desc = document.getElementById('planModeDesc');
+
+      if (badge) {
+        if (isFree) {
+          badge.className = 'badge';
+          badge.style.cssText = 'background:#dcfce7; color:#15803d; font-size:13px; font-weight:600; padding:6px 12px;';
+          badge.innerText = '🎁 โหมดใช้งานฟรี (Free Tier - 0 บาท)';
+        } else {
+          badge.className = 'badge';
+          badge.style.cssText = 'background:#e0f2fe; color:#0369a1; font-size:13px; font-weight:600; padding:6px 12px;';
+          badge.innerText = '💳 จ่ายตามการใช้งานจริง (Paid Plan)';
+        }
+      }
+
+      if (desc) {
+        if (isFree) {
+          desc.innerHTML = '💡 <strong>โหมดใช้งานฟรี (Free Tier)</strong>: Google Gemini เปิดให้ใช้งานฟรีสูงสุด 15 Requests/นาที (1,500 Requests/วัน) โดยไม่มีค่าใช้จ่าย ($0.00 / 0 บาท)';
+        } else {
+          desc.innerHTML = '⚡ <strong>โหมดจ่ายตามใช้งานจริง (Pay-as-you-go)</strong>: คำนวณค่าบริการสะสมจากอัตรา Input/Output Token ต่อ 1M Tokens ตามอัตราจริงของ Google';
+        }
+      }
+    }
+
+    function renderPricingTable() {
+      const tbody = document.getElementById('pricingTableBody');
+      if (!tbody || !currentPricingConfig) return;
+
+      const planMode = currentPricingConfig.planMode || 'free';
+      if (planMode === 'free') {
+        const freeRadio = document.getElementById('planModeFree');
+        if (freeRadio) freeRadio.checked = true;
+        togglePlanModeUI('free');
+      } else {
+        const paidRadio = document.getElementById('planModePaid');
+        if (paidRadio) paidRadio.checked = true;
+        togglePlanModeUI('paid');
+      }
+
+      const currency = currentPricingConfig.currency || 'USD';
+      if (document.getElementById('pcCurrency')) document.getElementById('pcCurrency').value = currency;
+
+      const rates = currentPricingConfig.rates || currentPricingConfig.modelRates || {};
+      const modelKeys = Object.keys(rates);
+
+      tbody.innerHTML = modelKeys.map(model => `
+        <tr>
+          <td><strong style="color: var(--text-main);">${model}</strong></td>
+          <td><span class="badge" style="background:#dcfce7; color:#16a34a; font-weight:600; font-size:12px;">🎁 ฟรี (Free Tier Available)</span></td>
+          <td>
+            <input type="number" step="0.000001" class="form-control pricing-input-input" data-model="${model}" value="${rates[model].inputPer1M ?? 0}" style="width: 140px;">
+          </td>
+          <td>
+            <input type="number" step="0.000001" class="form-control pricing-input-output" data-model="${model}" value="${rates[model].outputPer1M ?? 0}" style="width: 140px;">
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function savePricingConfigToServer() {
+      if (!currentPricingConfig) return;
+      const currency = document.getElementById('pcCurrency')?.value || 'USD';
+      const planMode = document.querySelector('input[name="planMode"]:checked')?.value || 'free';
+      const modelRates = {};
+
+      document.querySelectorAll('#pricingTableBody tr').forEach(row => {
+        const inEl = row.querySelector('.pricing-input-input');
+        const outEl = row.querySelector('.pricing-input-output');
+        if (inEl && outEl) {
+          const model = inEl.dataset.model;
+          modelRates[model] = {
+            inputPer1M: parseFloat(inEl.value) || 0,
+            outputPer1M: parseFloat(outEl.value) || 0
+          };
+        }
+      });
+
+      try {
+        const res = await apiFetch('/admin/api/pricing-config', {
+          method: 'POST',
+          body: JSON.stringify({ currency, planMode, modelRates })
+        });
+        if (res.ok) {
+          alert('บันทึกแพ็กเกจและอัตราค่าบริการสำเร็จ!');
+          loadUsageStats();
+        } else {
+          alert(`ล้มเหลว: ${res.error}`);
+        }
+      } catch (e) {
+        alert('เกิดข้อผิดพลาดในการบันทึกราคา');
+      }
+    }
+
+    // GRADE & SCORE CONFIG SYSTEM
+    let currentGradeConfig = null;
+
+    async function loadGradeConfig() {
+      const container = document.getElementById('gradeTiersContainer');
+      if (container) container.innerHTML = '<span style="color: var(--text-muted);">กำลังโหลดข้อมูลการตั้งค่าเกรด...</span>';
+
+      try {
+        const res = await apiFetch('/admin/api/grade-config');
+        if (res.ok) {
+          currentGradeConfig = res.config;
+          renderGradeTiers();
+        }
+      } catch (e) {
+        if (container) container.innerHTML = '<span style="color: var(--danger);">เกิดข้อผิดพลาดในการโหลดข้อมูลเกรด</span>';
+      }
+    }
+
+    function getGradeList() {
+      if (!currentGradeConfig) return [];
+      return currentGradeConfig.grades || currentGradeConfig.tiers || [];
+    }
+
+    function renderGradeTiers() {
+      const container = document.getElementById('gradeTiersContainer');
+      if (!container || !currentGradeConfig) return;
+
+      const tiers = getGradeList();
+      if (tiers.length === 0) {
+        container.innerHTML = '<span style="color: var(--text-muted);">ยังไม่มีการตั้งค่าเกรด กดปุ่ม "+ เพิ่มเกรดใหม่" ด้านบนเพื่อเริ่มตั้งค่าได้เลยค่ะ</span>';
+        return;
+      }
+
+      container.innerHTML = tiers.map((t, idx) => `
+        <div style="background: #ffffff; border: 1px solid var(--border-color); border-left: 5px solid ${t.color || '#0284c7'}; border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 20px; font-weight: 700; color: ${t.color || '#0284c7'};">เกรด ${t.grade || ''}</span>
+              <span style="font-size: 13px; color: var(--text-muted);">ช่วงคะแนน: ${t.minScore} - ${t.maxScore}</span>
+            </div>
+            <button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="removeGradeTier(${idx})">🗑️ ลบเกรดนี้</button>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 14px; font-size: 13px;">
+            <div>
+              <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">ตัวอักษรเกรด (เช่น A, B):</label>
+              <input type="text" class="form-control tier-grade" data-idx="${idx}" value="${t.grade || ''}" style="width: 100%;">
+            </div>
+            <div>
+              <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">คะแนนขั้นต่ำ (Min):</label>
+              <input type="number" class="form-control tier-min" data-idx="${idx}" value="${t.minScore ?? 0}" style="width: 100%;">
+            </div>
+            <div>
+              <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">คะแนนสูงสุด (Max):</label>
+              <input type="number" class="form-control tier-max" data-idx="${idx}" value="${t.maxScore ?? 100}" style="width: 100%;">
+            </div>
+            <div>
+              <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">ป้ายระบุสถานะ:</label>
+              <input type="text" class="form-control tier-label" data-idx="${idx}" value="${t.label || ''}" style="width: 100%;">
+            </div>
+            <div>
+              <label style="display: block; color: var(--text-muted); margin-bottom: 4px;">สีประจำเกรด:</label>
+              <input type="color" class="color-picker tier-color" data-idx="${idx}" value="${t.color || '#0284c7'}">
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px; font-size: 13px; border-top: 1px solid #f1f5f9; padding-top: 12px;">
+            <div>
+              <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">Headline ข้อความพาดหัวตัวใหญ่บนการ์ด:</label>
+              <input type="text" class="form-control tier-headline" data-idx="${idx}" value="${t.headline || t.defaultHeadline || ''}" style="width: 100%;">
+            </div>
+            <div>
+              <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">Summary สรุปภาพรวมสำหรับลงการ์ด (2-3 ประโยค):</label>
+              <textarea class="form-control tier-summary" data-idx="${idx}" style="width: 100%; height: 60px;">${t.summary || t.defaultSummary || ''}</textarea>
+            </div>
+            <div>
+              <label style="display: block; color: var(--text-muted); margin-bottom: 4px; font-weight: 600;">Tips คำแนะนำเชิงปฏิบัติสำหรับลงการ์ด (1-2 ประโยค):</label>
+              <textarea class="form-control tier-tips" data-idx="${idx}" style="width: 100%; height: 50px;">${t.tips || t.defaultTips || ''}</textarea>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function addGradeTier() {
+      if (!currentGradeConfig) currentGradeConfig = { grades: [] };
+      if (!currentGradeConfig.grades && !currentGradeConfig.tiers) currentGradeConfig.grades = [];
+      const list = currentGradeConfig.grades || currentGradeConfig.tiers;
+      list.push({
+        grade: "New",
+        minScore: 0,
+        maxScore: 50,
+        label: "ต้องปรับปรุง",
+        headline: "การนอนหลับต้องการดูแลเพิ่มเติม!",
+        summary: "คุณภาพการนอนในคืนที่ผ่านมาค่อนข้างต่ำ พักผ่อนไม่เพียงพอค่ะ",
+        tips: "พยายามเข้านอนให้ตรงเวลา และงดใช้โทรศัพท์ก่อนนอน 1 ชั่วโมงนะคะ",
+        color: "#DC2626"
+      });
+      renderGradeTiers();
+    }
+
+    function removeGradeTier(idx) {
+      const list = getGradeList();
+      if (!list || list.length === 0) return;
+      if (confirm('ยืนยันลบเกรดนี้?')) {
+        list.splice(idx, 1);
+        renderGradeTiers();
+      }
+    }
+
+    function gatherGradeConfigFromUI() {
+      const container = document.getElementById('gradeTiersContainer');
+      if (!container) return null;
+
+      const grades = [];
+      const cards = container.children;
+      for (let i = 0; i < cards.length; i++) {
+        const gradeInput = cards[i].querySelector('.tier-grade');
+        if (!gradeInput) continue;
+
+        const grade = gradeInput.value || '';
+        const minScore = parseInt(cards[i].querySelector('.tier-min')?.value) || 0;
+        const maxScore = parseInt(cards[i].querySelector('.tier-max')?.value) || 0;
+        const label = cards[i].querySelector('.tier-label')?.value || '';
+        const color = cards[i].querySelector('.tier-color')?.value || '#0284c7';
+        const headline = cards[i].querySelector('.tier-headline')?.value || '';
+        const summary = cards[i].querySelector('.tier-summary')?.value || '';
+        const tips = cards[i].querySelector('.tier-tips')?.value || '';
+
+        grades.push({ grade, minScore, maxScore, label, color, headline, summary, tips, defaultHeadline: headline, defaultSummary: summary, defaultTips: tips });
+      }
+
+      return { grades, tiers: grades };
+    }
+
+    async function saveGradeConfigToServer() {
+      const configToSave = gatherGradeConfigFromUI();
+      if (!configToSave) return;
+
+      try {
+        const res = await apiFetch('/admin/api/grade-config', {
+          method: 'POST',
+          body: JSON.stringify({ config: configToSave })
+        });
+        if (res.ok) {
+          alert('บันทึกการตั้งค่าเกรดและคะแนนสำเร็จเรียบร้อย!');
+          currentGradeConfig = res.config;
+          renderGradeTiers();
+        } else {
+          alert(`ล้มเหลว: ${res.error}`);
+        }
+      } catch (e) {
+        alert('เกิดข้อผิดพลาดในการบันทึกเกรด');
+      }
+    }
+
+    async function resetDefaultGradeConfig() {
+      if (!confirm('ยืนยันคืนค่าตั้งค่าเกรดและคะแนนกลับเป็นค่าเริ่มต้น?')) return;
+      try {
+        const res = await apiFetch('/admin/api/grade-config/reset', { method: 'POST' });
+        if (res.ok) {
+          alert('คืนค่าตั้งค่าเกรดเป็นค่าเริ่มต้นสำเร็จ');
+          currentGradeConfig = res.config;
+          renderGradeTiers();
+        }
+      } catch (e) {}
+    }
+  </script>
+</body>
+</html>

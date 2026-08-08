@@ -1,0 +1,27 @@
+import mongoose from "mongoose";
+import { Readable } from "stream";
+
+function getBucket(name) {
+  return new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+    bucketName: name,
+  });
+}
+
+// เก็บ buffer รูปลง GridFS -> คืนค่า ObjectId ของไฟล์
+export async function saveImage(bucketName, buffer, filename, contentType) {
+  const bucket = getBucket(bucketName);
+  const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+  return new Promise((resolve, reject) => {
+    const uploadStream = bucket.openUploadStream(filename, { contentType });
+    Readable.from([buf])
+      .pipe(uploadStream)
+      .on("error", reject)
+      .on("finish", () => resolve(uploadStream.id));
+  });
+}
+
+// ดึง readable stream ของรูปจาก GridFS (ใช้ตอน serve ผ่าน HTTP route)
+export function openDownloadStream(bucketName, id) {
+  const bucket = getBucket(bucketName);
+  return bucket.openDownloadStream(new mongoose.Types.ObjectId(id));
+}
