@@ -69,6 +69,7 @@ export const OFFICIAL_PRESETS = {
   "gemini-2.5-flash": { name: "Google Gemini 2.5 Flash", inputPer1M: 0.075, outputPer1M: 0.30 },
   "gemini-3.5-flash-lite": { name: "Google Gemini 3.5 Flash Lite", inputPer1M: 0.075, outputPer1M: 0.30 },
   "gemini-3.6-flash": { name: "Google Gemini 3.6 Flash", inputPer1M: 0.15, outputPer1M: 0.60 },
+  "openrouter/google/gemini-2.5-flash": { name: "OpenRouter (Gemini 2.5 Flash)", inputPer1M: 0.075, outputPer1M: 0.30 },
   "openrouter/openai/gpt-4o-mini": { name: "OpenRouter (GPT-4o mini)", inputPer1M: 0.15, outputPer1M: 0.60 },
 };
 
@@ -82,7 +83,28 @@ export function estimateCost(modelName, promptTokens, completionTokens) {
   if (cfg.planMode === "free") {
     return 0; // ฟรี 100% สำหรับ Free Tier API Key
   }
-  const rates = (modelName && cfg.modelRates[modelName]) || cfg.defaultRates;
+
+  let rates = null;
+  if (modelName) {
+    if (cfg.modelRates[modelName]) {
+      rates = cfg.modelRates[modelName];
+    } else {
+      const stripped = modelName.replace(/^openrouter\//, "");
+      if (cfg.modelRates[stripped]) {
+        rates = cfg.modelRates[stripped];
+      } else {
+        const afterSlash = stripped.split("/").pop();
+        if (cfg.modelRates[afterSlash]) {
+          rates = cfg.modelRates[afterSlash];
+        }
+      }
+    }
+  }
+
+  if (!rates) {
+    rates = cfg.defaultRates || { inputPer1M: 0, outputPer1M: 0 };
+  }
+
   const inputCost = (promptTokens / 1_000_000) * (rates.inputPer1M || 0);
   const outputCost = (completionTokens / 1_000_000) * (rates.outputPer1M || 0);
   return inputCost + outputCost;

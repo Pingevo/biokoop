@@ -68,8 +68,14 @@ export async function initImageService() {
     "resvg-wasm",
     "index_bg.wasm"
   );
-  const wasmBuffer = fs.readFileSync(wasmPath);
-  await initWasm(wasmBuffer);
+  try {
+    const wasmBuffer = fs.readFileSync(wasmPath);
+    await initWasm(wasmBuffer);
+  } catch (err) {
+    if (!err.message?.includes("Already initialized")) {
+      throw err;
+    }
+  }
 
   fontBuffers = [
     "Kanit-Regular.ttf",
@@ -81,6 +87,19 @@ export async function initImageService() {
 
   wasmReady = true;
   console.log("[imageService] resvg-wasm + fonts พร้อมใช้งาน");
+
+  // สร้างภาพ smartwatch สำหรับ Flex Message วิธีใช้งาน หากยังไม่มี
+  const heroPath = path.join(__dirname, "..", "public", "assets", "howto-hero.png");
+  if (!fs.existsSync(heroPath)) {
+    try {
+      const heroPng = renderHowToHeroImage();
+      fs.mkdirSync(path.dirname(heroPath), { recursive: true });
+      fs.writeFileSync(heroPath, heroPng);
+      console.log(`[imageService] สร้างภาพ smartwatch สำหรับ Flex Message ที่ ${heroPath}`);
+    } catch (err) {
+      console.warn("[imageService] ไม่สามารถสร้าง howto-hero.png ได้:", err.message);
+    }
+  }
 }
 
 // สร้างรูปการ์ดผลลัพธ์จากข้อมูลที่ validate ผ่านแล้ว -> คืนค่าเป็น Buffer (PNG)
@@ -129,6 +148,47 @@ export async function optimizeCardPng(pngBuffer) {
     console.warn(`[imageService] ⚠️ optimizeCardPng warning (ใช้รูปเดิม): ${err.message}`);
     return pngBuffer;
   }
+}
+
+function renderHowToHeroSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+<defs>
+  <linearGradient id="screenGrad" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#2a0a0a"/>
+    <stop offset="100%" stop-color="#0a0a0a"/>
+  </linearGradient>
+  <filter id="redGlow" x="-50%" y="-50%" width="200%" height="200%">
+    <feGaussianBlur stdDeviation="12" result="blur"/>
+    <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+  </filter>
+</defs>
+<circle cx="200" cy="200" r="175" fill="none" stroke="#DC2626" stroke-width="2" opacity="0.25" stroke-dasharray="10 8"/>
+<circle cx="200" cy="200" r="155" fill="none" stroke="#DC2626" stroke-width="1" opacity="0.15"/>
+<rect x="145" y="25" width="110" height="75" rx="18" fill="#111111"/>
+<rect x="145" y="300" width="110" height="75" rx="18" fill="#111111"/>
+<rect x="115" y="90" width="170" height="220" rx="44" fill="#111111" stroke="#333333" stroke-width="3"/>
+<rect x="125" y="100" width="150" height="200" rx="36" fill="url(#screenGrad)"/>
+<rect x="288" y="140" width="14" height="42" rx="7" fill="#333333"/>
+<text x="200" y="155" text-anchor="middle" font-family="Kanit" font-weight="600" font-size="24" fill="#EF4444">BPM</text>
+<text x="200" y="205" text-anchor="middle" font-family="Kanit" font-weight="800" font-size="78" fill="#FFFFFF">98</text>
+<path d="M 185 235 C 185 225, 195 220, 200 225 C 205 220, 215 225, 215 235 C 215 245, 200 260, 200 260 C 200 260, 185 245, 185 235 Z" fill="#DC2626"/>
+<path d="M 150 285 L 170 285 L 180 260 L 190 300 L 205 270 L 215 290 L 225 285 L 250 285" fill="none" stroke="#DC2626" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" filter="url(#redGlow)"/>
+<circle cx="290" cy="120" r="26" fill="#DC2626"/>
+<text x="290" y="129" text-anchor="middle" font-family="Kanit" font-weight="700" font-size="18" fill="#FFFFFF">AI</text>
+</svg>`;
+}
+
+// สร้างภาพ smartwatch สำหรับใช้เป็น hero image ใน Flex Message วิธีใช้งาน
+export function renderHowToHeroImage() {
+  if (!wasmReady) {
+    throw new Error("imageService ยังไม่ได้ initImageService() ก่อนใช้งาน");
+  }
+  const svg = renderHowToHeroSvg();
+  const resvg = new Resvg(svg, {
+    font: { loadSystemFonts: false, fontBuffers, defaultFontFamily: "Kanit" },
+    background: "white",
+  });
+  return resvg.render().asPng();
 }
 
 // ย่อขนาดและบีบอัดรูปภาพก่อนส่งให้ AI (Gemini / OpenRouter Vision)

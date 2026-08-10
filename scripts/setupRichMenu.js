@@ -16,6 +16,7 @@ import {
   HERO_BUTTON,
   RICH_MENU_BUTTONS,
 } from "../services/richMenuTemplate.js";
+import { initImageService, renderHowToHeroImage } from "../services/imageService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -79,6 +80,14 @@ async function main() {
   const outPath = path.join(__dirname, "..", "richmenu-preview.png");
   fs.writeFileSync(outPath, png);
   console.log(`[setupRichMenu] บันทึกภาพตัวอย่างไว้ที่ ${outPath}`);
+
+  console.log("[setupRichMenu] กำลัง render ภาพ smartwatch สำหรับ Flex Message วิธีใช้งาน...");
+  await initImageService();
+  const heroPng = await renderHowToHeroImage();
+  const heroPath = path.join(__dirname, "..", "public", "assets", "howto-hero.png");
+  fs.mkdirSync(path.dirname(heroPath), { recursive: true });
+  fs.writeFileSync(heroPath, heroPng);
+  console.log(`[setupRichMenu] บันทึกภาพ smartwatch ไว้ที่ ${heroPath}`);
 
   console.log("[setupRichMenu] กำลังสร้าง Rich Menu บน LINE...");
   const richMenu = await client.createRichMenu({

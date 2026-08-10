@@ -51,6 +51,7 @@ const DEFAULT_CONFIG = {
   sections: [
     { id: "header", name: "ZONE 1 - HEADER & TITLE", visible: true },
     { id: "stats", name: "ZONE 2 - STAT ROW 3 คอลัมน์", visible: true },
+    { id: "kieslectRecovery", name: "ZONE KIESLECT - RECOVERY & BODY LOAD WIDGET", visible: true },
     { id: "aiSummary", name: "ZONE 3 - AI SUMMARY BOX", visible: true },
     { id: "sleepComp", name: "ZONE 4 & 5 - องค์ประกอบการนอน & HYPNOGRAM CHART", visible: true },
     { id: "activities", name: "ZONE 6 - วันนี้เหมาะกับ", visible: true },

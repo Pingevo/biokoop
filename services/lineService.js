@@ -17,6 +17,38 @@ const blobClient = new messagingApi.MessagingApiBlobClient({
   channelAccessToken: config.channelAccessToken,
 });
 
+// สร้าง badge "🩺 AI HEALTH ASSISTANT" แบบชิปมุมโค้ง ใช้ร่วมกันในหัวการ์ด Flex Message ทุกใบ เพื่อให้หน้าตาสม่ำเสมอทั้งระบบ
+function buildBrandBadge(cfg) {
+  return {
+    type: "box",
+    layout: "horizontal",
+    justifyContent: "flex-start",
+    contents: [
+      {
+        type: "box",
+        layout: "baseline",
+        backgroundColor: "#FEF2F2",
+        cornerRadius: "20px",
+        paddingAll: "6px",
+        paddingStart: "12px",
+        paddingEnd: "12px",
+        contents: [
+          { type: "text", text: "🩺", size: "xs", flex: 0 },
+          {
+            type: "text",
+            text: (cfg.brandLabel || "AI HEALTH ASSISTANT").toUpperCase(),
+            size: "xs",
+            weight: "bold",
+            color: cfg.brandColor,
+            margin: "xs",
+            flex: 0,
+          },
+        ],
+      },
+    ],
+  };
+}
+
 // Helper สำหรับลองส่งซ้ำอัตโนมัติหากเกิดปัญหาสัญญาณอินเทอร์เน็ต/DNS ชั่วคราว (Network Flake / ENOTFOUND / fetch failed)
 async function withRetry(fn, retries = 2, delayMs = 600) {
   let lastError;
@@ -683,20 +715,14 @@ export async function replyRegistrationPrompt(replyToken, lineUserId, reasonText
         backgroundColor: cfg.bgColor,
         paddingAll: "lg",
         contents: [
-          {
-            type: "text",
-            text: cfg.brandLabel,
-            weight: "bold",
-            color: cfg.brandColor,
-            size: "sm",
-          },
+          buildBrandBadge(cfg),
           {
             type: "text",
             text: title,
             weight: "bold",
             color: cfg.titleColor,
             size: "xl",
-            margin: "xs",
+            margin: "md",
           },
         ],
       },
@@ -819,20 +845,14 @@ export async function replyWelcomePrompt(replyToken, lineUserId, isAlreadyRegist
         backgroundColor: cfg.bgColor,
         paddingAll: "lg",
         contents: [
-          {
-            type: "text",
-            text: cfg.brandLabel,
-            weight: "bold",
-            color: cfg.brandColor,
-            size: "sm",
-          },
+          buildBrandBadge(cfg),
           {
             type: "text",
             text: cfg.title,
             weight: "bold",
             color: cfg.titleColor,
             size: "xl",
-            margin: "xs",
+            margin: "md",
           },
         ],
       },
@@ -891,6 +911,7 @@ export async function replyWelcomePrompt(replyToken, lineUserId, isAlreadyRegist
 // ส่ง Flex Message วิธีใช้งาน biokoop แบบขั้นตอน 1-2-3 พร้อมปุ่มลัดไปเลือกภาพวิเคราะห์
 export async function replyHowToPrompt(replyToken, lineUserId) {
   const cfg = getBotMessagesConfig().howToPrompt;
+  const howToImageUrl = `${process.env.PUBLIC_BASE_URL || ""}/assets/howto-hero.png`;
 
   const stepRow = (number, text) => ({
     type: "box",
@@ -955,40 +976,74 @@ export async function replyHowToPrompt(replyToken, lineUserId) {
       header: {
         type: "box",
         layout: "vertical",
-        backgroundColor: cfg.bgColor,
+        backgroundColor: "#FFFFFF",
         paddingAll: "lg",
         contents: [
           {
-            type: "text",
-            text: cfg.title,
-            weight: "bold",
-            color: cfg.titleColor,
-            size: "xl",
+            type: "box",
+            layout: "baseline",
+            backgroundColor: "#FEF2F2",
+            cornerRadius: "20px",
+            paddingAll: "6px",
+            paddingStart: "12px",
+            paddingEnd: "12px",
+            contents: [
+              { type: "text", text: "🩺", size: "xs", flex: 0 },
+              { type: "text", text: "AI HEALTH ASSISTANT", size: "xs", weight: "bold", color: "#DC2626", margin: "xs", flex: 0 },
+            ],
+          },
+          {
+            type: "box",
+            layout: "horizontal",
+            margin: "md",
+            alignItems: "center",
+            contents: [
+              { type: "text", text: "📖", size: "xxl", flex: 0 },
+              { type: "text", text: "วิธีใช้งาน biokoop", weight: "bold", size: "xl", color: "#111111", margin: "md", flex: 0 },
+            ],
           },
         ],
       },
       body: {
         type: "box",
-        layout: "vertical",
-        backgroundColor: cfg.bgColor,
+        layout: "horizontal",
+        backgroundColor: "#FFFFFF",
         paddingAll: "lg",
-        contents: bodyContents,
+        spacing: "lg",
+        contents: [
+          {
+            type: "box",
+            layout: "vertical",
+            flex: 1,
+            justifyContent: "center",
+            contents: bodyContents,
+          },
+          {
+            type: "image",
+            url: howToImageUrl,
+            size: "xs",
+            aspectRatio: "1:1",
+            aspectMode: "fit",
+            flex: 0,
+            gravity: "center",
+          },
+        ],
       },
       footer: {
         type: "box",
         layout: "vertical",
-        backgroundColor: cfg.bgColor,
+        backgroundColor: "#FFFFFF",
         paddingAll: "lg",
         contents: [
           {
             type: "button",
             action: {
               type: "message",
-              label: cfg.buttonLabel,
+              label: "📸 เลือกภาพเพื่อวิเคราะห์",
               text: "เลือกภาพเพื่อวิเคราะห์",
             },
             style: "primary",
-            color: cfg.brandColor,
+            color: "#DC2626",
             height: "sm",
           },
         ],

@@ -290,5 +290,7 @@ function mapAiResultToCardData(r = {}) {
     remSleep: { value: r.remSleepTime || "-", percent: r.remSleepPercent ?? 0 },
     restlessness: { value: "-" },
     awake: { value: r.awakeTime || "-", percent: r.awakePercent ?? 0 },
+    recoveryPercent: r.recoveryPercent ?? null,
+    bodyLoad: r.bodyLoad ?? null,
   };
 }

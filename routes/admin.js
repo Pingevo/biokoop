@@ -7,6 +7,7 @@ import { LineMessageLog } from "../models/LineMessageLog.js";
 import { openDownloadStream, getFileMetadata } from "../services/storageService.js";
 import { pushImage, pushText } from "../services/lineService.js";
 import { getCardConfig, saveCardConfig } from "../services/cardConfigService.js";
+import { getKieslectConfig, saveKieslectConfig } from "../services/kieslectConfigService.js";
 import { getBotMessagesConfig, saveBotMessagesConfig, resetBotMessagesConfig } from "../services/botMessagesConfigService.js";
 import { getPricingConfig, savePricingConfig, estimateCost, getPricingPresets } from "../services/apiPricingConfigService.js";
 import { getGradeConfig, saveGradeConfig } from "../services/gradeConfigService.js";
@@ -576,6 +577,71 @@ router.get("/api/line-messages", requireAdminAuth, async (req, res) => {
   }
 });
 
+// GET /admin/api/users/:lineUserId/chat-history - ดึงประวัติการแชทรายบุคคลสำหรับ Chat Simulator
+router.get("/api/users/:lineUserId/chat-history", requireAdminAuth, async (req, res) => {
+  try {
+    const { lineUserId } = req.params;
+    const user = await User.findOne({ lineUserId }).lean();
+    if (!user) {
+      return res.status(404).json({ ok: false, error: "ไม่พบผู้ใช้นี้ในระบบ" });
+    }
+
+    const [messages, requests] = await Promise.all([
+      LineMessageLog.find({ lineUserId }).sort({ createdAt: 1 }).lean(),
+      Request.find({ lineUserId }).sort({ createdAt: 1 }).lean(),
+    ]);
+
+    res.json({
+      ok: true,
+      user,
+      messages,
+      requests,
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// POST /admin/api/users/:lineUserId/send-message - ส่งข้อความทักทาย/ตอบกลับไปยังผู้ใช้ (Simulated / Real Push)
+router.post("/api/users/:lineUserId/send-message", requireAdminAuth, async (req, res) => {
+  try {
+    const { lineUserId } = req.params;
+    const { message } = req.body || {};
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({ ok: false, error: "กรุณาระบุข้อความที่ต้องการส่ง" });
+    }
+
+    const user = await User.findOne({ lineUserId }).lean();
+    if (!user) {
+      return res.status(404).json({ ok: false, error: "ไม่พบผู้ใช้นี้ในระบบ" });
+    }
+
+    let sentReal = false;
+    try {
+      await pushText(lineUserId, message.trim());
+      sentReal = true;
+    } catch (err) {
+      console.warn(`[admin] ⚠️ ส่ง Push LINE ไม่สำเร็จ (อาจใช้ Mock User หรือไม่ได้ต่อ LINE จริง): ${err.message}`);
+      await LineMessageLog.create({
+        lineUserId,
+        sendType: "push",
+        messageType: "text",
+        content: message.trim(),
+        status: "success",
+      });
+    }
+
+    res.json({
+      ok: true,
+      sentReal,
+      message: sentReal ? "ส่งข้อความไปยัง LINE ผู้ใช้เรียบร้อยแล้ว" : "บันทึกข้อความจำลองเรียบร้อยแล้ว",
+    });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // GET /admin/api/card-config - ดึงการตั้งค่า layout การ์ด
 router.get("/api/card-config", requireAdminAuth, (req, res) => {
   const config = getCardConfig();
@@ -590,24 +656,42 @@ router.post("/api/card-config", requireAdminAuth, (req, res) => {
   res.json({ ok: true, config: result.config });
 });
 
+// GET /admin/api/kieslect-config - ดึงการตั้งค่า Kieslect Recovery Pattern
+router.get("/api/kieslect-config", requireAdminAuth, (req, res) => {
+  const config = getKieslectConfig();
+  res.json({ ok: true, config });
+});
+
+// POST /admin/api/kieslect-config - บันทึกการตั้งค่า Kieslect Recovery Pattern
+router.post("/api/kieslect-config", requireAdminAuth, (req, res) => {
+  const newConfig = req.body.config || req.body;
+  const result = saveKieslectConfig(newConfig);
+  if (!result.ok) return res.status(500).json({ ok: false, error: result.error });
+  res.json({ ok: true, config: result.config });
+});
+
 // POST /admin/api/card-preview - เรนเดอร์ SVG preview ตามแบบที่กำลังปรับแต่ง
 router.post("/api/card-preview", requireAdminAuth, (req, res) => {
   try {
     const draftConfig = req.body?.config || req.body || {};
+    const includeKieslect = req.body?.includeKieslect !== false;
     const svg = renderBiokoopCard(
       {
-        score: 84,
-        grade: "B",
-        sleepTime: "6h 37m",
-        sleepTimeRange: "22:38 - 06:49",
-        sleepEfficiency: "99%",
-        aiSummary: "เมื่อคืนคุณนอน 6 ชั่วโมง 37 นาที ได้ Sleep Score 84 และ Sleep Efficiency 99% แสดงว่าช่วงเวลาที่อยู่บนเตียงส่วนใหญ่เป็นเวลานอนจริง การนอนมีทั้งช่วงหลับลึก หลับตื้น และ REM ครบตามที่บันทึกไว้ ร่างกายฟื้นตัวได้ดี พร้อมลุยวันใหม่ครับ",
-        deepSleep: { value: "1h 26m", percent: 22 },
-        lightSleep: { value: "4h 1m", percent: 60 },
-        remSleep: { value: "1h 10m", percent: 18 },
-        restlessness: { value: "14 min" },
-        awake: { value: "2 min" },
-        tips: "ดื่มน้ำให้เพียงพอ 2.5–3 ลิตร และทานโปรตีนให้ครบในแต่ละมื้อ เพื่อการฟื้นฟูที่ดียิ่งขึ้น"
+        score: 63,
+        grade: "C",
+        appName: "Kieslect App",
+        sleepTime: "6h 15m",
+        sleepTimeRange: "23:15 - 05:30",
+        sleepEfficiency: "88%",
+        aiSummary: "เมื่อคืนคุณนอน 6 ชั่วโมง 15 นาที มีอัตราการฟื้นตัว (Recovery) อยู่ที่ 27% ซึ่งอยู่ในระดับต่ำ แนะนำให้ลดกิจกรรมหนัก พักผ่อนและดื่มน้ำเพิ่มเติมในวันนี้ครับ",
+        deepSleep: { value: "1h 05m", percent: 17 },
+        lightSleep: { value: "4h 10m", percent: 67 },
+        remSleep: { value: "1h 00m", percent: 16 },
+        restlessness: { value: "20 min" },
+        awake: { value: "10 min" },
+        recoveryPercent: includeKieslect ? 27 : null,
+        bodyLoad: includeKieslect ? 3.3 : null,
+        tips: "พักผ่อนเพิ่มเติม ดื่มน้ำให้เพียงพอตลอดวัน และเข้าเข้านอนให้เร็วขึ้นเพื่อเพิ่ม Recovery Rate"
       },
       draftConfig
     );
@@ -802,7 +886,7 @@ router.get("/api/usage-stats", requireAdminAuth, async (req, res) => {
       u.estimatedCostFormatted = isFree
         ? "🎁 ฟรี (Free Tier)"
         : `${currency} ${u.estimatedCost.toFixed(6)}`;
-      u.modelsUsed = u.byModel.map((m) => m.model);
+      u.modelsUsed = [...new Set(u.byModel.map((m) => m.model))];
       u.requestsCount = u.requestCount;
       u.user = {
         displayName: u.displayName,

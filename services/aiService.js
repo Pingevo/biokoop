@@ -1,4 +1,5 @@
 import { getGradeConfig } from "./gradeConfigService.js";
+import { logAiUsage } from "./aiUsageLogger.js";
 
 const SYSTEM_PROMPT = `คุณเป็นระบบวิเคราะห์รูปภาพหน้าจอ Smartwatch/แอปสุขภาพสำหรับการนอนหลับระดับผู้เชี่ยวชาญ (Biokoop Senior Health & Sleep AI Specialist)
 วิเคราะห์รูปภาพผลการนอนอย่างละเอียดแม่นยำ พร้อมวิเคราะห์ผลกระทบต่อร่างกาย โครงสร้างการนอน (Deep/REM/Light sleep) และให้คำแนะนำเชิงลึกที่สอดคล้องกับหลักวิทยาศาสตร์การนอนหลับและการฟื้นฟูร่างกาย
@@ -13,6 +14,9 @@ const SYSTEM_PROMPT = `คุณเป็นระบบวิเคราะห
 - "ช่วงเวลาตื่นนอน" -> awakeTime (เช่น 0h 05m)
 - "ขณะนอนหลับ" / "สัญญาณชีพ" / "อัตราหัวใจเต้น" -> avgHeartRate (เช่น 69 bpm)
 - "ประสิทธิภาพการนอนหลับ" -> sleepEfficiency (เช่น 99%)
+- "RECOVERY (%)" / "การฟื้นตัว" (พบใน Kieslect/Health App) -> recoveryPercent (ตัวเลข 0-100 หากไม่มีในรูปภาพให้ใส่ null)
+- "Body Load" / "ภาระร่างกาย" (พบใน Kieslect/Health App) -> bodyLoad (ตัวเลข เช่น 3.3 หากไม่มีในรูปภาพให้ใส่ null)
+- "Overall status" / "Ai+ Health Analysis" -> overallStatus (เช่น "suboptimal", "optimal" หรือ null)
 - "ตรวจจับแอปพลิเคชัน/แบรนด์" -> ตรวจจับและระบุชื่อแอปพลิเคชัน หรือ แบรนด์ Smart Watch จากโลโก้, สีธีม, ตัวอักษร, หรือเลย์เอาต์หน้าจอในรูปภาพ (เช่น Kieslect, Mi Fitness, Huawei Health, Samsung Health, Apple Health, Zepp Life / Amazfit, Garmin Connect, Fitbit, Biokoop) ใส่ลงใน field appName
 
 ตอบกลับเป็น JSON เท่านั้น ห้ามมีข้อความอื่นใดๆ นอกเหนือจาก JSON และห้ามใช้ markdown code fence
@@ -22,16 +26,16 @@ const SYSTEM_PROMPT = `คุณเป็นระบบวิเคราะห
   "detected": true | false,
   "result": {
     "appName": "string เช่น 'Kieslect App', 'Mi Fitness', 'Huawei Health', 'Samsung Health', 'Apple Health', 'Zepp Life', 'Garmin Connect', 'Fitbit', 'Biokoop App' (หากตรวจจับไม่ได้ให้ระบุเป็น 'Smart Watch')",
-    "headline": "string หัวข้อสรุปสถานะการนอนสั้นๆ สวยงาม",
+    "headline": "string หัวข้อสรุปสถานะการนอนสั้นๆ สวยงาม (ภาษาไทย สุภาพ กะทัดรัด ห้ามต่อเติมคำภาษาอังกฤษแปลกปลอม เช่น Here ต่อท้ายชื่อ)",
     "sleepTime": "string เช่น 7h 25m",
     "sleepTimeRange": "string เช่น 22:38 - 06:49",
     "score": number 0-100 (หากในรูปไม่มี score เขียนไว้ตรงๆ ให้ประเมินคำนวณ Sleep Score 0-100 จากระยะเวลาการนอนและสัดส่วน Deep/REM/Light sleep ให้ทันที ห้ามใส่ 0),
     "grade": "string เช่น A, B, C หรือ D ตามช่วงคะแนนที่กำหนด",
     "sleepEfficiency": "string เช่น 91%",
     "deepSleepPercent": number (เช่น 22),
-    "lightSleepPercent": number (เช่น 56),
+    "lightSleepPercent": number (<ctrl42>เช่น 56),
     "remSleepPercent": number (เช่น 22),
-    "awakePercent": number (<ctrl42>เช่น 0),
+    "awakePercent": number (เช่น 0),
     "deepSleepTime": "string เช่น 1h 38min",
     "lightSleepTime": "string เช่น 4h 09min",
     "remSleepTime": "string เช่น 1h 38min",
@@ -39,6 +43,9 @@ const SYSTEM_PROMPT = `คุณเป็นระบบวิเคราะห
     "avgHeartRate": "string เช่น 62 bpm หรือ 'ไม่มีข้อมูล'",
     "hrv": "string เช่น 45 ms หรือ 'ไม่มีข้อมูล'",
     "spo2": "string เช่น 97% หรือ 'ไม่มีข้อมูล'",
+    "recoveryPercent": number หรือ null (เช่น 27 หากมีในรูปภาพ Kieslect/Health),
+    "bodyLoad": number หรือ null (เช่น 3.3 หากมีในรูปภาพ Kieslect/Health),
+    "overallStatus": "string หรือ null เช่น 'suboptimal', 'optimal'",
     "aiSummary": "string สรุปภาพรวมคุณภาพการนอนภาษาไทย 2-3 ประโยค สำหรับแสดงบนการ์ดรูปภาพ คมคาย กระชับ ได้ใจความ",
     "tips": "string คำแนะนำสั้นๆ 1-2 ประโยคสำหรับแสดงในการ์ดรูปภาพ (เน้นสิ่งที่ควรทำวันนี้)",
     "healthAdvice": "string บทวิเคราะห์สุขภาพฉบับย่อสำหรับส่งในแชท LINE ความยาวรวมไม่เกิน 6 บรรทัด จัดรูปแบบด้วย emoji อ่านง่าย มี 3 ส่วน แต่ละส่วนสั้นกระชับไม่เกิน 1 ประโยค: 1. สรุปภาพรวมสภาวะร่างกาย (1 บรรทัด) 2. วิเคราะห์สัดส่วนหลับลึก/REM (1 บรรทัด) 3. คำแนะนำปฏิบัติจริงสำหรับคืนนี้ 3 ข้อ แบบวลีสั้นๆ ไม่ใช่ประโยคเต็ม (ข้อละไม่เกิน 10 คำ)"
@@ -60,6 +67,11 @@ const CANDIDATE_MODELS = [
 ];
 
 export async function analyzeImage(imageBuffer, mimeType = "image/jpeg", userProfile = {}) {
+  return analyzeImageOpenRouter(imageBuffer, mimeType, userProfile);
+}
+
+// ─── GEMINI (สำรอง ไม่ได้ใช้เป็นหลัก) ───
+async function analyzeImageGemini(imageBuffer, mimeType = "image/jpeg", userProfile = {}) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("ไม่พบ GEMINI_API_KEY ใน .env");
 
@@ -80,8 +92,12 @@ export async function analyzeImage(imageBuffer, mimeType = "image/jpeg", userPro
     userPromptText += `\n\nคำแนะนำน้ำเสียง: ระบบนี้ใช้บุคลิกและน้ำเสียงผู้หญิง (ผู้เชี่ยวชาญหญิง) ที่พูดจาสุภาพ น่ารัก อ่อนหวาน ใส่ใจ สนิทสนมเป็นกันเอง ในทุกส่วน (healthAdvice, aiSummary, tips, notes) ให้ลงท้ายประโยคด้วย 'ค่ะ', 'นะคะ', 'น่า' เสมอ ห้ามใช้คำว่า 'ครับ' หรือ 'นะครับ' เด็ดขาด`;
   }
 
+  const userDisplayName = userProfile.nickname ? `คุณ${userProfile.nickname}` : (userProfile.lineUserId || "LINE User");
+  const referenceTag = userProfile.lineUserId ? `line_user:${userProfile.lineUserId}` : "biokoop_app";
+
   let lastErrorText = "";
   for (const modelName of CANDIDATE_MODELS) {
+    const startTime = Date.now();
     try {
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
@@ -109,6 +125,8 @@ export async function analyzeImage(imageBuffer, mimeType = "image/jpeg", userPro
         }
       );
 
+      const durationMs = Date.now() - startTime;
+
       if (response.ok) {
         console.log(`[aiService] ⚡ วิเคราะห์สำเร็จด้วยโมเดล ${modelName}`);
         const data = await response.json();
@@ -119,14 +137,58 @@ export async function analyzeImage(imageBuffer, mimeType = "image/jpeg", userPro
           completionTokens: usageMeta.candidatesTokenCount || 0,
           totalTokens: usageMeta.totalTokenCount || 0,
         };
+
+        // บันทึก Log Token ลง AI Usage Hub
+        logAiUsage({
+          provider: "gemini",
+          model: modelName,
+          operation: "generateContent",
+          source: "analyzeImageGemini",
+          user: userDisplayName,
+          reference: referenceTag,
+          prompt_tokens: usage.promptTokens,
+          completion_tokens: usage.completionTokens,
+          duration_ms: durationMs,
+          status: "success",
+          http_status: response.status,
+          raw_usage: usageMeta,
+        });
+
         return { ...parseAiResponse(rawText), model: modelName, usage };
       }
 
       lastErrorText = await response.text();
       console.warn(`[aiService] ⚠️ โมเดล ${modelName} คืนค่าสถานะ ${response.status} สลับไปยังโมเดลถัดไป...`);
+
+      logAiUsage({
+        provider: "gemini",
+        model: modelName,
+        operation: "generateContent",
+        source: "analyzeImageGemini",
+        user: userDisplayName,
+        reference: referenceTag,
+        duration_ms: durationMs,
+        status: "error",
+        http_status: response.status,
+        error_message: lastErrorText,
+      });
+
     } catch (err) {
       lastErrorText = err.message;
       console.warn(`[aiService] ⚠️ โมเดล ${modelName} เกิดข้อผิดพลาด: ${err.message} สลับไปยังโมเดลถัดไป...`);
+
+      logAiUsage({
+        provider: "gemini",
+        model: modelName,
+        operation: "generateContent",
+        source: "analyzeImageGemini",
+        user: userDisplayName,
+        reference: referenceTag,
+        duration_ms: Date.now() - startTime,
+        status: "error",
+        http_status: 500,
+        error_message: err.message,
+      });
     }
   }
 
@@ -135,6 +197,7 @@ export async function analyzeImage(imageBuffer, mimeType = "image/jpeg", userPro
 
 // ─── OPENROUTER (โมเดลที่ 2 สำหรับ CROSS-CHECK หรือ FALLBACK) ───
 export async function analyzeImageOpenRouter(imageBuffer, mimeType = "image/jpeg", userProfile = {}) {
+  const startTime = Date.now();
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("ไม่พบ OPENROUTER_API_KEY ใน .env");
 
@@ -151,8 +214,11 @@ export async function analyzeImageOpenRouter(imageBuffer, mimeType = "image/jpeg
     userPromptText += `\n\nเกณฑ์การประเมินเกรดและคะแนนที่กำหนดโดยระบบ biokoop:\n${gradeRulesText}`;
   }
   if (userProfile && userProfile.nickname) {
-    userPromptText += `\n\nข้อมูลโปรไฟล์ผู้ใช้: ชื่อเล่น คุณ${userProfile.nickname}`;
+    userPromptText += `\n\nข้อมูลโปรไฟล์ผู้ใช้: ชื่อเล่น คุณ${userProfile.nickname} (ข้อกำหนด: หากระบุชื่อใน headline หรือเนื้อหา ให้ใช้คำว่า 'คุณ${userProfile.nickname}' โดยห้ามต่อเติมคำภาษาอังกฤษแปลกปลอม เช่น Here หรือคำสะกดเกินเด็ดขาด)`;
   }
+
+  const userDisplayName = userProfile.nickname ? `คุณ${userProfile.nickname}` : (userProfile.lineUserId || "LINE User");
+  const referenceTag = userProfile.lineUserId ? `line_user:${userProfile.lineUserId}` : "biokoop_app";
 
   const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -178,8 +244,24 @@ export async function analyzeImageOpenRouter(imageBuffer, mimeType = "image/jpeg
     }),
   });
 
+  const durationMs = Date.now() - startTime;
+
   if (!response.ok) {
     const errText = await response.text();
+
+    logAiUsage({
+      provider: "openrouter",
+      model: `openrouter/${model}`,
+      operation: "chat.completions",
+      source: "analyzeImageOpenRouter",
+      user: userDisplayName,
+      reference: referenceTag,
+      duration_ms: durationMs,
+      status: "error",
+      http_status: response.status,
+      error_message: errText,
+    });
+
     throw new Error(`OpenRouter API Error (${response.status}): ${errText}`);
   }
 
@@ -191,59 +273,41 @@ export async function analyzeImageOpenRouter(imageBuffer, mimeType = "image/jpeg
     totalTokens: data.usage?.total_tokens || 0,
   };
 
+  // บันทึก Log Token ลง AI Usage Hub
+  logAiUsage({
+    provider: "openrouter",
+    model: `openrouter/${model}`,
+    operation: "chat.completions",
+    source: "analyzeImageOpenRouter",
+    user: userDisplayName,
+    reference: referenceTag,
+    request_id: data.id || undefined,
+    prompt_tokens: usage.promptTokens,
+    completion_tokens: usage.completionTokens,
+    cost_usd: data.usage?.cost || data.usage?.total_cost || undefined,
+    duration_ms: durationMs,
+    status: "success",
+    http_status: response.status,
+    raw_usage: data.usage || {},
+  });
+
   return { ...parseAiResponse(rawText), model: `openrouter/${model}`, usage };
 }
 
-// ─── CROSS-CHECK MODEL (วิเคราะห์ด้วย Gemini และเปรียบเทียบกับ OpenRouter หากมั่นใจต่ำ) ───
+// ─── PRIMARY ANALYSIS (ใช้ OpenRouter เป็นหลัก) ───
 export async function analyzeImageWithCrossCheck(imageBuffer, mimeType = "image/jpeg", userProfile = {}) {
-  // 1. วิเคราะห์หลักด้วย Gemini
-  let primaryResponse = await analyzeImage(imageBuffer, mimeType, userProfile);
+  // วิเคราะห์หลักด้วย OpenRouter
+  let primaryResponse = await analyzeImageOpenRouter(imageBuffer, mimeType, userProfile);
 
   const confidenceThreshold = Number(process.env.CONFIDENCE_THRESHOLD || 0.7);
-  const openRouterApiKey = process.env.OPENROUTER_API_KEY;
 
-  // หากไม่มี OPENROUTER_API_KEY หรือผลจาก Gemini มั่นใจสูงแล้ว ให้คืนค่า Gemini ได้เลย
-  if (!openRouterApiKey || (primaryResponse.ok && primaryResponse.data?.confidence >= confidenceThreshold)) {
+  // หากผลจาก OpenRouter มั่นใจสูงแล้ว ให้คืนค่าได้เลย
+  if (primaryResponse.ok && primaryResponse.data?.confidence >= confidenceThreshold) {
     return { ...primaryResponse, needsReview: false };
   }
 
-  console.log(`[aiService] 🔍 ความมั่นใจ Gemini ต่ำกว่า threshold (${primaryResponse.data?.confidence ?? 0} < ${confidenceThreshold}) เริ่มเรียก OpenRouter สำหรับ Cross-Check...`);
-
-  try {
-    const secondaryResponse = await analyzeImageOpenRouter(imageBuffer, mimeType, userProfile);
-
-    if (!secondaryResponse.ok || !secondaryResponse.data?.detected) {
-      console.warn("[aiService] ⚠️ OpenRouter วิเคราะห์ไม่สำเร็จ ใช้ผลลัพธ์ Gemini และติดธง needsReview");
-      return { ...primaryResponse, needsReview: true, crossCheckNotes: "OpenRouter ไม่พบข้อมูล" };
-    }
-
-    const gScore = Number(primaryResponse.data?.result?.score || 0);
-    const oScore = Number(secondaryResponse.data?.result?.score || 0);
-    const scoreDiff = Math.abs(gScore - oScore);
-
-    console.log(`[aiService] 📊 ผลการ Cross-Check: Gemini Score=${gScore}, OpenRouter Score=${oScore} (ผลต่าง=${scoreDiff})`);
-
-    // หากคะแนนต่างกันเกิน 15 คะแนน หรือผลการตรวจจับไม่ตรงกัน -> ติดธง needsReview ให้แอดมินดู
-    const needsReview = scoreDiff > 15 || primaryResponse.data?.confidence < 0.6;
-
-    // เลือกใช้ผลลัพธ์ที่มี confidence สูงกว่า
-    const bestResponse = (secondaryResponse.data?.confidence || 0) > (primaryResponse.data?.confidence || 0)
-      ? secondaryResponse
-      : primaryResponse;
-
-    return {
-      ...bestResponse,
-      needsReview,
-      crossCheck: {
-        geminiScore: gScore,
-        openRouterScore: oScore,
-        scoreDiff,
-      },
-    };
-  } catch (err) {
-    console.warn(`[aiService] ⚠️ OpenRouter Cross-check เกิดข้อผิดพลาด: ${err.message}`);
-    return { ...primaryResponse, needsReview: true, crossCheckNotes: err.message };
-  }
+  console.log(`[aiService] 🔍 ความมั่นใจต่ำกว่า threshold (${primaryResponse.data?.confidence ?? 0} < ${confidenceThreshold}) ติดธง needsReview`);
+  return { ...primaryResponse, needsReview: true };
 }
 
 export function parseAiResponse(rawText) {

@@ -52,6 +52,11 @@
       "visible": true
     },
     {
+      "id": "kieslectRecovery",
+      "name": "ZONE KIESLECT - RECOVERY & BODY LOAD WIDGET",
+      "visible": true
+    },
+    {
       "id": "aiSummary",
       "name": "ZONE 3 - AI SUMMARY BOX",
       "visible": true

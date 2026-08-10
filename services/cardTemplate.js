@@ -6,6 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { getCardConfig } from "./cardConfigService.js";
 import { getGradeForScore } from "./gradeConfigService.js";
+import { getKieslectConfig } from "./kieslectConfigService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_W = 1024;
@@ -691,7 +692,52 @@ ${rightStat(rightStart + 10, curY + tp + 196, iO2, C.cyanLight, C.cyan, "SpO2 (A
 ${rightStat(rightStart + 10, curY + tp + 294, iSunStar, C.yellowLight, C.yellow, "SLEEP EFFICIENCY", efficiency, "ประสิทธิภาพการนอน", true, C)}
 `;
       curY += statsH + gap;
-    } else if (sec.id === "aiSummary") {
+    } else if (sec.id === "kieslectRecovery") {
+      // ─── DYNAMIC KIESLECT RECOVERY & BODY LOAD PATTERN WIDGET ───
+      const kieslectCfg = getKieslectConfig();
+      if (kieslectCfg.enableKieslectPattern !== false && data.recoveryPercent != null) {
+        const recVal = Number(data.recoveryPercent) || 0;
+        const bodyLoadVal = data.bodyLoad != null ? Number(data.bodyLoad) : null;
+        const showRecovery = kieslectCfg.showRecoveryGauge !== false;
+        const showBodyLoad = kieslectCfg.showBodyLoadGauge !== false && bodyLoadVal != null;
+
+        let recColor = kieslectCfg.colors?.recoveryHigh || "#16A34A";
+        let statusLabel = "การฟื้นตัวสมบูรณ์";
+        if (recVal < (kieslectCfg.recoveryThresholds?.low || 40)) {
+          recColor = kieslectCfg.colors?.recoveryLow || "#DC2626";
+          statusLabel = "การฟื้นตัวอยู่ในระดับต่ำ";
+        } else if (recVal < (kieslectCfg.recoveryThresholds?.medium || 70)) {
+          recColor = kieslectCfg.colors?.recoveryMedium || "#CA8A04";
+          statusLabel = "การฟื้นตัวระดับปานกลาง";
+        }
+
+        const widgetH = 135;
+        bodySvg += `
+<!-- ZONE KIESLECT - RECOVERY & BODY LOAD -->
+<rect x="${pad}" y="${curY}" width="${cw}" height="${widgetH}" rx="20" fill="${C.cardBg}" stroke="${C.border}" stroke-width="1.5" filter="url(#cardShadow)"/>
+<rect x="${pad + 24}" y="${curY + 18}" width="260" height="32" rx="8" fill="${kieslectCfg.colors?.bgBadge || '#FEE2E2'}" stroke="${kieslectCfg.colors?.borderBadge || '#FCA5A5'}" stroke-width="1"/>
+<text x="${pad + 36}" y="${curY + 39}" font-family="Kanit" font-weight="700" font-size="14" fill="${recColor}">${esc(kieslectCfg.badgeText || 'KIESLECT HEALTH & RECOVERY')}</text>
+
+${showRecovery ? `
+<!-- RECOVERY METRIC -->
+<text x="${pad + 310}" y="${curY + 40}" font-family="Kanit" font-weight="600" font-size="15" fill="${C.grayText}">RECOVERY</text>
+<text x="${pad + 405}" y="${curY + 43}" font-family="JetBrainsMono" font-weight="800" font-size="32" fill="${recColor}">${recVal}%</text>
+<text x="${pad + 480}" y="${curY + 41}" font-family="Kanit" font-weight="500" font-size="15" fill="${recColor}">(${esc(statusLabel)})</text>
+<!-- RECOVERY PROGRESS BAR -->
+<rect x="${pad + 24}" y="${curY + 80}" width="620" height="18" rx="9" fill="#E2E8F0"/>
+<rect x="${pad + 24}" y="${curY + 80}" width="${Math.min(620, Math.max(18, (recVal / 100) * 620))}" height="18" rx="9" fill="${recColor}"/>
+` : ""}
+
+${showBodyLoad ? `
+<!-- BODY LOAD METRIC -->
+<line x1="${pad + 670}" y1="${curY + 15}" x2="${pad + 670}" y2="${curY + 120}" stroke="${C.border}" stroke-width="1"/>
+<text x="${pad + 695}" y="${curY + 40}" font-family="Kanit" font-weight="600" font-size="15" fill="${C.grayText}">BODY LOAD</text>
+<text x="${pad + 695}" y="${curY + 84}" font-family="JetBrainsMono" font-weight="800" font-size="32" fill="${kieslectCfg.colors?.bodyLoadColor || '#0284C7'}">${bodyLoadVal}</text>
+<text x="${pad + 765}" y="${curY + 82}" font-family="Kanit" font-weight="500" font-size="14" fill="${C.grayText}">(ความล้าสะสม)</text>
+` : ""}
+`;
+        curY += widgetH + gap;
+      }
       const aiH = 200;
       bodySvg += `
 <!-- ZONE 3 - AI SUMMARY -->

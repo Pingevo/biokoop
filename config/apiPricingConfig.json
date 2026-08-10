@@ -1,34 +1,30 @@
 {
-  "planMode": "free",
+  "planMode": "paid",
   "currency": "USD",
   "defaultRates": {
-    "inputPer1M": 0,
-    "outputPer1M": 0
+    "inputPer1M": 0.075,
+    "outputPer1M": 0.30
   },
   "modelRates": {
+    "gemini-2.5-flash": {
+      "inputPer1M": 0.075,
+      "outputPer1M": 0.30
+    },
     "gemini-3.5-flash-lite": {
-      "inputPer1M": 0.3,
-      "outputPer1M": 2.5
+      "inputPer1M": 0.075,
+      "outputPer1M": 0.30
     },
     "gemini-3.6-flash": {
-      "inputPer1M": 1.5,
-      "outputPer1M": 7.5
+      "inputPer1M": 0.15,
+      "outputPer1M": 0.60
     },
-    "gemini-flash-latest": {
-      "inputPer1M": 0,
-      "outputPer1M": 0
+    "openrouter/google/gemini-2.5-flash": {
+      "inputPer1M": 0.075,
+      "outputPer1M": 0.30
     },
-    "gemini-flash-lite-latest": {
-      "inputPer1M": 0,
-      "outputPer1M": 0
-    },
-    "gemini-2.5-flash": {
-      "inputPer1M": 0.3,
-      "outputPer1M": 2.5
-    },
-    "gemini-2.0-flash": {
-      "inputPer1M": 0.1,
-      "outputPer1M": 0.4
+    "openrouter/openai/gpt-4o-mini": {
+      "inputPer1M": 0.15,
+      "outputPer1M": 0.60
     }
   }
 }
