@@ -179,11 +179,14 @@
       display: flex;
       flex: 1;
       min-width: 0;
+      min-height: 0;
+      overflow: hidden;
     }
 
     /* Sidebar */
     .sidebar {
       width: 240px;
+      min-width: 240px;
       flex-shrink: 0;
       background: rgba(15, 23, 42, 0.7);
       backdrop-filter: blur(16px);
@@ -193,6 +196,10 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+      position: sticky;
+      top: 70px;
+      height: calc(100vh - 70px);
+      overflow-y: auto;
     }
 
     .nav-item {
@@ -239,8 +246,10 @@
       flex: 1;
       min-width: 0;
       overflow-x: hidden;
+      overflow-y: auto;
       padding: 24px 28px;
       max-width: 1440px;
+      height: calc(100vh - 70px);
     }
 
     /* Breadcrumbs */
@@ -773,19 +782,28 @@
       }
     }
 
-    @media (max-width: 860px) {
+    @media (max-width: 768px) {
       .app-container {
         flex-direction: column;
+        overflow: visible;
       }
       .sidebar {
         width: 100%;
+        min-width: unset;
         flex-direction: row;
         overflow-x: auto;
+        overflow-y: visible;
         border-right: none;
         border-bottom: 1px solid var(--border-color);
         padding: 10px 14px;
         gap: 8px;
         white-space: nowrap;
+        position: static;
+        height: auto;
+      }
+      .main-content {
+        height: auto;
+        overflow-y: visible;
       }
       .nav-section-label {
         display: none;
@@ -802,7 +820,7 @@
   <header class="header">
     <div class="brand">
       <div class="brand-logo">B</div>
-      <div class="brand-title">biokoop <span>Admin</span></div>
+      <div class="brand-title">biokoop <span>Admin</span> <span class="version-badge" style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 6px; letter-spacing: 0.5px; vertical-align: middle;">v1.1</span></div>
     </div>
     <div class="user-actions">
       <button class="btn btn-outline" onclick="fetchData()">🔄 รีเฟรช</button>
@@ -857,6 +875,9 @@
       </div>
       <div class="nav-item" onclick="switchTab('registration', this)">
         <span>🏷️</span> ลงทะเบียน & Whitelist
+      </div>
+      <div style="margin-top: 24px; padding: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); text-align: center;">
+        <span style="font-size: 11px; font-weight: 700; color: #4ade80; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(74, 222, 128, 0.25); padding: 4px 12px; border-radius: 20px; letter-spacing: 0.5px;">biokoop v1.1</span>
       </div>
     </aside>
 
@@ -2038,7 +2059,6 @@
 
             <div id="whitelistPagination" class="pagination"></div>
           </div>
-        </div>
       </section>
 
       <!-- SECTION KIESLECT RECOVERY PATTERN CONFIG -->
@@ -4634,7 +4654,7 @@
         document.getElementById('bmTitle').value = 'ลงทะเบียนผู้ใช้งานระบบ Biokoop';
         document.getElementById('bmBodyText').value = 'กรุณาลงทะเบียนและยืนยันข้อมูลผู้ใช้งาน เพื่อเข้าถึงรายงานการวิเคราะห์ผลสุขภาพและรับสิทธิ์ประโยชน์การบริการเต็มรูปแบบ';
         document.getElementById('bmButtonLabel').value = 'ลงทะเบียนยืนยันตัวตน';
-        document.getElementById('bmGreeting').value = 'สวัสดีครับ/ค่ะ ยินดีต้อนรับสู่ระบบบริการวิเคราะห์ผลสุขภาพ Biokoop สามารถส่งรูปภาพหน้าจอเพื่อประมวลผลได้ค่ะ';
+        document.getElementById('bmGreeting').value = 'สวัสดีค่ะ ยินดีต้อนรับสู่ระบบบริการวิเคราะห์ผลสุขภาพ Biokoop สามารถส่งรูปภาพหน้าจอเพื่อประมวลผลได้ค่ะ';
         document.getElementById('htStep1').value = 'เลือกรูปภาพผลการนอนหลับจากอุปกรณ์ของคุณ';
         document.getElementById('htStep2').value = 'ส่งภาพเข้ามาในระบบเพื่อรับรายงานการประเมิน';
         document.getElementById('htStep3').value = 'รอรับรายงานสรุปผลเป็นการ์ดส่วนบุคคลอัตโนมัติ';
@@ -5197,9 +5217,22 @@
       if (container) container.innerHTML = '<span style="color: var(--text-muted);">⏳ กำลังเรนเดอร์ภาพการ์ดตัวอย่าง...</span>';
 
       try {
+        const draftKieslectConfig = {
+          enableKieslectPattern: document.getElementById('kcEnablePattern').checked,
+          showRecoveryGauge: document.getElementById('kcShowRecovery')?.checked !== false,
+          showBodyLoadGauge: document.getElementById('kcShowBodyLoad')?.checked !== false,
+          badgeText: document.getElementById('kcBadgeText').value.trim() || 'KIESLECT HEALTH & RECOVERY',
+          recoveryThresholds: {
+            low: parseInt(document.getElementById('kcLowThreshold').value, 10) || 40,
+            medium: parseInt(document.getElementById('kcMediumThreshold').value, 10) || 70,
+          },
+        };
         const res = await apiFetch('/admin/api/card-preview', {
           method: 'POST',
-          body: JSON.stringify({ includeKieslect: document.getElementById('kcEnablePattern').checked })
+          body: JSON.stringify({
+            includeKieslect: draftKieslectConfig.enableKieslectPattern,
+            draftKieslectConfig
+          })
         });
 
         if (res.ok && res.svg && container) {

@@ -333,60 +333,42 @@ function generateDynamicHypnogram(data) {
     return { segments, restlessPcts: data.restlessPcts || [0.25, 0.65], awakePcts: data.awakePcts || [0.0, 0.99] };
   }
 
-  // คำนวณอัตราส่วนเปอร์เซ็นต์จริงที่ AI สกัดได้จากภาพ
-  const rawDeep = (data.deepSleepPercent || (data.deepSleep && data.deepSleep.percent) || 20);
-  const rawLight = (data.lightSleepPercent || (data.lightSleep && data.lightSleep.percent) || 55);
-  const rawRem = (data.remSleepPercent || (data.remSleep && data.remSleep.percent) || 20);
-  const rawAwake = (data.awakePercent || (data.awake && data.awake.percent) || 5);
-  const score = Number(data.score) || 75;
+  // คำนวณสัดส่วน % การนอนหลับจริงจากข้อมูล (Deep / Light / REM)
+  const rawDeep = (data.deepSleepPercent ?? (data.deepSleep && data.deepSleep.percent) ?? 20) / 100;
+  const rawLight = (data.lightSleepPercent ?? (data.lightSleep && data.lightSleep.percent) ?? 55) / 100;
+  const rawRem = (data.remSleepPercent ?? (data.remSleep && data.remSleep.percent) ?? 20) / 100;
 
-  const total = (rawDeep + rawLight + rawRem) || 100;
-  const normDeep = rawDeep / total;
-  const normLight = rawLight / total;
-  const normRem = rawRem / total;
+  const total = (rawDeep + rawLight + rawRem) || 1.0;
+  const deepPct = rawDeep / total;
+  const remPct = rawRem / total;
+  const lightPct = rawLight / total;
 
-  // จำลอง วงจรการนอน (Sleep Cycles) 4 รอบโดยปรับสัดส่วนในแต่ละรอบให้ตรงตาม normDeep, normLight, normRem รวมสุทธิ
-  const numCycles = 4;
-  const cycleW = 1.0 / numCycles;
+  // การกระจายสัดส่วนตามธรรมชาติของการนอนหลับ (หลับลึกอยู่ช่วงต้นคืน, REM อยู่ช่วงท้ายคืน)
+  const deepDist = [0.60, 0.30, 0.10, 0.00];
+  const remDist  = [0.10, 0.20, 0.35, 0.35];
 
   const rawSegments = [];
   let cur = 0;
 
-  for (let c = 0; c < numCycles; c++) {
-    // ช่วงต้นคืน (c < 2) หลับลึกมากกว่า ช่วงปลายคืน (c >= 2) REM มากกว่า
-    const deepWeight = c < 2 ? normDeep * 1.5 : normDeep * 0.5;
-    const remWeight = c >= 2 ? normRem * 1.6 : normRem * 0.4;
-    const lightWeight = normLight;
+  for (let c = 0; c < 4; c++) {
+    const d = deepPct * deepDist[c];
+    const r = remPct * remDist[c];
+    const l = 0.25 - d - r;
+    const halfL = l / 2;
 
-    const sumW = deepWeight + remWeight + lightWeight || 1;
-    const deepDur = (deepWeight / sumW) * cycleW;
-    const remDur = (remWeight / sumW) * cycleW;
-    const lightDur = (lightWeight / sumW) * cycleW;
-    const halfLight = lightDur / 2;
-
-    if (halfLight > 0.005) {
-      rawSegments.push({ s: cur, e: cur + halfLight, level: 2 });
-      cur += halfLight;
-    }
-    if (deepDur > 0.005) {
-      rawSegments.push({ s: cur, e: cur + deepDur, level: 3 });
-      cur += deepDur;
-    }
-    if (halfLight > 0.005) {
-      rawSegments.push({ s: cur, e: cur + halfLight, level: 2 });
-      cur += halfLight;
-    }
-    if (remDur > 0.005) {
-      rawSegments.push({ s: cur, e: cur + remDur, level: 1 });
-      cur += remDur;
+    if (c < 3) {
+      if (halfL > 0.002) { rawSegments.push({ s: cur, e: cur + halfL, level: 2 }); cur += halfL; }
+      if (d > 0.002)     { rawSegments.push({ s: cur, e: cur + d, level: 3 });     cur += d; }
+      if (halfL > 0.002) { rawSegments.push({ s: cur, e: cur + halfL, level: 2 }); cur += halfL; }
+      if (r > 0.002)     { rawSegments.push({ s: cur, e: cur + r, level: 1 });     cur += r; }
+    } else {
+      if (halfL > 0.002) { rawSegments.push({ s: cur, e: cur + halfL, level: 2 }); cur += halfL; }
+      if (r > 0.002)     { rawSegments.push({ s: cur, e: cur + r, level: 1 });     cur += r; }
+      if (halfL > 0.002) { rawSegments.push({ s: cur, e: cur + halfL, level: 2 }); cur += halfL; }
     }
   }
 
-  if (rawSegments.length > 0) {
-    rawSegments[rawSegments.length - 1].e = 1.0;
-  }
-
-  // รวมบล็อกที่ต่อเนื่องกันในระดับเดียวกัน
+  // รวมบล็อกติดต่อกันที่ระดับเดียวกัน
   const segments = [];
   for (const seg of rawSegments) {
     if (segments.length > 0 && segments[segments.length - 1].level === seg.level) {
@@ -395,19 +377,31 @@ function generateDynamicHypnogram(data) {
       segments.push({ ...seg });
     }
   }
+  if (segments.length > 0) segments[segments.length - 1].e = 1.0;
 
-  // คำนวณจุดกระสับกระส่าย (Restless) และตื่น (Awake) จากค่าคะแนนและ % การตื่นจริง
-  const restlessCount = Math.max(1, Math.min(8, Math.floor((100 - score) / 10)));
-  const seed = (score * 37 + 19) % 100;
+  // คำนวณจุดกระสับกระส่าย (Restless) และจุดตื่น (Awake) จากข้อมูลจริงใน data
+  let restlessMin = 15;
+  if (data.restlessness) {
+    const val = typeof data.restlessness === "object" ? data.restlessness.value : data.restlessness;
+    const m = String(val).match(/\d+/);
+    if (m) restlessMin = parseInt(m[0], 10);
+  }
+  const restlessCount = Math.max(1, Math.min(6, Math.round(restlessMin / 6)));
   const restlessPcts = [];
+  const baseRestless = [0.15, 0.38, 0.62, 0.85, 0.28, 0.72];
   for (let i = 0; i < restlessCount; i++) {
-    const p = Number(((seed * 0.13 + i * 0.27 + 0.08) % 0.88 + 0.06).toFixed(3));
-    restlessPcts.push(p);
+    restlessPcts.push(baseRestless[i % baseRestless.length]);
   }
 
+  let awakeMin = 5;
+  if (data.awake) {
+    const val = typeof data.awake === "object" ? data.awake.value : data.awake;
+    const m = String(val).match(/\d+/);
+    if (m) awakeMin = parseInt(m[0], 10);
+  }
   const awakePcts = [0.0];
-  if (rawAwake > 3 || score < 80) {
-    awakePcts.push(0.42);
+  if (awakeMin >= 5) {
+    awakePcts.push(0.46);
   }
   awakePcts.push(0.99);
 
@@ -576,7 +570,16 @@ function deriveGradeTheme(hexColor) {
 
 // ─── MAIN CARD RENDERER ───
 export function renderBiokoopCard(data = {}, overrideConfig = null) {
-  const cfg = overrideConfig || getCardConfig();
+  const savedCfg = getCardConfig();
+  const cfg = overrideConfig
+    ? {
+        ...savedCfg,
+        ...overrideConfig,
+        colors: { ...savedCfg.colors, ...(overrideConfig.colors || {}) },
+        textLabels: { ...savedCfg.textLabels, ...(overrideConfig.textLabels || {}) },
+        sections: overrideConfig.sections || savedCfg.sections,
+      }
+    : savedCfg;
   const W = cfg.canvasWidth || DEFAULT_W;
   const H = cfg.canvasHeight || DEFAULT_H;
 
@@ -621,16 +624,31 @@ export function renderBiokoopCard(data = {}, overrideConfig = null) {
   const sleepTime = data.sleepTime ?? "6h 37m";
   const sleepRange = data.sleepTimeRange ?? "12:20 AM - 7:00 AM";
   const ttss = data.timeToSoundSleep ?? "ไม่มีข้อมูล";
-  const soundSleep = data.soundSleep ?? "ไม่มีข้อมูล";
+  const deep = data.deepSleep ?? { value: "1h 26m", percent: 22 };
+  const light = data.lightSleep ?? { value: "4h 1m", percent: 60 };
+  const rem = data.remSleep ?? { value: "1h 10m", percent: 18 };
+
+  let computedSoundSleep = "ไม่มีข้อมูล";
+  if (deep.value && rem.value && deep.value !== "-" && rem.value !== "-") {
+    const parseMins = (str) => {
+      const h = (str.match(/(\d+)\s*h/i) || [])[1] || 0;
+      const m = (str.match(/(\d+)\s*m/i) || [])[1] || 0;
+      return parseInt(h, 10) * 60 + parseInt(m, 10);
+    };
+    const totalM = parseMins(String(deep.value)) + parseMins(String(rem.value));
+    if (totalM > 0) {
+      const hours = Math.floor(totalM / 60);
+      const mins = totalM % 60;
+      computedSoundSleep = hours > 0 ? `${hours}h ${mins < 10 ? '0' : ''}${mins}m` : `${mins}m`;
+    }
+  }
+  const soundSleep = (data.soundSleep && data.soundSleep !== "ไม่มีข้อมูล") ? data.soundSleep : computedSoundSleep;
   const hr = data.avgHeartRate ?? "ไม่มีข้อมูล";
   const hrv = data.hrv ?? "ไม่มีข้อมูล";
   const spo2 = data.spo2 ?? "ไม่มีข้อมูล";
   const efficiency = data.sleepEfficiency ?? "99%";
   const headline = data.headline || gradeInfo.headline;
   const aiSummary = data.aiSummary ?? gradeInfo.summary;
-  const deep = data.deepSleep ?? { value: "1h 26m", percent: 22 };
-  const light = data.lightSleep ?? { value: "4h 1m", percent: 60 };
-  const rem = data.remSleep ?? { value: "1h 10m", percent: 18 };
   const restless = data.restlessness ?? { value: "14 min", percent: null };
   const awake = data.awake ?? { value: "2 min", percent: null };
   const tips = data.tips || gradeInfo.tips;
@@ -645,7 +663,7 @@ export function renderBiokoopCard(data = {}, overrideConfig = null) {
   const tipsTitle = textLabels.tipsTitle || "TIPS";
 
   // Dynamic Vertical Stacking for Re-ordered Sections
-  let curY = 220;
+  let curY = 250;
   const gap = 20;
   let bodySvg = "";
 
@@ -694,7 +712,13 @@ ${rightStat(rightStart + 10, curY + tp + 294, iSunStar, C.yellowLight, C.yellow,
       curY += statsH + gap;
     } else if (sec.id === "kieslectRecovery") {
       // ─── DYNAMIC KIESLECT RECOVERY & BODY LOAD PATTERN WIDGET ───
-      const kieslectCfg = getKieslectConfig();
+      const savedKieslectCfg = getKieslectConfig();
+      // Allow preview to pass draftKieslectConfig to override saved config
+      const kieslectCfg = data.kieslectConfig
+        ? { ...savedKieslectCfg, ...data.kieslectConfig,
+            recoveryThresholds: { ...savedKieslectCfg.recoveryThresholds, ...(data.kieslectConfig.recoveryThresholds || {}) },
+            colors: { ...savedKieslectCfg.colors, ...(data.kieslectConfig.colors || {}) } }
+        : savedKieslectCfg;
       if (kieslectCfg.enableKieslectPattern !== false && data.recoveryPercent != null) {
         const recVal = Number(data.recoveryPercent) || 0;
         const bodyLoadVal = data.bodyLoad != null ? Number(data.bodyLoad) : null;
@@ -738,6 +762,7 @@ ${showBodyLoad ? `
 `;
         curY += widgetH + gap;
       }
+    } else if (sec.id === "aiSummary") {
       const aiH = 200;
       bodySvg += `
 <!-- ZONE 3 - AI SUMMARY -->
@@ -795,15 +820,19 @@ ${wrapText(tips, pad + 90, curY + 82, cw - 130, 36, "23", C.navyDark, 2)}
 
   const headerSvg = isHeaderVisible ? `
 <!-- ZONE 1 - HEADER -->
-<text x="${W / 2}" y="64" text-anchor="middle" font-family="Kanit" font-weight="700" font-size="37" fill="${C.navyDark}">${esc(brandTitle)}</text>
-<text x="${W / 2}" y="94" text-anchor="middle" font-family="Kanit" font-weight="600" font-size="16" letter-spacing="3" fill="${C.green}">${esc(headerSubtitle)}</text>
-<text x="${W / 2}" y="152" text-anchor="middle" font-family="Kanit" font-weight="700" font-size="42" fill="${C.navyDark}">${esc(headline)}</text>
-<text x="${W / 2}" y="190" text-anchor="middle" font-family="Kanit" font-weight="400" font-size="19" fill="${C.grayText}">${esc(headerSubtext)}</text>
-<rect x="${W - pad - 248}" y="42" width="248" height="78" rx="16" fill="${C.greenLight}" stroke="${C.greenBorder}" stroke-width="1.5"/>
-${iCalendar(W - pad - 220, 80, 17, C.green)}
-<text x="${W - pad - 192}" y="71" font-family="Kanit" font-weight="600" font-size="16" fill="${C.navyDark}">${esc(currentThaiDate())}</text>
-<text x="${W - pad - 192}" y="92" font-family="Kanit" font-weight="400" font-size="13" fill="${C.grayText}">ข้อมูลจากแอปพลิเคชัน</text>
-<text x="${W - pad - 192}" y="108" font-family="Kanit" font-weight="600" font-size="13" fill="${C.green}">(${esc(appName)})</text>
+<text x="${W / 2}" y="58" text-anchor="middle" font-family="Kanit" font-weight="800" font-size="36" fill="${C.navyDark}">${esc(brandTitle)}</text>
+<text x="${W / 2}" y="88" text-anchor="middle" font-family="Kanit" font-weight="700" font-size="15" letter-spacing="3" fill="${C.green}">${esc(headerSubtitle)}</text>
+
+<!-- Expanded & Redesigned Date & Source App Badge -->
+<rect x="${W - pad - 280}" y="36" width="280" height="86" rx="18" fill="${C.greenLight}" stroke="${C.greenBorder}" stroke-width="1.5"/>
+${iCalendar(W - pad - 248, 79, 19, C.green)}
+<text x="${W - pad - 216}" y="65" font-family="Kanit" font-weight="700" font-size="16.5" fill="${C.navyDark}">${esc(currentThaiDate())}</text>
+<text x="${W - pad - 216}" y="87" font-family="Kanit" font-weight="400" font-size="13" fill="${C.grayText}">ข้อมูลจากแอปพลิเคชัน</text>
+<text x="${W - pad - 216}" y="105" font-family="Kanit" font-weight="600" font-size="13" fill="${C.green}">(${esc(appName)})</text>
+
+<!-- Main Headline & Subtext (Positioned safely below Date Badge) -->
+<text x="${W / 2}" y="172" text-anchor="middle" font-family="Kanit" font-weight="800" font-size="${headline.length > 25 ? 36 : 42}" fill="${C.navyDark}">${esc(headline)}</text>
+<text x="${W / 2}" y="212" text-anchor="middle" font-family="Kanit" font-weight="400" font-size="18" fill="${C.grayText}">${esc(headerSubtext)}</text>
 ` : "";
 
   const totalH = Math.max(H, curY + 65);
@@ -812,8 +841,16 @@ ${iCalendar(W - pad - 220, 80, 17, C.green)}
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${totalH}" width="${W}" height="${totalH}">
 <defs>
-  <filter id="cardShadow" x="-5%" y="-5%" width="110%" height="110%">
-    <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#0F172A" flood-opacity="0.05"/>
+  <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
+    <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+    <feOffset dx="0" dy="4" result="offsetblur"/>
+    <feComponentTransfer>
+      <feFuncA type="linear" slope="0.06"/>
+    </feComponentTransfer>
+    <feMerge>
+      <feMergeNode/>
+      <feMergeNode in="SourceGraphic"/>
+    </feMerge>
   </filter>
 </defs>
 

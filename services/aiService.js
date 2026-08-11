@@ -40,6 +40,7 @@ const SYSTEM_PROMPT = `คุณเป็นระบบวิเคราะห
     "lightSleepTime": "string เช่น 4h 09min",
     "remSleepTime": "string เช่น 1h 38min",
     "awakeTime": "string เช่น 0min",
+    "soundSleepTime": "string เช่น 2h 34m (อ่านจาก 'การนอนหลับที่แท้จริง')",
     "avgHeartRate": "string เช่น 62 bpm หรือ 'ไม่มีข้อมูล'",
     "hrv": "string เช่น 45 ms หรือ 'ไม่มีข้อมูล'",
     "spo2": "string เช่น 97% หรือ 'ไม่มีข้อมูล'",

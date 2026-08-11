@@ -318,12 +318,15 @@ export async function pushHealthAdviceFlex(lineUserId, resultData = {}) {
     },
   ];
 
-  // แถวสถิติย่อย: เวลานอน / ประสิทธิภาพ / หัวใจ (แสดงเฉพาะค่าที่มีข้อมูลจริง)
+  // แถวสถิติย่อย: เวลานอน / นอนหลับจริง / ประสิทธิภาพ / RECOVERY / หัวใจ (แสดงเฉพาะค่าที่มีข้อมูลจริง)
+  const soundVal = resultData.soundSleepTime || resultData.soundSleep;
   const quickStats = [
-    { icon: "🛌", label: "เวลานอน", value: resultData.sleepTime },
+    { icon: "🛌", label: "เวลานอนรวม", value: resultData.sleepTime },
+    { icon: "✨", label: "นอนหลับจริง", value: soundVal },
     { icon: "⚡", label: "ประสิทธิภาพ", value: resultData.sleepEfficiency },
+    { icon: "🔋", label: "RECOVERY", value: resultData.recoveryPercent != null ? `${resultData.recoveryPercent}%` : null },
     { icon: "❤️", label: "หัวใจเฉลี่ย", value: resultData.avgHeartRate },
-  ].filter((s) => s.value && s.value !== "ไม่มีข้อมูล");
+  ].filter((s) => s.value && s.value !== "ไม่มีข้อมูล" && s.value !== "-");
 
   if (quickStats.length > 0) {
     bodyContents.push({

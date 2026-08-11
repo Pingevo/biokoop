@@ -281,6 +281,7 @@ function mapAiResultToCardData(r = {}) {
     sleepTime: r.sleepTime || "ไม่มีข้อมูล",
     sleepTimeRange: r.sleepTimeRange || "",
     sleepEfficiency: r.sleepEfficiency || "ไม่มีข้อมูล",
+    soundSleep: r.soundSleepTime || r.soundSleep || "ไม่มีข้อมูล",
     avgHeartRate: r.avgHeartRate || "ไม่มีข้อมูล",
     hrv: r.hrv || "ไม่มีข้อมูล",
     spo2: r.spo2 || "ไม่มีข้อมูล",

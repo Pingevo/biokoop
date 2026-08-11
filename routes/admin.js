@@ -673,8 +673,9 @@ router.post("/api/kieslect-config", requireAdminAuth, (req, res) => {
 // POST /admin/api/card-preview - เรนเดอร์ SVG preview ตามแบบที่กำลังปรับแต่ง
 router.post("/api/card-preview", requireAdminAuth, (req, res) => {
   try {
-    const draftConfig = req.body?.config || req.body || {};
+    const draftConfig = req.body?.config || null;
     const includeKieslect = req.body?.includeKieslect !== false;
+    const draftKieslectConfig = req.body?.draftKieslectConfig || null;
     const svg = renderBiokoopCard(
       {
         score: 63,
@@ -683,7 +684,12 @@ router.post("/api/card-preview", requireAdminAuth, (req, res) => {
         sleepTime: "6h 15m",
         sleepTimeRange: "23:15 - 05:30",
         sleepEfficiency: "88%",
-        aiSummary: "เมื่อคืนคุณนอน 6 ชั่วโมง 15 นาที มีอัตราการฟื้นตัว (Recovery) อยู่ที่ 27% ซึ่งอยู่ในระดับต่ำ แนะนำให้ลดกิจกรรมหนัก พักผ่อนและดื่มน้ำเพิ่มเติมในวันนี้ครับ",
+        soundSleep: "2h 05m",
+        timeToSoundSleep: "20 min",
+        avgHeartRate: "69 bpm",
+        hrv: "42 ms",
+        spo2: "98%",
+        aiSummary: "เมื่อคืนคุณนอน 6 ชั่วโมง 15 นาที มีอัตราการฟื้นตัว (Recovery) อยู่ที่ 27% ซึ่งอยู่ในระดับต่ำ แนะนำให้ลดกิจกรรมหนัก พักผ่อนและดื่มน้ำเพิ่มเติมในวันนี้สั้นๆ นะคะ",
         deepSleep: { value: "1h 05m", percent: 17 },
         lightSleep: { value: "4h 10m", percent: 67 },
         remSleep: { value: "1h 00m", percent: 16 },
@@ -691,7 +697,9 @@ router.post("/api/card-preview", requireAdminAuth, (req, res) => {
         awake: { value: "10 min" },
         recoveryPercent: includeKieslect ? 27 : null,
         bodyLoad: includeKieslect ? 3.3 : null,
-        tips: "พักผ่อนเพิ่มเติม ดื่มน้ำให้เพียงพอตลอดวัน และเข้าเข้านอนให้เร็วขึ้นเพื่อเพิ่ม Recovery Rate"
+        tips: "พักผ่อนเพิ่มเติม ดื่มน้ำให้เพียงพอตลอดวัน และเข้าเข้านอนให้เร็วขึ้นเพื่อเพิ่ม Recovery Rate",
+        // ส่ง draftKieslectConfig เพื่อให้ kieslect section ใช้ค่า live จากฟอร์ม
+        kieslectConfig: draftKieslectConfig,
       },
       draftConfig
     );

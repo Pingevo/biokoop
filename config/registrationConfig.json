@@ -1,5 +1,5 @@
 {
-  "mode": "none",
+  "mode": "any",
   "isRequired": true,
   "preventDuplicate": false,
   "whitelistOnly": true,
