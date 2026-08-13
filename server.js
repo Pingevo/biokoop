@@ -92,19 +92,17 @@ async function start() {
   });
 
   // Graceful shutdown — ปิด HTTP server และ MongoDB ก่อน exit เพื่อไม่ให้ request ค้าง
-  function shutdown(signal) {
+  async function shutdown(signal) {
     console.log(`[server] ได้รับ ${signal} — กำลังปิดระบบ...`);
-    server.close(() => {
-      mongoose.connection.close(false, () => {
-        console.log("[server] ปิดระบบเรียบร้อยแล้ว");
-        process.exit(0);
-      });
-    });
-    // ถ้าปิดไม่สำเร็จใน 10 วินาที ให้ force exit
-    setTimeout(() => {
-      console.error("[server] ปิดระบบไม่ทัน — force exit");
+    try {
+      await new Promise((resolve) => server.close(resolve));
+      await mongoose.connection.close(false);
+      console.log("[server] ปิดระบบเรียบร้อยแล้ว");
+      process.exit(0);
+    } catch (err) {
+      console.error("[server] เกิดข้อผิดพลาดขณะปิดระบบ:", err.message);
       process.exit(1);
-    }, 10000).unref();
+    }
   }
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));

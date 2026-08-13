@@ -540,6 +540,30 @@
       cursor: grab;
     }
 
+    /* Data Table — สำหรับ superadmin tabs (admin management, audit log) */
+    .data-table {
+      border-collapse: collapse;
+      color: var(--text-main);
+    }
+    .data-table th {
+      color: var(--text-main);
+      font-weight: 700;
+      font-size: 12.5px;
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(15, 23, 42, 0.6);
+    }
+    .data-table td {
+      color: var(--text-main);
+      font-size: 13px;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .data-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
     .color-picker {
       width: 100%;
       height: 40px;
@@ -968,7 +992,7 @@
           </div>
         </div>
 
-        <h2 style="margin-bottom: 20px; font-weight: 700; color: #0f172a;">📊 ภาพรวมสถิติระบบ & สรุปการใช้งาน API</h2>
+        <h2 style="margin-bottom: 20px; font-weight: 700; color: #ffffff;">📊 ภาพรวมสถิติระบบ & สรุปการใช้งาน API</h2>
 
         <!-- Executive KPI Cards Grid -->
         <div class="stats-grid" style="margin-bottom: 24px;">
@@ -1162,7 +1186,7 @@
 
       <!-- SECTION 2: REQUESTS & LOGS (รวมรายการคำขอ + ประวัติ LINE + Audit Logs) -->
       <section id="tab-requests-logs" class="tab-content">
-        <h2 style="margin-bottom: 16px; font-weight: 700; color: #0f172a;">📋 จัดการคำขอ & ประวัติการส่งข้อมูล</h2>
+        <h2 style="margin-bottom: 16px; font-weight: 700; color: #ffffff;">📋 จัดการคำขอ & ประวัติการส่งข้อมูล</h2>
         
         <!-- Sub-Nav Bar -->
         <div class="sub-nav-bar">
@@ -1175,7 +1199,7 @@
         <div id="subcontent-requests" class="sub-tab-content active">
           <div class="section-header" style="flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
             <div>
-              <h3 style="font-weight: 700; color: #0f172a; margin-bottom: 2px;">📋 รายการคำขอและการวิเคราะห์ภาพ (Analysis Requests)</h3>
+              <h3 style="font-weight: 700; color: #ffffff; margin-bottom: 2px;">📋 รายการคำขอและการวิเคราะห์ภาพ (Analysis Requests)</h3>
               <p style="font-size: 13px; color: var(--text-muted); margin: 0;">รายการรูปภาพที่ผู้ใช้ส่งมาจาก LINE ตรวจสอบผลลัพธ์ อนุมัติส่งรูป หรือดูข้อผิดพลาดของระบบ</p>
             </div>
 
@@ -1233,7 +1257,7 @@
         <div id="subcontent-line-messages" class="sub-tab-content">
           <div class="section-header" style="flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
             <div>
-              <h3 style="font-weight: 700; color: #0f172a; margin-bottom: 2px;">💬 ประวัติการแชท LINE ทั้งหมด (Message Audit Trail)</h3>
+              <h3 style="font-weight: 700; color: #ffffff; margin-bottom: 2px;">💬 ประวัติการแชท LINE ทั้งหมด (Message Audit Trail)</h3>
               <p style="color: var(--text-muted); font-size: 13px; margin: 0;">
                 บันทึกประวัติการรับ-ส่งข้อความระหว่างผู้ใช้และบอททั้งระบบ ค้นหาย้อนหลังและดูข้อมูลการโต้ตอบ
               </p>
@@ -1322,7 +1346,7 @@
         <!-- SUB-TAB 3: AUDIT LOGS -->
         <div id="subcontent-logs" class="sub-tab-content">
           <div class="section-header">
-            <h3 style="font-weight: 700; color: #0f172a;">📜 Audit Logs (ประวัติการทำงานของระบบ)</h3>
+            <h3 style="font-weight: 700; color: #ffffff;">📜 Audit Logs (ประวัติการทำงานของระบบ)</h3>
             <select id="logStepFilter" class="form-control" onchange="loadLogs()">
               <option value="all">ทุก Step</option>
               <option value="webhook_received">webhook_received</option>
@@ -1356,7 +1380,7 @@
       <section id="tab-users" class="tab-content">
         <div class="section-header" style="flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
           <div>
-            <h2 style="font-weight: 700; color: #0f172a; margin-bottom: 4px;">👥 รายชื่อผู้ใช้งาน LINE & ระบบค้นหาเจ้าของสินค้า (Ownership Finder)</h2>
+            <h2 style="font-weight: 700; color: #ffffff; margin-bottom: 4px;">👥 รายชื่อผู้ใช้งาน LINE & ระบบค้นหาเจ้าของสินค้า (Ownership Finder)</h2>
             <p style="color: var(--text-muted); font-size: 13px; margin: 0;">ค้นหาว่าใครเป็นเจ้าของรหัส IMEI หรือ Order ID ไหน พร้อมตรวจสอบกับคลัง dbWallet (10 คอลเลกชัน)</p>
           </div>
           <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
@@ -1426,7 +1450,7 @@
       <section id="tab-system-health" class="tab-content">
         <div class="section-header">
           <div>
-            <h3 style="font-weight: 700; color: #0f172a;">🩺 สุขภาพระบบ (System Health Monitor)</h3>
+            <h3 style="font-weight: 700; color: #ffffff;">🩺 สุขภาพระบบ (System Health Monitor)</h3>
             <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">
               ตรวจสอบสถานะฐานข้อมูล, หน่วยความจำ, คิวประมวลผล และเวลา uptime ของเซิร์ฟเวอร์ — Auto-refresh ทุก 30 วินาที
             </p>
@@ -1442,7 +1466,7 @@
       <section id="tab-grade-config" class="tab-content">
           <div class="section-header">
             <div>
-              <h3 style="font-weight: 700; color: #0f172a;">🏆 ตั้งค่าระดับเกรด และช่วงคะแนน (Grade & Score Settings)</h3>
+              <h3 style="font-weight: 700; color: #ffffff;">🏆 ตั้งค่าระดับเกรด และช่วงคะแนน (Grade & Score Settings)</h3>
               <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">
                 กำหนดช่วงคะแนน (Min - Max), ระดับเกรด (A, B, C, D), ป้ายกำกับ, สีประจำเกรด และข้อความคำพูดต้นแบบที่จะส่งให้ผู้ใช้งาน
               </p>
@@ -1467,7 +1491,7 @@
       <section id="tab-card-builder" class="tab-content">
           <div class="section-header">
             <div>
-              <h3 style="font-weight: 700; color: #0f172a;">🎨 ปรับแต่งโครงสร้างการ์ด (Card Builder)</h3>
+              <h3 style="font-weight: 700; color: #ffffff;">🎨 ปรับแต่งโครงสร้างการ์ด (Card Builder)</h3>
               <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">
                 ลากสลับลำดับโซน (Drag & Drop), เปิด/ปิดการแสดงผล และปรับธีมสีของการ์ดสรุปสุขภาพได้ตามต้องการ
               </p>
@@ -1586,7 +1610,7 @@
       <section id="tab-bot-messages" class="tab-content">
           <div class="section-header">
             <div>
-              <h3 style="font-weight: 700; color: #0f172a;">💬 ตั้งค่าข้อความบอท LINE (Bot Auto-reply Messages)</h3>
+              <h3 style="font-weight: 700; color: #ffffff;">💬 ตั้งค่าข้อความบอท LINE (Bot Auto-reply Messages)</h3>
               <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">
                 แก้ไขข้อความและสีของ Flex Message ชวนลงทะเบียน และข้อความตอบกลับอัตโนมัติต่างๆ ที่บอทส่งให้ผู้ใช้ใน LINE
               </p>
@@ -1817,7 +1841,7 @@
       <section id="tab-registration" class="tab-content">
           <div class="section-header">
             <div>
-              <h3 style="font-weight: 700; color: #0f172a;">🏷️ ตั้งค่าการลงทะเบียนด้วย IMEI / Order SN / Order ID</h3>
+              <h3 style="font-weight: 700; color: #ffffff;">🏷️ ตั้งค่าการลงทะเบียนด้วย IMEI / Order SN / Order ID</h3>
               <p style="color: var(--text-muted); font-size: 13.5px; margin-top: 4px;">
                 กำหนดเงื่อนไขการยืนยันตัวตนลูกค้าเมื่อลงทะเบียนผ่าน LINE (ใช้เลข IMEI อุปกรณ์, เลข Order SN หรือ Order ID)
               </p>
@@ -1838,7 +1862,7 @@
 
             <!-- STEP 1: VISUAL PRESET MODE CARDS -->
             <div style="margin-bottom: 24px;">
-              <label style="display: block; font-weight: 700; font-size: 14px; color: #0f172a; margin-bottom: 10px;">
+              <label style="display: block; font-weight: 700; font-size: 14px; color: #ffffff; margin-bottom: 10px;">
                 1️⃣ เลือกรูปแบบการลงทะเบียนที่ต้องการเปิดใช้งาน:
               </label>
 
@@ -2984,7 +3008,7 @@
           return `
             <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px;">
               <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
-                <span style="font-size: 13px; font-weight: 700; color: #0f172a;">${m.model}</span>
+                <span style="font-size: 13px; font-weight: 700; color: #ffffff;">${m.model}</span>
                 <span style="font-size: 12px; color: var(--text-muted);">ใช้ไป ${m.usedToday.toLocaleString()} ครั้ง</span>
               </div>
               ${hasLimit ? `
