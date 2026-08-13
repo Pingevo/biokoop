@@ -95,7 +95,7 @@
       letter-spacing: -0.4px;
     }
 
-    .brand-title span {
+    .brand-title span:not(.version-badge) {
       background: linear-gradient(135deg, #f87171, #ef4444);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -820,9 +820,10 @@
   <header class="header">
     <div class="brand">
       <div class="brand-logo">B</div>
-      <div class="brand-title">biokoop <span>Admin</span> <span class="version-badge" style="background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.3); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 6px; letter-spacing: 0.5px; vertical-align: middle;">v1.1</span></div>
+      <div class="brand-title">biokoop <span>Admin</span> <span class="version-badge" style="background: rgba(255, 255, 255, 0.18); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.45); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 6px; letter-spacing: 0.5px; vertical-align: middle;">v1.1.2</span></div>
     </div>
     <div class="user-actions">
+      <span id="adminUserBadge" style="margin-right: 8px;"></span>
       <button class="btn btn-outline" onclick="fetchData()">🔄 รีเฟรช</button>
       <button class="btn btn-outline" onclick="logout()">🚪 ออกจากระบบ</button>
     </div>
@@ -833,11 +834,14 @@
     <div class="login-box">
       <div class="brand-logo" style="margin: 0 auto 16px auto; width: 48px; height: 48px; font-size: 24px;">B</div>
       <h2 style="margin-bottom: 8px; font-weight: 700; color: #0f172a;">เข้าสู่ระบบ Admin</h2>
-      <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">กรุณากรอกรหัสผ่าน Admin เพื่อเข้าใช้งานระบบ biokoop</p>
-      <form onsubmit="handleLogin(event)">
-        <input type="password" id="adminPassword" class="form-control" style="width: 100%; margin-bottom: 16px; text-align: center;" placeholder="รหัสผ่าน Admin" required>
-        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">เข้าสู่ระบบ</button>
-      </form>
+      <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">เข้าสู่ระบบผ่าน ITSR (ระบบ 81) เพื่อใช้งานหลังบ้าน biokoop</p>
+      <button type="button" class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="handleLogin()">
+        <span style="margin-right: 8px;">🔐</span> เข้าสู่ระบบผ่าน ITSR
+      </button>
+      <p style="color: var(--text-muted); font-size: 12px; margin-top: 16px; line-height: 1.5;">
+        Admin Lv.1 (admin) / Lv.2 (superadmin) — login ด้วยบัญชี ITSR ของคุณ<br>
+        ติดต่อ superadmin หากยังไม่มีสิทธิ์เข้าถึง
+      </p>
       <p id="loginError" style="color: var(--danger); font-size: 13px; margin-top: 12px; display: none;"></p>
     </div>
   </div>
@@ -876,8 +880,20 @@
       <div class="nav-item" onclick="switchTab('registration', this)">
         <span>🏷️</span> ลงทะเบียน & Whitelist
       </div>
+
+      <!-- Superadmin Lv.2 เท่านั้น — ซ่อนจาก Admin Lv.1 -->
+      <div id="superadminNavSection" style="display:none;">
+        <div class="nav-section-label" style="color:#fbbf24;">⭐ Superadmin (Lv.2)</div>
+        <div class="nav-item" onclick="switchTab('admin-management', this)">
+          <span>🛡️</span> จัดการ Admin Accounts
+        </div>
+        <div class="nav-item" onclick="switchTab('admin-audit', this)">
+          <span>📜</span> Audit Log แอดมิน
+        </div>
+      </div>
+
       <div style="margin-top: 24px; padding: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08); text-align: center;">
-        <span style="font-size: 11px; font-weight: 700; color: #4ade80; background: rgba(34, 197, 94, 0.12); border: 1px solid rgba(74, 222, 128, 0.25); padding: 4px 12px; border-radius: 20px; letter-spacing: 0.5px;">biokoop v1.1</span>
+        <span style="font-size: 11px; font-weight: 700; color: #ffffff; background: rgba(255, 255, 255, 0.10); border: 1px solid rgba(255, 255, 255, 0.20); padding: 4px 12px; border-radius: 20px; letter-spacing: 0.5px;">biokoop v1.1.2</span>
       </div>
     </aside>
 
@@ -2151,6 +2167,85 @@
         </div>
       </section>
 
+      <!-- ===== Superadmin Lv.2: จัดการ Admin Accounts ===== -->
+      <section id="tab-admin-management" class="tab-content">
+        <div style="background: var(--bg-card); backdrop-filter: blur(14px); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #fbbf24; margin: 0;">🛡️ จัดการ Admin Accounts</h3>
+            <button class="btn btn-outline" onclick="loadAdmins()">🔄 รีเฟรช</button>
+          </div>
+          <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 16px;">
+            แสดงบัญชี admin ทั้งหมดที่ login ผ่าน ITSR — เปลี่ยน role (Lv.1 ↔ Lv.2), เปิด/ปิดใช้งาน, หรือลบบัญชี<br>
+            <b>ไม่สามารถ</b> ลบ/ระงับ/ลดขั้น superadmin คนสุดท้าย หรือทำกับตัวเองได้
+          </p>
+          <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%;">
+              <thead>
+                <tr>
+                  <th>ITSR Username</th>
+                  <th>ชื่อ</th>
+                  <th>Role</th>
+                  <th>สถานะ</th>
+                  <th>Login ล่าสุด</th>
+                  <th>สร้างเมื่อ</th>
+                  <th>การจัดการ</th>
+                </tr>
+              </thead>
+              <tbody id="adminsTableBody">
+                <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px;">กด "รีเฟรช" เพื่อโหลดรายการ</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== Superadmin Lv.2: Audit Log แอดมิน ===== -->
+      <section id="tab-admin-audit" class="tab-content">
+        <div style="background: var(--bg-card); backdrop-filter: blur(14px); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+            <h3 style="font-size: 16px; font-weight: 700; color: #fbbf24; margin: 0;">📜 Audit Log แอดมิน</h3>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <select id="auditActionFilter" class="form-control" style="width:auto;padding:6px 10px;">
+                <option value="all">ทุก action</option>
+                <option value="approve_send">approve_send</option>
+                <option value="update_status">update_status</option>
+                <option value="correct_ai">correct_ai</option>
+                <option value="send_message">send_message</option>
+                <option value="user_block">user_block</option>
+                <option value="user_unblock">user_unblock</option>
+                <option value="config_save">config_save</option>
+                <option value="config_reset">config_reset</option>
+                <option value="admin_role_change">admin_role_change</option>
+                <option value="admin_status_change">admin_status_change</option>
+                <option value="admin_delete">admin_delete</option>
+              </select>
+              <input type="text" id="auditSearchInput" class="form-control" placeholder="ค้นหา (admin/action/target)" style="width:200px;padding:6px 10px;">
+              <button class="btn btn-outline" onclick="loadAdminAudit(1)">ค้นหา</button>
+              <button class="btn btn-outline" onclick="loadAdminAudit(1, true)">🔄 รีเฟรช</button>
+            </div>
+          </div>
+          <div style="overflow-x: auto; max-height: 70vh; overflow-y: auto;">
+            <table class="data-table" style="width: 100%;">
+              <thead style="position: sticky; top: 0; z-index: 1;">
+                <tr>
+                  <th>เวลา</th>
+                  <th>Admin</th>
+                  <th>Role</th>
+                  <th>Action</th>
+                  <th>Target</th>
+                  <th>Details</th>
+                  <th>IP</th>
+                </tr>
+              </thead>
+              <tbody id="adminAuditTableBody">
+                <tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px;">กด "รีเฟรช" เพื่อโหลด audit log</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="adminAuditPagination" style="margin-top: 14px; display: flex; gap: 8px; justify-content: center;"></div>
+        </div>
+      </section>
+
     </main>
   </div>
 
@@ -2378,29 +2473,59 @@
   </div>
 
   <script>
-    let currentToken = localStorage.getItem('biokoop_admin_token') || '';
+    // ระบบ login ใช้ session cookie ผ่าน system81 SSO (ITSR) — ไม่มี token ใน localStorage แล้ว
+    let currentAdmin = null; // { _id, system81_username, email, name, role, lastLoginAt }
     let currentPage = 1;
     let currentLineMsgPage = 1;
     let selectedRequestId = null;
 
-    // Check login status on page load
-    window.addEventListener('DOMContentLoaded', () => {
-      if (currentToken) {
-        document.getElementById('loginOverlay').classList.remove('active');
-        fetchData();
+    // Check login status on page load — ถ้ายังไม่ login แสดงหน้า SSO
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const res = await fetch('/admin/api/me', { credentials: 'same-origin' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && data.admin) {
+            currentAdmin = data.admin;
+            updateAdminBadge();
+            document.getElementById('loginOverlay').classList.remove('active');
+            fetchData();
+            return;
+          }
+        }
+      } catch (err) {
+        // ยังไม่ login — แสดงหน้า SSO อยู่แล้ว
       }
+      document.getElementById('loginOverlay').classList.add('active');
     });
+
+    // แสดงชื่อ + role badge ของ admin ปัจจุบันใน header
+    function updateAdminBadge() {
+      const el = document.getElementById('adminUserBadge');
+      if (!el) return;
+      if (!currentAdmin) { el.innerHTML = ''; return; }
+      const roleLabel = currentAdmin.role === 'superadmin'
+        ? '<span style="color:#fbbf24;font-weight:700;">Superadmin Lv.2</span>'
+        : '<span style="color:#38bdf8;font-weight:700;">Admin Lv.1</span>';
+      el.innerHTML = `<span style="color:var(--text-muted);font-size:12px;">${escapeHtml(currentAdmin.name || currentAdmin.system81_username)}</span> · ${roleLabel}`;
+    }
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
 
     async function apiFetch(url, options = {}) {
       options.headers = options.headers || {};
-      options.headers['Authorization'] = `Bearer ${currentToken}`;
-      options.headers['Content-Type'] = 'application/json';
+      if (!options.headers['Content-Type']) options.headers['Content-Type'] = 'application/json';
+      if (!options.headers['Accept']) options.headers['Accept'] = 'application/json';
+      options.headers['X-Requested-With'] = 'XMLHttpRequest'; // บอก server ว่าเป็น ajax → ตอบ 401 แทน 302 redirect
+      options.credentials = 'same-origin'; // ส่ง session cookie ไปด้วยทุกครั้ง
 
       const res = await fetch(url, options);
       if (res.status === 401) {
-        localStorage.removeItem('biokoop_admin_token');
+        currentAdmin = null;
         document.getElementById('loginOverlay').classList.add('active');
-        throw new Error('Unauthorized');
+        throw new Error('Unauthorized — กรุณาเข้าสู่ระบบใหม่');
       }
       const contentType = res.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
@@ -2410,41 +2535,14 @@
       return res.json();
     }
 
-    async function handleLogin(e) {
-      e.preventDefault();
-      const password = document.getElementById('adminPassword').value;
-      const errEl = document.getElementById('loginError');
-      errEl.style.display = 'none';
-
-      try {
-        const res = await fetch('/admin/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password })
-        });
-        const data = await res.json();
-        if (data.ok) {
-          currentToken = data.token;
-          localStorage.setItem('biokoop_admin_token', currentToken);
-          document.getElementById('loginOverlay').classList.remove('active');
-          fetchData();
-        } else {
-          errEl.innerText = data.error || 'เข้าสู่ระบบไม่สำเร็จ';
-          errEl.style.display = 'block';
-        }
-      } catch (err) {
-        errEl.innerText = 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์';
-        errEl.style.display = 'block';
-      }
+    // เข้าสู่ระบบผ่าน system81 SSO (ITSR) — redirect browser ไปหน้า login ของ ITSR
+    function handleLogin() {
+      window.location.href = '/admin/auth';
     }
 
+    // ออกจากระบบ — ทำลาย session ฝั่ง server แล้วกลับไปหน้า login
     function logout() {
-      if (currentToken) {
-        apiFetch('/admin/api/logout', { method: 'POST' }).catch(() => {});
-      }
-      localStorage.removeItem('biokoop_admin_token');
-      currentToken = '';
-      document.getElementById('loginOverlay').classList.add('active');
+      window.location.href = '/admin/auth/logout';
     }
 
     // Dynamic Breadcrumb Bar Updater
@@ -3302,10 +3400,10 @@
         document.getElementById('modalTitle').innerText = `คำขอ #${r._id}`;
         
         const origBox = document.getElementById('originalImgContainer');
-        origBox.innerHTML = r.originalImageUrl ? `<img src="${r.originalImageUrl}?token=${currentToken}&t=${Date.now()}" alt="Original">` : '<span style="color: var(--text-muted);">ไม่มีรูปภาพต้นฉบับ</span>';
+        origBox.innerHTML = r.originalImageUrl ? `<img src="${r.originalImageUrl}?t=${Date.now()}" alt="Original">` : '<span style="color: var(--text-muted);">ไม่มีรูปภาพต้นฉบับ</span>';
 
         const resBox = document.getElementById('resultImgContainer');
-        resBox.innerHTML = r.resultImageUrl ? `<img src="${r.resultImageUrl}?token=${currentToken}&t=${Date.now()}" alt="Result">` : '<span style="color: var(--text-muted);">ยังไม่ได้สร้างรูปภาพ</span>';
+        resBox.innerHTML = r.resultImageUrl ? `<img src="${r.resultImageUrl}?t=${Date.now()}" alt="Result">` : '<span style="color: var(--text-muted);">ยังไม่ได้สร้างรูปภาพ</span>';
 
         document.getElementById('aiResultJson').innerText = JSON.stringify(r.aiResult || {}, null, 2);
 
@@ -3600,11 +3698,11 @@
                 const msgTime = new Date(m.createdAt).getTime();
                 const matchedReq = requests.find(r => r.originalImageId && Math.abs(new Date(r.createdAt).getTime() - msgTime) < 5 * 60 * 1000);
                 if (matchedReq) {
-                  imgSrc = `/admin/api/requests/${matchedReq._id}/original?token=${currentToken}`;
+                  imgSrc = `/admin/api/requests/${matchedReq._id}/original`;
                 } else {
                   const lastReq = requests.find(r => r.originalImageId);
                   if (lastReq) {
-                    imgSrc = `/admin/api/requests/${lastReq._id}/original?token=${currentToken}`;
+                    imgSrc = `/admin/api/requests/${lastReq._id}/original`;
                   }
                 }
               }
@@ -5249,6 +5347,167 @@
         if (container) container.innerHTML = '<span style="color: var(--danger);">เกิดข้อผิดพลาดในการสร้างตัวอย่างภาพการ์ด</span>';
       }
     }
+
+    // =====================================================
+    // Superadmin Lv.2 — จัดการ Admin Accounts + Audit Log
+    // =====================================================
+
+    // แสดง/ซ่อน sidebar section "Superadmin" ตาม role ของ admin ปัจจุบัน
+    function refreshSuperadminVisibility() {
+      const section = document.getElementById('superadminNavSection');
+      if (!section) return;
+      section.style.display = (currentAdmin && currentAdmin.role === 'superadmin') ? '' : 'none';
+    }
+
+    // ต้องเรียกหลัง currentAdmin ถูก set — patch เข้าไปใน flow หลัก
+    const _origUpdateAdminBadge = typeof updateAdminBadge === 'function' ? updateAdminBadge : null;
+    updateAdminBadge = function() {
+      if (_origUpdateAdminBadge) _origUpdateAdminBadge();
+      refreshSuperadminVisibility();
+    };
+
+    let adminsCurrentPage = 1;
+    let auditCurrentPage = 1;
+
+    async function loadAdmins() {
+      const tbody = document.getElementById('adminsTableBody');
+      if (!tbody) return;
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px;">กำลังโหลด...</td></tr>';
+      try {
+        const res = await apiFetch('/admin/api/admins');
+        if (!res.ok) throw new Error(res.error || 'โหลดไม่สำเร็จ');
+        const admins = res.data || [];
+        const myId = res.currentAdminId;
+        if (!admins.length) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px;">ยังไม่มี admin ในระบบ</td></tr>';
+          return;
+        }
+        tbody.innerHTML = admins.map(a => {
+          const isMe = a._id === myId;
+          const roleBadge = a.role === 'superadmin'
+            ? '<span style="color:#fbbf24;font-weight:700;">Superadmin Lv.2</span>'
+            : '<span style="color:#38bdf8;font-weight:700;">Admin Lv.1</span>';
+          const statusBadge = a.isActive
+            ? '<span style="color:#4ade80;">● ใช้งาน</span>'
+            : '<span style="color:#f87171;">● ระงับ</span>';
+          const lastLogin = a.lastLoginAt ? new Date(a.lastLoginAt).toLocaleString('th-TH') : '—';
+          const created = a.createdAt ? new Date(a.createdAt).toLocaleString('th-TH') : '—';
+          const disableForMe = isMe ? 'disabled title="ไม่สามารถทำกับตัวเองได้"' : '';
+          const roleBtn = a.role === 'superadmin'
+            ? `<button class="btn btn-outline" style="padding:4px 10px;font-size:11px;" ${disableForMe} onclick="changeAdminRole('${a._id}','admin')">⬇️ ลดเป็น Lv.1</button>`
+            : `<button class="btn btn-outline" style="padding:4px 10px;font-size:11px;" ${disableForMe} onclick="changeAdminRole('${a._id}','superadmin')">⬆️ เลื่อนเป็น Lv.2</button>`;
+          const statusBtn = a.isActive
+            ? `<button class="btn btn-outline" style="padding:4px 10px;font-size:11px;color:#f87171;" ${disableForMe} onclick="toggleAdminStatus('${a._id}',false)">🚫 ระงับ</button>`
+            : `<button class="btn btn-outline" style="padding:4px 10px;font-size:11px;color:#4ade80;" ${disableForMe} onclick="toggleAdminStatus('${a._id}',true)">✅ เปิดใช้งาน</button>`;
+          const deleteBtn = `<button class="btn btn-outline" style="padding:4px 10px;font-size:11px;color:#f87171;" ${disableForMe} onclick="deleteAdmin('${a._id}','${escapeHtml(a.system81_username)}')">🗑️ ลบ</button>`;
+          return `<tr>
+            <td style="font-family:monospace;">${escapeHtml(a.system81_username)}${isMe ? ' <span style="color:#4ade80;font-size:10px;">(คุณ)</span>' : ''}</td>
+            <td>${escapeHtml(a.name || '—')}</td>
+            <td>${roleBadge}</td>
+            <td>${statusBadge}</td>
+            <td style="font-size:11px;">${lastLogin}</td>
+            <td style="font-size:11px;">${created}</td>
+            <td style="white-space:nowrap;">${roleBtn} ${statusBtn} ${deleteBtn}</td>
+          </tr>`;
+        }).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:16px;">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    async function changeAdminRole(id, newRole) {
+      const label = newRole === 'superadmin' ? 'เลื่อนเป็น Superadmin Lv.2' : 'ลดเป็น Admin Lv.1';
+      if (!confirm(`ยืนยัน${label}?`)) return;
+      try {
+        const res = await apiFetch(`/admin/api/admins/${id}/role`, {
+          method: 'POST',
+          body: JSON.stringify({ role: newRole })
+        });
+        if (!res.ok) throw new Error(res.error || 'เปลี่ยน role ไม่สำเร็จ');
+        alert(`✅ ${label} เรียบร้อยแล้ว`);
+        loadAdmins();
+      } catch (err) { alert('❌ ' + err.message); }
+    }
+
+    async function toggleAdminStatus(id, isActive) {
+      const label = isActive ? 'เปิดใช้งานบัญชี' : 'ระงับบัญชี';
+      if (!confirm(`ยืนยัน${label} admin นี้?`)) return;
+      try {
+        const res = await apiFetch(`/admin/api/admins/${id}/status`, {
+          method: 'POST',
+          body: JSON.stringify({ isActive })
+        });
+        if (!res.ok) throw new Error(res.error || 'เปลี่ยนสถานะไม่สำเร็จ');
+        alert(`✅ ${label} เรียบร้อยแล้ว`);
+        loadAdmins();
+      } catch (err) { alert('❌ ' + err.message); }
+    }
+
+    async function deleteAdmin(id, username) {
+      if (!confirm(`ยืนยันลบบัญชี "${username}" ออกจากระบบ?\nการกระทำนี้ไม่สามารถย้อนกลับได้`)) return;
+      try {
+        const res = await apiFetch(`/admin/api/admins/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(res.error || 'ลบไม่สำเร็จ');
+        alert('✅ ลบบัญชีเรียบร้อยแล้ว');
+        loadAdmins();
+      } catch (err) { alert('❌ ' + err.message); }
+    }
+
+    async function loadAdminAudit(page, refresh) {
+      const tbody = document.getElementById('adminAuditTableBody');
+      const pager = document.getElementById('adminAuditPagination');
+      if (!tbody) return;
+      if (page) auditCurrentPage = page;
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px;">กำลังโหลด...</td></tr>';
+      const action = document.getElementById('auditActionFilter')?.value || 'all';
+      const search = document.getElementById('auditSearchInput')?.value || '';
+      const params = new URLSearchParams({ page: auditCurrentPage, limit: 50 });
+      if (action && action !== 'all') params.set('action', action);
+      if (search) params.set('search', search);
+      try {
+        const res = await apiFetch(`/admin/api/admin-audit?${params.toString()}`);
+        if (!res.ok) throw new Error(res.error || 'โหลดไม่สำเร็จ');
+        const logs = res.data || [];
+        if (!logs.length) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:16px;">ไม่พบ audit log ตามเงื่อนไข</td></tr>';
+          pager.innerHTML = '';
+          return;
+        }
+        tbody.innerHTML = logs.map(l => {
+          const time = l.createdAt ? new Date(l.createdAt).toLocaleString('th-TH') : '—';
+          const roleBadge = l.adminRole === 'superadmin'
+            ? '<span style="color:#fbbf24;font-size:10px;">Lv.2</span>'
+            : '<span style="color:#38bdf8;font-size:10px;">Lv.1</span>';
+          const details = l.details ? `<code style="font-size:10px;word-break:break-all;">${escapeHtml(JSON.stringify(l.details)).slice(0, 200)}</code>` : '—';
+          return `<tr>
+            <td style="font-size:11px;white-space:nowrap;">${time}</td>
+            <td style="font-family:monospace;font-size:11px;">${escapeHtml(l.adminUsername || '—')}</td>
+            <td>${roleBadge}</td>
+            <td style="font-family:monospace;font-size:11px;color:#fbbf24;">${escapeHtml(l.action || '—')}</td>
+            <td style="font-family:monospace;font-size:11px;">${escapeHtml(l.target || '—')}<div style="font-size:10px;color:var(--text-muted);">${escapeHtml(l.targetModel || '')}</div></td>
+            <td style="max-width:280px;">${details}</td>
+            <td style="font-size:10px;color:var(--text-muted);">${escapeHtml(l.ip || '—')}</td>
+          </tr>`;
+        }).join('');
+        // Pagination
+        const totalPages = res.pagination?.totalPages || 1;
+        pager.innerHTML = totalPages > 1
+          ? `<button class="btn btn-outline" ${auditCurrentPage <= 1 ? 'disabled' : ''} onclick="loadAdminAudit(${auditCurrentPage - 1})">ก่อนหน้า</button>
+             <span style="color:var(--text-muted);font-size:12px;align-self:center;">หน้า ${auditCurrentPage} / ${totalPages}</span>
+             <button class="btn btn-outline" ${auditCurrentPage >= totalPages ? 'disabled' : ''} onclick="loadAdminAudit(${auditCurrentPage + 1})">ถัดไป</button>`
+          : '';
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:16px;">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    // โหลดข้อมูลเมื่อ switch มา tab ของ superadmin
+    const _origSwitchTab = switchTab;
+    switchTab = function(tabName, el) {
+      _origSwitchTab(tabName, el);
+      if (tabName === 'admin-management') loadAdmins();
+      if (tabName === 'admin-audit') loadAdminAudit(1, true);
+    };
   </script>
 </body>
 </html>

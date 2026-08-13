@@ -1,7 +1,7 @@
 import { Router } from "express";
-import crypto from "crypto";
 import { Request, REQUEST_STATUS } from "../models/Request.js";
 import { User } from "../models/User.js";
+import { AdminUser } from "../models/AdminUser.js";
 import { RequestLog, logStep } from "../models/RequestLog.js";
 import { LineMessageLog } from "../models/LineMessageLog.js";
 import { openDownloadStream, getFileMetadata } from "../services/storageService.js";
@@ -15,6 +15,8 @@ import { getRegistrationConfig, saveRegistrationConfig } from "../services/regis
 import { lookupInDbWallet } from "../services/dbWalletService.js";
 import { RegistrationCode } from "../models/RegistrationCode.js";
 import { renderBiokoopCard } from "../services/cardTemplate.js";
+import { requireAdmin, requireSuperadmin } from "../middlewares/adminAuth.js";
+import { AdminAuditLog, logAdminAction } from "../models/AdminAuditLog.js";
 
 function maskKey(key) {
   if (!key) return "ไม่ได้ตั้งค่า (Not Set)";
@@ -25,50 +27,23 @@ function maskKey(key) {
 
 const router = Router();
 
-// สร้าง Simple Admin Token ในความทรงจำ
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "biokoop2026";
-const STATIC_ADMIN_TOKEN = crypto.createHash("sha256").update(ADMIN_PASSWORD).digest("hex");
-const activeTokens = new Set([STATIC_ADMIN_TOKEN]);
-
-function generateToken() {
-  activeTokens.add(STATIC_ADMIN_TOKEN);
-  return STATIC_ADMIN_TOKEN;
-}
-
-// Middleware ตรวจสอบสิทธิ์ Admin
-function requireAdminAuth(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  const token =
-    (authHeader && authHeader.startsWith("Bearer ") ? authHeader.substring(7) : null) ||
-    req.headers["x-admin-token"] ||
-    req.query.token;
-
-  if (!token || (!activeTokens.has(token) && token !== STATIC_ADMIN_TOKEN)) {
-    return res.status(401).json({ ok: false, error: "Unauthorized access" });
-  }
-  next();
-}
-
-// POST /admin/api/login
-router.post("/api/login", (req, res) => {
-  const { password } = req.body || {};
-  if (password === ADMIN_PASSWORD) {
-    const token = generateToken();
-    return res.json({ ok: true, token });
-  }
-  return res.status(401).json({ ok: false, error: "รหัสผ่านไม่ถูกต้อง" });
-});
-
-// POST /admin/api/logout
-router.post("/api/logout", requireAdminAuth, (req, res) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.startsWith("Bearer ") ? authHeader.substring(7) : req.headers["x-admin-token"];
-  if (token) activeTokens.delete(token);
-  res.json({ ok: true });
+// GET /admin/api/me — ข้อมูล admin ปัจจุบัน (ใช้ตอน SPA เปิดขึ้นมา เช็ค session ยัง live อยู่ไหม)
+router.get("/api/me", requireAdmin, (req, res) => {
+  res.json({
+    ok: true,
+    admin: {
+      _id: req.admin._id,
+      system81_username: req.admin.system81_username,
+      email: req.admin.email,
+      name: req.admin.name,
+      role: req.admin.role,
+      lastLoginAt: req.admin.lastLoginAt,
+    },
+  });
 });
 
 // GET /admin/api/stats
-router.get("/api/stats", requireAdminAuth, async (req, res) => {
+router.get("/api/stats", requireAdmin, async (req, res) => {
   try {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
@@ -227,7 +202,7 @@ router.get("/api/stats", requireAdminAuth, async (req, res) => {
 });
 
 // GET /admin/api/requests
-router.get("/api/requests", requireAdminAuth, async (req, res) => {
+router.get("/api/requests", requireAdmin, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 15;
@@ -280,7 +255,7 @@ router.get("/api/requests", requireAdminAuth, async (req, res) => {
 });
 
 // GET /admin/api/requests/:id
-router.get("/api/requests/:id", requireAdminAuth, async (req, res) => {
+router.get("/api/requests/:id", requireAdmin, async (req, res) => {
   try {
     const request = await Request.findById(req.params.id).lean();
     if (!request) return res.status(404).json({ ok: false, error: "ไม่พบคำขอนี้" });
@@ -313,7 +288,7 @@ router.get("/api/requests/:id", requireAdminAuth, async (req, res) => {
 });
 
 // GET /admin/api/requests/:id/original - ดูรูปภาพต้นฉบับลูกค้า
-router.get("/api/requests/:id/original", requireAdminAuth, async (req, res) => {
+router.get("/api/requests/:id/original", requireAdmin, async (req, res) => {
   try {
     const request = await Request.findById(req.params.id);
     if (!request || !request.originalImageId) {
@@ -330,7 +305,7 @@ router.get("/api/requests/:id/original", requireAdminAuth, async (req, res) => {
 });
 
 // POST /admin/api/requests/:id/approve-send - อนุมัติส่งรูปผลลัพธ์ LINE Push
-router.post("/api/requests/:id/approve-send", requireAdminAuth, async (req, res) => {
+router.post("/api/requests/:id/approve-send", requireAdmin, async (req, res) => {
   try {
     const request = await Request.findById(req.params.id);
     if (!request) return res.status(404).json({ ok: false, error: "ไม่พบคำขอนี้" });
@@ -357,6 +332,11 @@ router.post("/api/requests/:id/approve-send", requireAdminAuth, async (req, res)
       data: { note: "อนุมัติส่งโดย Admin", imageUrl },
     });
 
+    await logAdminAction(req, "approve_send", request._id, "Request", {
+      lineUserId: request.lineUserId,
+      imageUrl,
+    });
+
     res.json({ ok: true, message: "อนุมัติและส่งรูปภาพผ่าน LINE เรียบร้อยแล้ว" });
   } catch (err) {
     res.status(500).json({ ok: false, error: "ส่ง LINE ไม่สำเร็จ: " + err.message });
@@ -364,7 +344,7 @@ router.post("/api/requests/:id/approve-send", requireAdminAuth, async (req, res)
 });
 
 // POST /admin/api/requests/:id/update-status - ปรับสถานะคำขอด้วยตนเอง
-router.post("/api/requests/:id/update-status", requireAdminAuth, async (req, res) => {
+router.post("/api/requests/:id/update-status", requireAdmin, async (req, res) => {
   try {
     const { status, errorMessage } = req.body;
     const request = await Request.findById(req.params.id);
@@ -386,6 +366,12 @@ router.post("/api/requests/:id/update-status", requireAdminAuth, async (req, res
       data: { note: `Admin เปลี่ยนสถานะเป็น ${status}` },
     });
 
+    await logAdminAction(req, "update_status", request._id, "Request", {
+      lineUserId: request.lineUserId,
+      newStatus: status,
+      errorMessage: errorMessage || null,
+    });
+
     res.json({ ok: true, request });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -393,7 +379,7 @@ router.post("/api/requests/:id/update-status", requireAdminAuth, async (req, res
 });
 
 // GET /admin/api/users
-router.get("/api/users", requireAdminAuth, async (req, res) => {
+router.get("/api/users", requireAdmin, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 15;
@@ -468,7 +454,7 @@ router.get("/api/users", requireAdminAuth, async (req, res) => {
 });
 
 // POST /admin/api/users/:id/status - บล็อก/เปิดใช้งาน ผู้ใช้
-router.post("/api/users/:id/status", requireAdminAuth, async (req, res) => {
+router.post("/api/users/:id/status", requireAdmin, async (req, res) => {
   try {
     const { status } = req.body;
     if (!["active", "blocked"].includes(status)) {
@@ -483,6 +469,11 @@ router.post("/api/users/:id/status", requireAdminAuth, async (req, res) => {
 
     if (!user) return res.status(404).json({ ok: false, error: "ไม่พบผู้ใช้" });
 
+    await logAdminAction(req, status === "blocked" ? "user_block" : "user_unblock", user._id, "User", {
+      lineUserId: user.lineUserId,
+      newStatus: status,
+    });
+
     res.json({ ok: true, user });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -490,7 +481,7 @@ router.post("/api/users/:id/status", requireAdminAuth, async (req, res) => {
 });
 
 // GET /admin/api/logs - ดู Audit Logs ทั้งหมด
-router.get("/api/logs", requireAdminAuth, async (req, res) => {
+router.get("/api/logs", requireAdmin, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 50;
     const step = req.query.step;
@@ -510,7 +501,7 @@ router.get("/api/logs", requireAdminAuth, async (req, res) => {
 });
 
 // GET /admin/api/line-messages - ดูประวัติการส่งข้อความ LINE ที่ระบบส่งออกทั้งหมดอย่างละเอียด
-router.get("/api/line-messages", requireAdminAuth, async (req, res) => {
+router.get("/api/line-messages", requireAdmin, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 15;
@@ -578,7 +569,7 @@ router.get("/api/line-messages", requireAdminAuth, async (req, res) => {
 });
 
 // GET /admin/api/users/:lineUserId/chat-history - ดึงประวัติการแชทรายบุคคลสำหรับ Chat Simulator
-router.get("/api/users/:lineUserId/chat-history", requireAdminAuth, async (req, res) => {
+router.get("/api/users/:lineUserId/chat-history", requireAdmin, async (req, res) => {
   try {
     const { lineUserId } = req.params;
     const user = await User.findOne({ lineUserId }).lean();
@@ -603,7 +594,7 @@ router.get("/api/users/:lineUserId/chat-history", requireAdminAuth, async (req, 
 });
 
 // POST /admin/api/users/:lineUserId/send-message - ส่งข้อความทักทาย/ตอบกลับไปยังผู้ใช้ (Simulated / Real Push)
-router.post("/api/users/:lineUserId/send-message", requireAdminAuth, async (req, res) => {
+router.post("/api/users/:lineUserId/send-message", requireAdmin, async (req, res) => {
   try {
     const { lineUserId } = req.params;
     const { message } = req.body || {};
@@ -637,41 +628,48 @@ router.post("/api/users/:lineUserId/send-message", requireAdminAuth, async (req,
       sentReal,
       message: sentReal ? "ส่งข้อความไปยัง LINE ผู้ใช้เรียบร้อยแล้ว" : "บันทึกข้อความจำลองเรียบร้อยแล้ว",
     });
+
+    await logAdminAction(req, "send_message", lineUserId, "User", {
+      sentReal,
+      messagePreview: message.trim().slice(0, 120),
+    });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
 
 // GET /admin/api/card-config - ดึงการตั้งค่า layout การ์ด
-router.get("/api/card-config", requireAdminAuth, (req, res) => {
+router.get("/api/card-config", requireAdmin, (req, res) => {
   const config = getCardConfig();
   res.json({ ok: true, config });
 });
 
-// POST /admin/api/card-config - บันทึกการตั้งค่า layout การ์ด
-router.post("/api/card-config", requireAdminAuth, (req, res) => {
+// POST /admin/api/card-config - บันทึกการตั้งค่า layout การ์ด (Superadmin Lv.2 เท่านั้น)
+router.post("/api/card-config", requireSuperadmin, (req, res) => {
   const newConfig = req.body.config || req.body;
   const result = saveCardConfig(newConfig);
   if (!result.ok) return res.status(500).json({ ok: false, error: result.error });
+  logAdminAction(req, "config_save", "card-config", "Config", { keys: Object.keys(result.config || {}) });
   res.json({ ok: true, config: result.config });
 });
 
 // GET /admin/api/kieslect-config - ดึงการตั้งค่า Kieslect Recovery Pattern
-router.get("/api/kieslect-config", requireAdminAuth, (req, res) => {
+router.get("/api/kieslect-config", requireAdmin, (req, res) => {
   const config = getKieslectConfig();
   res.json({ ok: true, config });
 });
 
-// POST /admin/api/kieslect-config - บันทึกการตั้งค่า Kieslect Recovery Pattern
-router.post("/api/kieslect-config", requireAdminAuth, (req, res) => {
+// POST /admin/api/kieslect-config - บันทึกการตั้งค่า Kieslect Recovery Pattern (Superadmin Lv.2 เท่านั้น)
+router.post("/api/kieslect-config", requireSuperadmin, (req, res) => {
   const newConfig = req.body.config || req.body;
   const result = saveKieslectConfig(newConfig);
   if (!result.ok) return res.status(500).json({ ok: false, error: result.error });
+  logAdminAction(req, "config_save", "kieslect-config", "Config", { keys: Object.keys(result.config || {}) });
   res.json({ ok: true, config: result.config });
 });
 
 // POST /admin/api/card-preview - เรนเดอร์ SVG preview ตามแบบที่กำลังปรับแต่ง
-router.post("/api/card-preview", requireAdminAuth, (req, res) => {
+router.post("/api/card-preview", requireAdmin, (req, res) => {
   try {
     const draftConfig = req.body?.config || null;
     const includeKieslect = req.body?.includeKieslect !== false;
@@ -710,39 +708,42 @@ router.post("/api/card-preview", requireAdminAuth, (req, res) => {
 });
 
 // GET /admin/api/bot-messages-config - ดึงข้อความ/สีที่บอท LINE ใช้ตอบผู้ใช้
-router.get("/api/bot-messages-config", requireAdminAuth, (req, res) => {
+router.get("/api/bot-messages-config", requireAdmin, (req, res) => {
   const config = getBotMessagesConfig();
   res.json({ ok: true, config });
 });
 
-// POST /admin/api/bot-messages-config - บันทึกข้อความ/สีที่บอท LINE ใช้ตอบผู้ใช้
-router.post("/api/bot-messages-config", requireAdminAuth, (req, res) => {
+// POST /admin/api/bot-messages-config - บันทึกข้อความ/สีที่บอท LINE ใช้ตอบผู้ใช้ (Superadmin Lv.2 เท่านั้น)
+router.post("/api/bot-messages-config", requireSuperadmin, (req, res) => {
   const newConfig = req.body.config || req.body;
   const result = saveBotMessagesConfig(newConfig);
   if (!result.ok) return res.status(500).json({ ok: false, error: result.error });
+  logAdminAction(req, "config_save", "bot-messages-config", "Config", { keys: Object.keys(result.config || {}) });
   res.json({ ok: true, config: result.config });
 });
 
-// POST /admin/api/bot-messages-config/reset - คืนค่าข้อความบอทกลับเป็นค่าเริ่มต้น
-router.post("/api/bot-messages-config/reset", requireAdminAuth, (req, res) => {
+// POST /admin/api/bot-messages-config/reset - คืนค่าข้อความบอทกลับเป็นค่าเริ่มต้น (Superadmin Lv.2 เท่านั้น)
+router.post("/api/bot-messages-config/reset", requireSuperadmin, (req, res) => {
   const result = resetBotMessagesConfig();
   if (!result.ok) return res.status(500).json({ ok: false, error: result.error });
+  logAdminAction(req, "config_reset", "bot-messages-config", "Config", {});
   res.json({ ok: true, config: result.config });
 });
 
 // GET /admin/api/pricing-config - ดึงอัตราค่าบริการต่อ token ของแต่ละโมเดล และ Presets
-router.get("/api/pricing-config", requireAdminAuth, (req, res) => {
+router.get("/api/pricing-config", requireAdmin, (req, res) => {
   const config = getPricingConfig();
   const presets = getPricingPresets();
   res.json({ ok: true, config, presets });
 });
 
-// POST /admin/api/pricing-config - บันทึกอัตราค่าบริการต่อ token และประเภทแพ็กเกจ (free/paid)
-router.post(["/api/pricing-config", "/api/usage-stats/pricing"], requireAdminAuth, (req, res) => {
+// POST /admin/api/pricing-config - บันทึกอัตราค่าบริการต่อ token และประเภทแพ็กเกจ (free/paid) (Superadmin Lv.2 เท่านั้น)
+router.post(["/api/pricing-config", "/api/usage-stats/pricing"], requireSuperadmin, (req, res) => {
   const body = req.body || {};
   const newConfig = body.pricing || body;
   const result = savePricingConfig(newConfig);
   if (!result.ok) return res.status(500).json({ ok: false, error: result.error });
+  logAdminAction(req, "config_save", "pricing-config", "Config", { planMode: result.config?.planMode });
   res.json({ ok: true, config: result.config });
 });
 
@@ -750,7 +751,7 @@ router.post(["/api/pricing-config", "/api/usage-stats/pricing"], requireAdminAut
 // หมายเหตุ: Google ไม่มี endpoint ให้เช็คโควต้าคงเหลือแบบเรียลไทม์ ตัวเลข "เหลือ" นี้จึงเป็นการประมาณจาก
 // จำนวนคำขอที่ระบบเรียกจริงวันนี้ เทียบกับค่า dailyQuotaLimits ที่แอดมินกรอกเองในหน้าตั้งค่าราคา (ควรเช็คค่าจริงจาก
 // https://ai.google.dev/gemini-api/docs/rate-limits เป็นระยะเพราะ Google ปรับเปลี่ยนได้ตลอด)
-router.get("/api/usage-stats/daily-quota", requireAdminAuth, async (req, res) => {
+router.get("/api/usage-stats/daily-quota", requireAdmin, async (req, res) => {
   try {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -800,21 +801,22 @@ router.get("/api/usage-stats/daily-quota", requireAdminAuth, async (req, res) =>
 });
 
 // GET /admin/api/grade-config - ดึงการตั้งค่าระดับเกรด และช่วงคะแนน
-router.get("/api/grade-config", requireAdminAuth, (req, res) => {
+router.get("/api/grade-config", requireAdmin, (req, res) => {
   const config = getGradeConfig();
   res.json({ ok: true, config });
 });
 
-// POST /admin/api/grade-config - บันทึกการตั้งค่าระดับเกรด และช่วงคะแนน
-router.post("/api/grade-config", requireAdminAuth, (req, res) => {
+// POST /admin/api/grade-config - บันทึกการตั้งค่าระดับเกรด และช่วงคะแนน (Superadmin Lv.2 เท่านั้น)
+router.post("/api/grade-config", requireSuperadmin, (req, res) => {
   const newConfig = req.body;
   const result = saveGradeConfig(newConfig);
   if (!result.ok) return res.status(500).json({ ok: false, error: result.error });
+  logAdminAction(req, "config_save", "grade-config", "Config", { keys: Object.keys(result.config || {}) });
   res.json({ ok: true, config: result.config });
 });
 
 // GET /admin/api/usage-stats - สรุปการใช้งาน Gemini API (token/ยอดเงินโดยประมาณ) แยกตามผู้ใช้แต่ละคน
-router.get("/api/usage-stats", requireAdminAuth, async (req, res) => {
+router.get("/api/usage-stats", requireAdmin, async (req, res) => {
   try {
     const rows = await Request.aggregate([
       { $match: { totalTokens: { $gt: 0 } } },
@@ -915,7 +917,7 @@ router.get("/api/usage-stats", requireAdminAuth, async (req, res) => {
 });
 
 // GET /admin/api/users/:lineUserId/usage-requests - ดึงประวัติรายการคำขอและ Token ย่อยของแต่ละคน
-router.get("/api/users/:lineUserId/usage-requests", requireAdminAuth, async (req, res) => {
+router.get("/api/users/:lineUserId/usage-requests", requireAdmin, async (req, res) => {
   try {
     const { lineUserId } = req.params;
     const user = await User.findOne({ lineUserId }).select("displayName nickname pictureUrl lineUserId").lean();
@@ -971,7 +973,7 @@ router.get("/api/users/:lineUserId/usage-requests", requireAdminAuth, async (req
 });
 
 // GET /admin/api/analytics/user-demographics - สรุปวิเคราะห์ข้อมูลส่วนบุคคลของผู้ใช้และข้อมูลสุขภาพไขว้กลุ่มประชากร
-router.get("/api/analytics/user-demographics", requireAdminAuth, async (req, res) => {
+router.get("/api/analytics/user-demographics", requireAdmin, async (req, res) => {
   try {
     const now = new Date();
 
@@ -1182,7 +1184,7 @@ router.get("/api/analytics/user-demographics", requireAdminAuth, async (req, res
 });
 
 // GET /admin/api/analytics/ai-evaluation - สรุปประสิทธิภาพและความแม่นยำของ AI แยกตามแบรนด์ Smartwatch และโมเดล
-router.get("/api/analytics/ai-evaluation", requireAdminAuth, async (req, res) => {
+router.get("/api/analytics/ai-evaluation", requireAdmin, async (req, res) => {
   try {
     const allRequests = await Request.find({ status: { $ne: "received" } })
       .select("status aiResult aiModel promptTokens completionTokens totalTokens isDatasetVerified correctedResult createdAt")
@@ -1308,7 +1310,7 @@ router.get("/api/analytics/ai-evaluation", requireAdminAuth, async (req, res) =>
 });
 
 // POST /admin/api/requests/:id/correct-ai - บันทึกข้อมูลที่แอดมินแก้ไขความถูกต้อง (Ground Truth Correction)
-router.post("/api/requests/:id/correct-ai", requireAdminAuth, async (req, res) => {
+router.post("/api/requests/:id/correct-ai", requireAdmin, async (req, res) => {
   try {
     const { correctedResult, adminName } = req.body || {};
     if (!correctedResult || typeof correctedResult !== "object") {
@@ -1342,6 +1344,12 @@ router.post("/api/requests/:id/correct-ai", requireAdminAuth, async (req, res) =
       data: { note: `Admin (${request.correctedBy}) บันทึก Ground Truth Dataset เรียบร้อยแล้ว` },
     });
 
+    await logAdminAction(req, "correct_ai", request._id, "Request", {
+      lineUserId: request.lineUserId,
+      correctedBy: request.correctedBy,
+      fields: Object.keys(correctedResult || {}),
+    });
+
     res.json({
       ok: true,
       message: "บันทึกข้อมูล Ground Truth Dataset เรียบร้อยแล้ว",
@@ -1353,7 +1361,7 @@ router.post("/api/requests/:id/correct-ai", requireAdminAuth, async (req, res) =
 });
 
 // GET /admin/api/analytics/export-dataset - ส่งออกคลังข้อมูลสำหรับ Fine-Tuning Vision Model หรือ Few-Shot Prompting
-router.get("/api/analytics/export-dataset", requireAdminAuth, async (req, res) => {
+router.get("/api/analytics/export-dataset", requireAdmin, async (req, res) => {
   try {
     const format = req.query.format || "json"; // json | jsonl
     const verifiedOnly = req.query.verifiedOnly === "true";
@@ -1402,7 +1410,7 @@ router.get("/api/analytics/export-dataset", requireAdminAuth, async (req, res) =
 });
 
 // GET /admin/api/broadcast/segments - สรุปจำนวนกลุ่มเป้าหมายแต่ละจุดสำหรับส่งบรอดแคสต์
-router.get("/api/broadcast/segments", requireAdminAuth, async (req, res) => {
+router.get("/api/broadcast/segments", requireAdmin, async (req, res) => {
   try {
     const segments = await getSegmentsSummary();
     res.json({ ok: true, segments });
@@ -1412,7 +1420,7 @@ router.get("/api/broadcast/segments", requireAdminAuth, async (req, res) => {
 });
 
 // POST /admin/api/broadcast/send - ส่งบรอดแคสต์หาผู้ใช้เจาะจงกลุ่มเป้าหมาย (Broadcast Campaign)
-router.post("/api/broadcast/send", requireAdminAuth, async (req, res) => {
+router.post("/api/broadcast/send", requireAdmin, async (req, res) => {
   try {
     const { segmentKey, messageType, text, imageUrl, title } = req.body || {};
     if (!segmentKey) {
@@ -1429,7 +1437,7 @@ router.post("/api/broadcast/send", requireAdminAuth, async (req, res) => {
 // ── REGISTRATION CONFIG & WHITELIST ENDPOINTS ──
 
 // GET /admin/api/config/registration - ดึงการตั้งค่าโหมดการลงทะเบียน
-router.get("/api/config/registration", requireAdminAuth, (req, res) => {
+router.get("/api/config/registration", requireAdmin, (req, res) => {
   try {
     const config = getRegistrationConfig();
     res.json({ ok: true, config });
@@ -1438,13 +1446,14 @@ router.get("/api/config/registration", requireAdminAuth, (req, res) => {
   }
 });
 
-// PUT /admin/api/config/registration - อัปเดตการตั้งค่าโหมดการลงทะเบียน
-router.put("/api/config/registration", requireAdminAuth, (req, res) => {
+// PUT /admin/api/config/registration - อัปเดตการตั้งค่าโหมดการลงทะเบียน (Superadmin Lv.2 เท่านั้น)
+router.put("/api/config/registration", requireSuperadmin, (req, res) => {
   try {
     const result = saveRegistrationConfig(req.body);
     if (!result.ok) {
       return res.status(500).json({ ok: false, error: result.error });
     }
+    logAdminAction(req, "config_save", "registration-config", "Config", { keys: Object.keys(result.config || {}) });
     res.json({ ok: true, config: result.config, message: "บันทึกการตั้งค่าโหมดการลงทะเบียนเรียบร้อยแล้ว" });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -1452,7 +1461,7 @@ router.put("/api/config/registration", requireAdminAuth, (req, res) => {
 });
 
 // GET /admin/api/lookup-owner - ค้นหาแบบครบวงจรว่าใครเป็นเจ้าของ IMEI / Order ID นี้
-router.get("/api/lookup-owner", requireAdminAuth, async (req, res) => {
+router.get("/api/lookup-owner", requireAdmin, async (req, res) => {
   try {
     const code = (req.query.code || "").trim();
     if (!code) {
@@ -1503,7 +1512,7 @@ router.get("/api/lookup-owner", requireAdminAuth, async (req, res) => {
 });
 
 // POST /admin/api/test-dbwallet-lookup - ทดสอบยิงค้นหารหัสใน dbWallet (9 คอลเลกชัน)
-router.post("/api/test-dbwallet-lookup", requireAdminAuth, async (req, res) => {
+router.post("/api/test-dbwallet-lookup", requireAdmin, async (req, res) => {
   try {
     const { code, type = "any" } = req.body || {};
     if (!code || !code.trim()) {
@@ -1518,7 +1527,7 @@ router.post("/api/test-dbwallet-lookup", requireAdminAuth, async (req, res) => {
 });
 
 // GET /admin/api/registration-codes - ค้นหาและดูรายการ Whitelist Codes
-router.get("/api/registration-codes", requireAdminAuth, async (req, res) => {
+router.get("/api/registration-codes", requireAdmin, async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
@@ -1558,7 +1567,7 @@ router.get("/api/registration-codes", requireAdminAuth, async (req, res) => {
 });
 
 // POST /admin/api/registration-codes - เพิ่มรหัส Whitelist (เดี่ยวหรือ Bulk Import)
-router.post("/api/registration-codes", requireAdminAuth, async (req, res) => {
+router.post("/api/registration-codes", requireAdmin, async (req, res) => {
   try {
     const { codes, rawText, type = "any", note = "", batch = "" } = req.body || {};
 
@@ -1606,11 +1615,168 @@ router.post("/api/registration-codes", requireAdminAuth, async (req, res) => {
 });
 
 // DELETE /admin/api/registration-codes/:id - ลบรหัส Whitelist
-router.delete("/api/registration-codes/:id", requireAdminAuth, async (req, res) => {
+router.delete("/api/registration-codes/:id", requireAdmin, async (req, res) => {
   try {
     const deleted = await RegistrationCode.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ ok: false, error: "ไม่พบรหัสที่ต้องการลบ" });
     res.json({ ok: true, message: "ลบรหัสเรียบร้อยแล้ว" });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// =============================================================
+// Superadmin (Lv.2) — จัดการ admin accounts + audit log พิเศษ
+// =============================================================
+
+// GET /admin/api/admins - รายการ admin ทั้งหมด (Superadmin Lv.2 เท่านั้น)
+router.get("/api/admins", requireSuperadmin, async (req, res) => {
+  try {
+    const admins = await AdminUser.find({})
+      .sort({ createdAt: 1 })
+      .select("-__v")
+      .lean();
+    res.json({ ok: true, data: admins, currentAdminId: req.admin._id.toString() });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// POST /admin/api/admins/:id/role - เปลี่ยน role ระหว่าง admin ↔ superadmin (Superadmin Lv.2 เท่านั้น)
+router.post("/api/admins/:id/role", requireSuperadmin, async (req, res) => {
+  try {
+    const { role } = req.body || {};
+    if (!["admin", "superadmin"].includes(role)) {
+      return res.status(400).json({ ok: false, error: "role ต้องเป็น admin หรือ superadmin" });
+    }
+    if (req.admin._id.toString() === req.params.id) {
+      return res.status(400).json({ ok: false, error: "ไม่สามารถเปลี่ยน role ของตัวเองได้" });
+    }
+
+    const target = await AdminUser.findById(req.params.id);
+    if (!target) return res.status(404).json({ ok: false, error: "ไม่พบ admin นี้" });
+
+    // ป้องกัน superadmin คนสุดท้ายถูกลดขั้นเป็น admin (จะทำให้ระบบไม่มี superadmin เลย)
+    if (target.role === "superadmin" && role === "admin") {
+      const superadminCount = await AdminUser.countDocuments({ role: "superadmin", isActive: true });
+      if (superadminCount <= 1) {
+        return res.status(400).json({ ok: false, error: "ไม่สามารถลดขั้น superadmin คนสุดท้ายได้" });
+      }
+    }
+
+    const oldRole = target.role;
+    target.role = role;
+    await target.save();
+
+    await logAdminAction(req, "admin_role_change", target._id, "AdminUser", {
+      from: oldRole,
+      to: role,
+      targetUsername: target.system81_username,
+    });
+
+    res.json({ ok: true, admin: target });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// POST /admin/api/admins/:id/status - เปิด/ปิดการใช้งาน admin (Superadmin Lv.2 เท่านั้น)
+router.post("/api/admins/:id/status", requireSuperadmin, async (req, res) => {
+  try {
+    const { isActive } = req.body || {};
+    if (typeof isActive !== "boolean") {
+      return res.status(400).json({ ok: false, error: "isActive ต้องเป็น true/false" });
+    }
+    if (req.admin._id.toString() === req.params.id) {
+      return res.status(400).json({ ok: false, error: "ไม่สามารถระงับบัญชีตัวเองได้" });
+    }
+
+    const target = await AdminUser.findById(req.params.id);
+    if (!target) return res.status(404).json({ ok: false, error: "ไม่พบ admin นี้" });
+
+    // ป้องกัน superadmin คนสุดท้ายถูกระงับ
+    if (!isActive && target.role === "superadmin") {
+      const activeSuperadminCount = await AdminUser.countDocuments({ role: "superadmin", isActive: true });
+      if (activeSuperadminCount <= 1) {
+        return res.status(400).json({ ok: false, error: "ไม่สามารถระงับ superadmin คนสุดท้ายได้" });
+      }
+    }
+
+    target.isActive = isActive;
+    await target.save();
+
+    await logAdminAction(req, "admin_status_change", target._id, "AdminUser", {
+      isActive,
+      targetUsername: target.system81_username,
+    });
+
+    res.json({ ok: true, admin: target });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// DELETE /admin/api/admins/:id - ลบ admin ออกจากระบบ (Superadmin Lv.2 เท่านั้น)
+router.delete("/api/admins/:id", requireSuperadmin, async (req, res) => {
+  try {
+    if (req.admin._id.toString() === req.params.id) {
+      return res.status(400).json({ ok: false, error: "ไม่สามารถลบบัญชีตัวเองได้" });
+    }
+    const target = await AdminUser.findById(req.params.id);
+    if (!target) return res.status(404).json({ ok: false, error: "ไม่พบ admin นี้" });
+
+    if (target.role === "superadmin") {
+      const superadminCount = await AdminUser.countDocuments({ role: "superadmin", isActive: true });
+      if (superadminCount <= 1) {
+        return res.status(400).json({ ok: false, error: "ไม่สามารถลบ superadmin คนสุดท้ายได้" });
+      }
+    }
+
+    const targetUsername = target.system81_username;
+    await target.deleteOne();
+
+    await logAdminAction(req, "admin_delete", req.params.id, "AdminUser", {
+      targetUsername,
+    });
+
+    res.json({ ok: true, message: "ลบ admin เรียบร้อยแล้ว" });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// GET /admin/api/admin-audit - audit log พิเศษ ดู action ของ admin ทุกคน (Superadmin Lv.2 เท่านั้น)
+router.get("/api/admin-audit", requireSuperadmin, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const action = req.query.action;
+    const adminId = req.query.adminId;
+    const search = req.query.search;
+
+    const query = {};
+    if (action && action !== "all") query.action = action;
+    if (adminId) query.adminId = adminId;
+    if (search) {
+      query.$or = [
+        { adminUsername: { $regex: search, $options: "i" } },
+        { action: { $regex: search, $options: "i" } },
+        { target: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const total = await AdminAuditLog.countDocuments(query);
+    const logs = await AdminAuditLog.find(query)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    res.json({
+      ok: true,
+      data: logs,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
+    });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }

@@ -1,6 +1,6 @@
 {
   "name": "biokoop",
-  "version": "1.0.0",
+  "version": "1.1.2",
   "description": "LINE OA -> AI image analysis -> ส่งผลลัพธ์กลับเป็นรูปภาพ",
   "type": "module",
   "main": "server.js",
@@ -13,8 +13,11 @@
   "dependencies": {
     "@line/bot-sdk": "^9.4.2",
     "@resvg/resvg-wasm": "^2.6.2",
+    "axios": "^1.19.0",
+    "connect-mongo": "^5.1.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-session": "^1.19.0",
     "mongoose": "^8.5.0",
     "pngjs": "^7.0.0",
     "sharp": "^0.35.3"
