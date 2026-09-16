@@ -1,25 +1,204 @@
 import { User } from "../models/User.js";
 import { Request, REQUEST_STATUS } from "../models/Request.js";
 import { logStep } from "../models/RequestLog.js";
-import { getGradeForScore } from "./gradeConfigService.js";
 import {
   getImageContent,
   getProfile,
-  replyImage,
   replyText,
-  pushImage,
   pushText,
-  pushHealthAdviceFlex,
-  sendResultCardWithShare,
+  sendWeeklyReportImages,
   showLoadingAnimation,
 } from "./lineService.js";
-import { analyzeImageWithCrossCheck, validateAiResult } from "./aiService.js";
-import { composeCard, optimizeCardPng, optimizeImageForAi } from "./imageService.js";
+import {
+  composeWeeklyReport,
+  composeWeeklyCombinedReport,
+  optimizeCardPng,
+  optimizeImageForAi,
+} from "./imageService.js";
 import { saveImage } from "./storageService.js";
 import { sendAdminAlert } from "./alertService.js";
+import { classifyWeeklyImage, analyzeWeeklyImages } from "./aiService.js";
 
-const CONFIDENCE_THRESHOLD = Number(process.env.CONFIDENCE_THRESHOLD || 0.7);
-const MIN_IMAGE_BYTES = 5 * 1024; // กันไฟล์เล็กผิดปกติ/เสีย
+// ─── WEEKLY REPORT BATCHING ───
+// ลูกค้าส่งภาพ Screenshot จากแอป Kieslect 3 รูป (Body Load / Recovery / Sleep Quality)
+// ระบบบัฟเฟอร์ราย user ไว้ในหน่วยความจำ จำแนกประเภทแต่ละรูปที่ส่งเข้ามา
+// ครบทั้ง 3 ประเภทแล้วค่อยวิเคราะห์เทรนด์รายสัปดาห์รวมครั้งเดียว
+const WEEKLY_IMAGE_COUNT = 3;
+const BATCH_TTL_MS = Number(process.env.WEEKLY_BATCH_TTL_MS || 10 * 60 * 1000); // 10 นาที
+
+// นิยามเช็กลิสต์ 3 หน้า พร้อม label สำหรับแสดงผล
+const PAGE_DEFS = [
+  { id: "body_load", label: "Body Load", emoji: "🏃" },
+  { id: "recovery", label: "Recovery", emoji: "🔋" },
+  { id: "sleep_quality", label: "Sleep Quality", emoji: "🌙" },
+];
+
+const imageBatches = new Map(); // lineUserId -> { items: [{ messageId, buffer, page }], timer, processing }
+
+function expiryMessage() {
+  return (
+    `ระบบยังได้รับภาพไม่ครบ 3 หน้าภายในเวลาที่กำหนดค่ะ 🌿\n\n` +
+    `หากต้องการรายงานสุขภาพรายสัปดาห์ ส่งภาพ Screenshot จากแอป Kieslect ให้ครบ 3 หน้านี้อีกครั้งได้เลยนะคะ\n` +
+    PAGE_DEFS.map((p, i) => `${i + 1}) ${p.emoji} ${p.label}`).join("\n")
+  );
+}
+
+// สร้างข้อความสถานะเช็กลิสต์: หน้าที่มีแล้ว ✅ / หน้าที่ยังขาด ⬜
+function checklistMessage(batch) {
+  const have = new Set(batch.items.map((it) => it.page).filter(Boolean));
+  const lines = PAGE_DEFS.map((p) => {
+    const got = have.has(p.id);
+    return `${got ? "✅" : "⬜"} ${p.emoji} ${p.label}${got ? " (มีแล้ว)" : ""}`;
+  });
+  return lines.join("\n");
+}
+
+// สร้างข้อความแจ้งสถานะหลังรับภาพใหม่
+function ackMessage(batch) {
+  const have = new Set(batch.items.map((it) => it.page).filter(Boolean));
+  const missing = PAGE_DEFS.filter((p) => !have.has(p.id));
+  const gotCount = have.size;
+
+  let header;
+  if (gotCount === 0) {
+    header = `ยังไม่สามารถจำแนกภาพนี้ได้ชัดเจนค่ะ 🤔 ลองส่งภาพใหม่อีกครั้งนะคะ`;
+  } else if (missing.length === 0) {
+    header = `ครบทั้ง 3 หน้าแล้วค่ะ 🤍 กำลังเริ่มวิเคราะห์เทรนด์สุขภาพรายสัปดาห์...`;
+  } else {
+    header = `ได้รับภาพ ${gotCount} จาก 3 หน้าแล้วค่ะ ✨ ยังขาดอีก ${missing.length} หน้า: ${missing.map((m) => m.label).join(", ")}`;
+  }
+
+  return (
+    `${header}\n\n` +
+    `สถานะการรับภาพ:\n${checklistMessage(batch)}\n\n` +
+    (missing.length > 0
+      ? `ส่งภาพ Screenshot จากแอป Kieslect ให้ครบทั้ง 3 หน้า (ลำดับไหนก็ได้ค่ะ) เมื่อครบ AI จะวิเคราะห์ให้ทันทีค่ะ`
+      : `กรุณารอสักครู่นะคะ ⏳`)
+  );
+}
+
+// ข้อความแจ้งภาพซ้ำประเภท
+function duplicateMessage(pageLabel) {
+  return (
+    `ภาพนี้เป็นหน้า "${pageLabel}" ซ้ำกับที่มีแล้วค่ะ 😊\n\n` +
+    `ระบบจะใช้ภาพแรกที่ส่งมาของแต่ละหน้าไปวิเคราะห์ ไม่ต้องส่งซ้ำนะคะ\n` +
+    `ถ้าภาพแรกไม่ชัด ส่งภาพใหม่ที่ชัดกว่ามาแทนได้เลยค่ะ`
+  );
+}
+
+function expireBatch(lineUserId) {
+  const batch = imageBatches.get(lineUserId);
+  if (!batch || batch.processing) return;
+  imageBatches.delete(lineUserId);
+  console.warn(`[pipeline] ⏱️ batch ของ ${lineUserId} หมดอายุ (มี ${batch.items.length}/${WEEKLY_IMAGE_COUNT} รูป)`);
+  pushText(lineUserId, expiryMessage()).catch(() => {});
+}
+
+// เรียกจาก webhook handler ทุกครั้งที่ผู้ใช้ส่งรูปเข้ามา
+export async function queueWeeklyImage({ lineUserId, messageId, replyToken }) {
+  let batch = imageBatches.get(lineUserId);
+
+  // กำลังประมวลผลรายงานชุดเดิมอยู่ -> แจ้งให้รอก่อน
+  if (batch?.processing) {
+    if (replyToken) {
+      await replyText(
+        replyToken,
+        "รายงานชุดก่อนหน้ากำลังประมวลผลอยู่ค่ะ ⏳ กรุณารอผลสักครู่ แล้วค่อยส่งภาพชุดใหม่ได้เลยนะคะ",
+        lineUserId
+      ).catch(() => {});
+    }
+    return;
+  }
+
+  if (!batch) {
+    batch = { items: [], timer: null, processing: false };
+    batch.timer = setTimeout(() => expireBatch(lineUserId), BATCH_TTL_MS);
+    imageBatches.set(lineUserId, batch);
+  }
+
+  // ดึงภาพจาก LINE ก่อน (ป้องกัน content หมดอายุ)
+  let imageBuffer;
+  try {
+    imageBuffer = await getImageContent(messageId);
+    console.log(
+      `[pipeline] 📥 ดึงรูปของ ${lineUserId} (${(imageBuffer.length / 1024).toFixed(1)} KB, messageId=${messageId})`
+    );
+  } catch (err) {
+    console.error("[pipeline] ดึงรูปจาก LINE ไม่สำเร็จ:", err.message);
+    if (replyToken) {
+      await replyText(
+        replyToken,
+        "ขออภัยค่ะ ดึงรูปนี้ไม่สำเร็จ กรุณาส่งรูปนี้ใหม่อีกครั้งนะคะ 📷",
+        lineUserId
+      ).catch(() => {});
+    }
+    return;
+  }
+
+  // จำแนกประเภทหน้าด้วย AI เร็ว ๆ (1 ครั้งต่อภาพ)
+  let page = "unknown";
+  try {
+    const optimized = await optimizeImageForAi(imageBuffer);
+    const result = await classifyWeeklyImage(optimized, "image/jpeg");
+    if (result && result.page) page = result.page;
+    console.log(`[pipeline] 🏷️ จำแนกภาพของ ${lineUserId}: ${page} (confidence=${result?.confidence ?? "-"})`);
+  } catch (err) {
+    console.warn(`[pipeline] จำแนกภาพล้มเหลว (${err.message}) — ถือว่า unknown`);
+  }
+
+  // ภาพที่จำแนกไม่ได้ -> แจ้งและไม่นับ
+  if (page === "unknown") {
+    if (replyToken) {
+      await replyText(
+        replyToken,
+        `ไม่สามารถจำแนกภาพนี้ได้ชัดเจนค่ะ 🤔\n\n` +
+          `ระบบต้องการภาพ Screenshot จากแอป Kieslect 3 หน้า ได้แก่\n` +
+          PAGE_DEFS.map((p, i) => `${i + 1}) ${p.emoji} ${p.label}`).join("\n") +
+          `\n\nลองส่งภาพใหม่ที่เป็นหน้าจอแอป Kieslect ชัดๆ อีกครั้งนะคะ`,
+        lineUserId
+      ).catch(() => {});
+    }
+    return;
+  }
+
+  // ภาพซ้ำประเภท -> แจ้ง ไม่นับซ้ำ (ใช้ภาพแรกของแต่ละประเภท)
+  const existing = batch.items.find((it) => it.page === page);
+  if (existing) {
+    const pageDef = PAGE_DEFS.find((p) => p.id === page);
+    if (replyToken) {
+      await replyText(replyToken, duplicateMessage(pageDef?.label || page), lineUserId).catch(() => {});
+    }
+    return;
+  }
+
+  // ภาพใหม่ประเภทใหม่ -> เก็บเข้า batch
+  batch.items.push({ messageId, buffer: imageBuffer, page });
+  const have = new Set(batch.items.map((it) => it.page));
+  console.log(`[pipeline] 🧺 batch ของ ${lineUserId}: มีแล้ว ${have.size}/${WEEKLY_IMAGE_COUNT} หน้า (${[...have].join(", ")})`);
+
+  // รีเซ็ต TTL ทุกครั้งที่ได้ภาพใหม่ (ผู้ใช้กำลังส่งอยู่)
+  clearTimeout(batch.timer);
+  batch.timer = setTimeout(() => expireBatch(lineUserId), BATCH_TTL_MS);
+
+  if (have.size < WEEKLY_IMAGE_COUNT) {
+    if (replyToken) {
+      await replyText(replyToken, ackMessage(batch), lineUserId).catch(() => {});
+    }
+    return;
+  }
+
+  // ครบทั้ง 3 ประเภทแล้ว -> เริ่มประมวลผล
+  clearTimeout(batch.timer);
+  batch.processing = true;
+  if (replyToken) {
+    await replyText(
+      replyToken,
+      `ครบทั้ง 3 หน้าแล้วค่ะ 🤍 AI กำลังวิเคราะห์เทรนด์สุขภาพรายสัปดาห์ของคุณ กรุณารอสักครู่นะคะ... ⏳`,
+      lineUserId
+    ).catch(() => {});
+  }
+  await processWeeklyReport({ lineUserId, batch, replyToken: null });
+}
 
 // ─── CONCURRENCY QUEUE SYSTEM ───
 const MAX_CONCURRENT_JOBS = Number(process.env.MAX_CONCURRENT_AI_JOBS || 3);
@@ -48,39 +227,38 @@ export function getQueueStats() {
     activeJobs,
     queueLength: jobQueue.length,
     maxConcurrent: MAX_CONCURRENT_JOBS,
+    activeBatches: imageBatches.size,
   };
 }
 
-// เรียกจาก webhook handler แบบไม่ await (ทำงานเบื้องหลังหลังตอบ 200 แล้ว)
-export async function processImageMessage({ lineUserId, messageId, replyToken }) {
+// ประมวลผลรายงานสุขภาพรายสัปดาห์จากภาพ 3 รูปที่เก็บครบแล้ว
+async function processWeeklyReport({ lineUserId, batch, replyToken }) {
   await acquireSlot();
   let request;
   const startTime = Date.now();
-  try {
-    console.log(`[pipeline] ⚡ เริ่มสปีดประมวลผลรูป messageId=${messageId} (Active Jobs: ${activeJobs}/${MAX_CONCURRENT_JOBS}, Queue: ${jobQueue.length})`);
 
-    // 1. ตอบกลับผู้ใช้ทันทีภายใน 1 วินาทีแรกด้วย replyToken ให้ผู้ใช้ทราบว่าระบบได้รับภาพแล้ว
+  try {
     replyText(
       replyToken,
-      "ได้รับรูปภาพแล้วค่ะ 📸 ระบบกำลังวิเคราะห์ข้อมูลด้วย AI สรุปผลให้อย่างละเอียด กรุณารอสักครู่นะคะ... ⏳",
+      "ได้รับรูปครบ 3 รูปแล้วค่ะ 🤍 AI กำลังวิเคราะห์เทรนด์สุขภาพรายสัปดาห์ของคุณ กรุณารอสักครู่นะคะ... ⏳",
       lineUserId
     ).catch(() => {});
+    showLoadingAnimation(lineUserId, 45).catch(() => {});
 
-    // เปิดสัญลักษณ์สปินเนอร์ Loading บนหน้าจอแชท LINE ของผู้ใช้
-    showLoadingAnimation(lineUserId, 20).catch(() => {});
+    // จัดลำดับภาพให้คงที่เสมอ: 1) Body Load -> 2) Recovery -> 3) Sleep Quality
+    const PAGE_ORDER = { body_load: 0, recovery: 1, sleep_quality: 2 };
+    batch.items.sort((a, b) => (PAGE_ORDER[a.page] ?? 99) - (PAGE_ORDER[b.page] ?? 99));
 
-    // 2. ดึงรูปภาพจาก LINE และอัปเดต User Profile แบบทำคู่ขนาน (Parallel)
-    const [imageBuffer, user] = await Promise.all([
-      getImageContent(messageId),
+    const [optimizedBuffers, user] = await Promise.all([
+      Promise.all(batch.items.map((it) => optimizeImageForAi(it.buffer))),
       getProfile(lineUserId).then((prof) => User.touch(lineUserId, prof)).catch(() => null),
     ]);
 
-    console.log(`[pipeline] ⚡ ดึงรูปสำเร็จ (${(imageBuffer.length / 1024).toFixed(1)} KB) ใน ${Date.now() - startTime}ms`);
-
-    // สร้าง Request Record พร้อมผูกข้อมูล IMEI / Order ID ของผู้ใช้ไว้ในบันทึกคำขอ
+    // สร้าง Request Record พร้อมผูกข้อมูล IMEI / Order ID ของผู้ใช้ไว้
     request = new Request({
       lineUserId,
       status: REQUEST_STATUS.ANALYZING,
+      reportType: "weekly",
       imei: user?.imei || "",
       orderSn: user?.orderSn || "",
       orderId: user?.orderId || "",
@@ -88,23 +266,20 @@ export async function processImageMessage({ lineUserId, messageId, replyToken })
     });
     request.save().catch(() => {});
 
-    // 3. Optimize รูปภาพก่อนส่ง AI (ย่อขนาด ปรับ JPEG) + ส่ง AI วิเคราะห์ + เซฟรูปต้นฉบับลง GridFS
-    console.log(`[pipeline] ⚡ Optimize รูปภาพและส่ง AI วิเคราะห์...`);
-    const optimizedImageBuffer = await optimizeImageForAi(imageBuffer);
+    // เซฟรูปต้นฉบับทั้ง 3 ลง GridFS + ส่ง AI วิเคราะห์รวมครั้งเดียว
+    console.log(`[pipeline] ⚡ เริ่มวิเคราะห์รายสัปดาห์ (${batch.items.length} รูป) ของ ${lineUserId}`);
+    const originalImageIds = await Promise.all(
+      batch.items.map((it) =>
+        saveImage("original_images", it.buffer, `${it.messageId}.jpg`, "image/jpeg").catch((err) => {
+          console.error("[pipeline] saveImage(original_images) error:", err);
+          return null;
+        })
+      )
+    );
 
-    const [origId, aiResponse] = await Promise.all([
-      saveImage("original_images", imageBuffer, `${messageId}.jpg`, "image/jpeg").catch((err) => {
-        console.error("[pipeline] saveImage(original_images) error:", err);
-        return null;
-      }),
-      analyzeImageWithCrossCheck(optimizedImageBuffer, "image/jpeg", user || {}),
-    ]);
+    const aiResponse = await analyzeWeeklyImages(optimizedBuffers, "image/jpeg", user || {});
 
-    if (origId) {
-      request.originalImageId = origId;
-    }
-
-    // บันทึกการใช้งาน token ของ Gemini ไว้เสมอไม่ว่าผลจะสำเร็จหรือไม่ (เสียโควต้าไปแล้ว)
+    request.originalImageIds = originalImageIds.filter(Boolean);
     if (aiResponse.model) request.aiModel = aiResponse.model;
     if (aiResponse.usage) {
       request.promptTokens = aiResponse.usage.promptTokens;
@@ -113,78 +288,95 @@ export async function processImageMessage({ lineUserId, messageId, replyToken })
     }
 
     if (!aiResponse.ok || !aiResponse.data?.detected) {
-      console.warn(`[pipeline] ⚠️ AI วิเคราะห์ไม่สำเร็จหรือรูปไม่ชัด:`, aiResponse.error || aiResponse.data?.notes);
+      console.warn(`[pipeline] ⚠️ Weekly AI วิเคราะห์ไม่สำเร็จครบ 3 หน้า:`, aiResponse.error || aiResponse.data?.notes);
       request.status = REQUEST_STATUS.FAILED;
-      request.errorMessage = aiResponse.data?.notes || aiResponse.error || "AI ตรวจไม่พบข้อมูลการนอน";
+      request.errorMessage = aiResponse.data?.notes || aiResponse.error || "AI อ่านภาพไม่ครบ 3 หน้า";
       request.save().catch(() => {});
-      const noteMsg = aiResponse.data?.notes || "ขออภัยค่ะ ระบบไม่สามารถอ่านข้อมูลผลการนอนจากภาพนี้ได้ชัดเจนพอ กรุณาลองถ่ายภาพหรือส่งภาพหน้าจอ Smart Watch ใหม่อีกครั้งนะคะ 🌿";
+      const noteMsg =
+        aiResponse.data?.notes ||
+        `ขออภัยค่ะ ระบบอ่านข้อมูลจากภาพไม่ครบทั้ง 3 หน้า (Body Load / Recovery / Sleep Quality) กรุณาส่งภาพ Screenshot จากแอป Kieslect ครบทั้ง 3 หน้าอีกครั้งนะคะ 🌿`;
       await pushText(lineUserId, noteMsg).catch(() => {});
       return;
     }
 
-    // 4. ส่ง Flex Message สรุปร่างกายและบทวิเคราะห์เชิงลึกหาผู้ใช้ทันทีที่ AI ประมวลผลเสร็จ (ผู้ใช้ได้รับข้อความใน ~2-3 วินาที)
-    const aiResult = aiResponse.data?.result || {};
-    if (aiResult.healthAdvice || aiResult.aiSummary) {
-      pushHealthAdviceFlex(lineUserId, aiResult).catch((err) =>
-        console.warn("[pipeline] pushHealthAdviceFlex error:", err.message)
-      );
+    const aiData = aiResponse.data;
+    console.log(`[pipeline] ⚡ Weekly AI วิเคราะห์สำเร็จใน ${Date.now() - startTime}ms (confidence=${aiData.confidence ?? "-"})`);
+
+    // เรนเดอร์รายงาน 3 หน้า (พื้นขาว ไม่มีภาพภูเขา) แล้วบีบอัดขนาดไฟล์
+    const { pngBuffers } = composeWeeklyReport(aiData);
+    const optimizedPngs = [];
+    for (const buf of pngBuffers) {
+      optimizedPngs.push(await optimizeCardPng(Buffer.from(buf)));
     }
-    console.log(`[pipeline] ⚡ AI วิเคราะห์สำเร็จใน ${Date.now() - startTime}ms (ส่งข้อความแนะนำแล้ว)`);
 
-    // 5. ประกอบรูปการ์ด Infographic และบีบอัดขนาดไฟล์ก่อนเซฟลง GridFS
-    const cardData = mapAiResultToCardData(aiResponse.data.result);
-    const rawPngBuffer = composeCard(cardData);
-    const pngBuffer = await optimizeCardPng(rawPngBuffer);
+    // เซฟภาพผลลัพธ์ทั้ง 3 หน้าลง GridFS
+    const resultImageIds = [];
+    for (let i = 0; i < optimizedPngs.length; i++) {
+      const id = await saveImage("results", optimizedPngs[i], `${request._id}-weekly-p${i + 1}.png`, "image/png");
+      resultImageIds.push(id);
+    }
 
-    // เซฟรูปลง GridFS
-    const resultImageId = await saveImage(
-      "results",
-      pngBuffer,
-      `${request._id}-result.png`,
-      "image/png"
-    );
+    // รวมภาพ 3 หน้าเป็น 1 ภาพพาโนรามาแนวนอน (3 คอลัมน์) แล้วเซฟลง GridFS
+    let combinedResultImageId = null;
+    let combinedImageUrl = null;
+    try {
+      const combinedPng = await composeWeeklyCombinedReport(optimizedPngs);
+      if (combinedPng) {
+        const optCombined = await optimizeCardPng(combinedPng);
+        combinedResultImageId = await saveImage(
+          "results",
+          optCombined,
+          `${request._id}-weekly-combined.png`,
+          "image/png"
+        );
+        combinedImageUrl = `${process.env.PUBLIC_BASE_URL}/results/${combinedResultImageId}.png`;
+        console.log(`[pipeline] 🖼️ สร้างภาพพาโนรามา 3-in-1 สำเร็จ: ${combinedResultImageId}`);
+      }
+    } catch (combErr) {
+      console.warn("[pipeline] composeWeeklyCombinedReport error:", combErr.message);
+    }
 
-    const imageUrl = `${process.env.PUBLIC_BASE_URL}/results/${resultImageId}.png`;
+    const imageUrls = resultImageIds.map((id) => `${process.env.PUBLIC_BASE_URL}/results/${id}.png`);
 
-    // ส่งรูปการ์ดผลลัพธ์พร้อมปุ่มแชร์และ Quick Reply ตามหลังมาติดๆ
-    await sendResultCardWithShare(lineUserId, imageUrl);
-    console.log(`[pipeline] 🚀 ส่งรูปการ์ดเรียบร้อย! (ใช้เวลาทั้งหมด ${Date.now() - startTime}ms)`);
+    // ส่งรายงานสุขภาพ (Flex Carousel + ภาพรวม 1 รูป + รูปเดี่ยว 3 หน้า + ข้อความสรุป) เข้าแชทผู้ใช้
+    await sendWeeklyReportImages(lineUserId, imageUrls, aiData, combinedImageUrl);
+    console.log(`[pipeline] 🚀 ส่งรายงานรายสัปดาห์เรียบร้อย! (ใช้เวลาทั้งหมด ${Date.now() - startTime}ms)`);
 
     await logStep({
       requestId: request._id,
       lineUserId,
       step: "line_push",
       status: "success",
-      data: { imageUrl },
+      data: { imageUrls, combinedImageUrl },
     });
 
-    // บันทึกสถานะเสร็จสิ้นในฉากหลัง (หากติดธง needsReview ให้ตั้งเป็น NEEDS_REVIEW)
     request.status = aiResponse.needsReview ? REQUEST_STATUS.NEEDS_REVIEW : REQUEST_STATUS.SENT;
-    request.aiResult = aiResponse.data?.result;
-    request.resultImageId = resultImageId;
+    request.aiResult = aiData;
+    request.resultImageIds = resultImageIds;
+    if (combinedResultImageId) request.combinedResultImageId = combinedResultImageId;
     request.completedAt = new Date();
     request.save().catch(() => {});
 
-    // เก็บแอป/แบรนด์ Smart Watch ที่ AI ตรวจจับได้ล่าสุดไว้ที่โปรไฟล์ผู้ใช้ เพื่อดูสถิติสินค้า/แอปที่ลูกค้าใช้งาน
-    if (aiResult.appName) {
+    // เก็บแอป/แบรนด์ Smart Watch ที่ AI ตรวจจับได้ล่าสุดไว้ที่โปรไฟล์ผู้ใช้
+    if (aiData.appName) {
       User.findOneAndUpdate(
         { lineUserId },
-        { $set: { lastDetectedApp: aiResult.appName, lastDetectedAppAt: new Date() } }
+        { $set: { lastDetectedApp: aiData.appName, lastDetectedAppAt: new Date() } }
       ).catch(() => {});
     }
   } catch (err) {
     console.error("[pipeline] error:", err);
-    const isQuotaError = err.message?.includes("429") || err.message?.includes("โควต้า") || err.message?.includes("RESOURCE_EXHAUSTED");
+    const isQuotaError =
+      err.message?.includes("429") || err.message?.includes("โควต้า") || err.message?.includes("RESOURCE_EXHAUSTED");
     const userMsg = isQuotaError
       ? "ขออภัยค่ะ ขณะนี้ระบบ AI มีผู้ใช้งานเป็นจำนวนมาก กรุณารอสักครู่แล้วส่งภาพใหม่อีกครั้งนะคะ 🌿"
       : "ขออภัยค่ะ เกิดข้อผิดพลาดในการประมวลผลรูปภาพ กรุณาลองส่งภาพใหม่อีกครั้งนะคะ";
 
     await pushText(lineUserId, userMsg).catch(() => {});
 
-    // ส่งการแจ้งเตือนหา Admin เมื่อเกิดวิกฤต (เช่น โควต้าเต็ม)
     sendAdminAlert({
       key: isQuotaError ? "GEMINI_QUOTA_EXCEEDED" : "PIPELINE_ERROR",
-      title: isQuotaError ? "Gemini API Rate Limit / โควต้าเต็ม" : "Pipeline Processing Error",
+      title: isQuotaError ? "AI Rate Limit / โควต้าเต็ม" : "Pipeline Processing Error",
       message: `เกิดข้อผิดพลาดในการวิเคราะห์รูปภาพของผู้ใช้ ${lineUserId}`,
       level: isQuotaError ? "CRITICAL" : "WARNING",
       details: err.message,
@@ -204,94 +396,7 @@ export async function processImageMessage({ lineUserId, messageId, replyToken })
       }).catch(() => {});
     }
   } finally {
+    imageBatches.delete(lineUserId);
     releaseSlot();
   }
-}
-
-
-// เลือกใช้ Reply API ถ้ายังทันเวลา ไม่งั้นสลับไป Push API พร้อม log ทั้งสองแบบ
-async function safeReplyOrPush(replyToken, lineUserId, text) {
-  try {
-    await replyText(replyToken, text, lineUserId);
-    await logStep({ lineUserId, step: "line_reply", status: "success", data: { text } });
-  } catch (err) {
-    try {
-      await pushText(lineUserId, text);
-      await logStep({ lineUserId, step: "line_push", status: "success", data: { text } });
-    } catch (pushErr) {
-      await logStep({
-        lineUserId,
-        step: "line_push",
-        status: "failed",
-        errorDetail: pushErr.message,
-      });
-    }
-  }
-}
-
-async function safeReplyOrPushImage(replyToken, lineUserId, imageUrl, request) {
-  try {
-    await replyImage(replyToken, imageUrl, lineUserId);
-    await logStep({
-      requestId: request._id,
-      lineUserId,
-      step: "line_reply",
-      status: "success",
-      data: { imageUrl },
-    });
-  } catch (err) {
-    try {
-      await pushImage(lineUserId, imageUrl);
-      await logStep({
-        requestId: request._id,
-        lineUserId,
-        step: "line_push",
-        status: "success",
-        data: { imageUrl },
-      });
-    } catch (pushErr) {
-      await logStep({
-        requestId: request._id,
-        lineUserId,
-        step: "line_push",
-        status: "failed",
-        errorDetail: pushErr.message,
-      });
-      throw pushErr; // ส่งไม่สำเร็จทั้งคู่ ให้ pipeline หลัก mark เป็น failed
-    }
-  }
-}
-
-// แปลงผลจาก AI ให้ตรงกับ parameter ของ renderBiokoopCard
-function mapAiResultToCardData(r = {}) {
-  const score = typeof r.score === "number" && r.score > 0 ? r.score : 78; // fallback score สวยงามหาก AI ไม่คืนค่า
-  const gradeInfo = getGradeForScore(score);
-  const grade = gradeInfo.grade || r.grade || "B";
-  const headline = gradeInfo.headline || r.headline || "";
-  const tips = gradeInfo.tips || r.tips || "";
-  const aiSummary = r.aiSummary || gradeInfo.summary || "";
-
-  return {
-    appName: r.appName || "Smart Watch",
-    headline: headline,
-    tips: tips,
-    score: score,
-    grade: grade,
-    stars: Math.round((score / 100) * 5),
-    sleepTime: r.sleepTime || "ไม่มีข้อมูล",
-    sleepTimeRange: r.sleepTimeRange || "",
-    sleepEfficiency: r.sleepEfficiency || "ไม่มีข้อมูล",
-    soundSleep: r.soundSleepTime || r.soundSleep || "ไม่มีข้อมูล",
-    avgHeartRate: r.avgHeartRate || "ไม่มีข้อมูล",
-    hrv: r.hrv || "ไม่มีข้อมูล",
-    spo2: r.spo2 || "ไม่มีข้อมูล",
-    aiSummary: aiSummary,
-    deepSleep: { value: r.deepSleepTime || "-", percent: r.deepSleepPercent ?? 0 },
-    lightSleep: { value: r.lightSleepTime || "-", percent: r.lightSleepPercent ?? 0 },
-    remSleep: { value: r.remSleepTime || "-", percent: r.remSleepPercent ?? 0 },
-    restlessness: { value: "-" },
-    awake: { value: r.awakeTime || "-", percent: r.awakePercent ?? 0 },
-    recoveryPercent: r.recoveryPercent ?? null,
-    bodyLoad: r.bodyLoad ?? null,
-  };
 }

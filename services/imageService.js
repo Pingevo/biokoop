@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { renderBiokoopCard, BG_IMAGE_PATH, hasBgImage, BG_CROP_TOP } from "./cardTemplate.js";
+import { renderWeeklyReportSvgs } from "./weeklyReportTemplate.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fontsDir = path.join(__dirname, "..", "fonts");
@@ -124,6 +125,86 @@ export function composeCard(data) {
   return compositeOverBackground(fgPng);
 }
 
+// เรนเดอร์รายงานสุขภาพรายสัปดาห์ 3 หน้า (Overview / Activity & Recovery / Sleep) -> PNG Buffer 3 รายการ
+// พื้นหลังสีขาวล้วน ไม่มีการคอมโพสิตภาพถ่าย
+export function composeWeeklyReport(aiData, customConfig = null) {
+  if (!wasmReady) {
+    throw new Error("imageService ยังไม่ได้ initImageService() ก่อนใช้งาน");
+  }
+  const { data, svgs } = renderWeeklyReportSvgs(aiData, customConfig);
+  const pngBuffers = svgs.map((svg) => {
+    const resvg = new Resvg(svg, {
+      font: { loadSystemFonts: false, fontBuffers, defaultFontFamily: "Kanit" },
+      background: "white",
+    });
+    return resvg.render().asPng();
+  });
+  return { data, pngBuffers, svgs };
+}
+
+// รวมภาพรายงานสุขภาพ 3 หน้า เข้าด้วยกันเป็น 1 ภาพแนวนอนแบบพาโนรามา (3 คอลัมน์)
+export async function composeWeeklyCombinedReport(pngBuffers) {
+  if (!pngBuffers || pngBuffers.length < 3) return null;
+
+  try {
+    const sharp = (await import("sharp")).default;
+    const metas = await Promise.all(pngBuffers.slice(0, 3).map((b) => sharp(b).metadata()));
+    const maxH = Math.max(...metas.map((m) => m.height));
+    const w1 = metas[0].width;
+    const w2 = metas[1].width;
+    const w3 = metas[2].width;
+    const dividerW = 2;
+
+    // ปรับความสูงทุกหน้าให้เท่ากับความสูงสูงสุด ด้วยการขยายพื้นหลังสีขาว (#FFFFFF) ด้านล่าง
+    const padded = await Promise.all(
+      pngBuffers.slice(0, 3).map(async (buf, idx) => {
+        const diffH = maxH - metas[idx].height;
+        if (diffH <= 0) return buf;
+        return await sharp(buf)
+          .extend({ bottom: diffH, background: { r: 255, g: 255, b: 255, alpha: 1 } })
+          .toBuffer();
+      })
+    );
+
+    // เส้นคั่นระหว่างคอลัมน์สีเทาอ่อน #E2E8F0
+    const divider = await sharp({
+      create: {
+        width: dividerW,
+        height: maxH,
+        channels: 4,
+        background: { r: 226, g: 232, b: 240, alpha: 1 },
+      },
+    })
+      .png()
+      .toBuffer();
+
+    const totalW = w1 + dividerW + w2 + dividerW + w3;
+
+    const combined = await sharp({
+      create: {
+        width: totalW,
+        height: maxH,
+        channels: 4,
+        background: { r: 255, g: 255, b: 255, alpha: 1 },
+      },
+    })
+      .composite([
+        { input: padded[0], left: 0, top: 0 },
+        { input: divider, left: w1, top: 0 },
+        { input: padded[1], left: w1 + dividerW, top: 0 },
+        { input: divider, left: w1 + dividerW + w2, top: 0 },
+        { input: padded[2], left: w1 + dividerW + w2 + dividerW, top: 0 },
+      ])
+      .png({ quality: 90, compressionLevel: 8 })
+      .toBuffer();
+
+    return combined;
+  } catch (err) {
+    console.error("[imageService] composeWeeklyCombinedReport error:", err.message);
+    return null;
+  }
+}
+
 // บีบอัดภาพการ์ดผลลัพธ์ PNG ให้มีขนาดไฟล์เล็กที่สุด (ลดลง ~50-60%) โดยคงความคมชัด 100%
 export async function optimizeCardPng(pngBuffer) {
   try {
@@ -202,23 +283,29 @@ export async function optimizeImageForAi(imageBuffer, maxDimension = 1024, quali
     const width = metadata.width || 0;
     const height = metadata.height || 0;
 
-    // หากรูปเล็กอยู่แล้ว (< maxDimension และขนาดไฟล์ < 300KB) ไม่จำเป็นต้องย่อซ้ำ
-    if (width <= maxDimension && height <= maxDimension && imageBuffer.length < 300 * 1024) {
+    // สำหรับรูปแคปเจอร์หน้าจอยาว (Scrolling Screenshot เช่น Kieslect ที่สัดส่วน height/width > 1.8)
+    // ห้ามบีบ width ให้แคบลงตามกล่องสี่เหลี่ยม เพราะจะทำให้ตัวเลขในกราฟเบลอจน AI อ่านไม่ออก
+    const isTall = height / Math.max(width, 1) > 1.8;
+    const targetWidth = isTall ? Math.min(width, 1080) : maxDimension;
+    const targetHeight = isTall ? Math.min(height, 4096) : maxDimension;
+
+    // หากรูปเล็กอยู่แล้ว ไม่จำเป็นต้องย่อซ้ำ
+    if (width <= targetWidth && height <= targetHeight && imageBuffer.length < 500 * 1024) {
       return imageBuffer;
     }
 
     const resizedBuffer = await sharp(imageBuffer)
       .resize({
-        width: maxDimension,
-        height: maxDimension,
+        width: targetWidth,
+        height: targetHeight,
         fit: "inside",
         withoutEnlargement: true,
       })
-      .jpeg({ quality, progressive: true })
+      .jpeg({ quality: Math.max(quality, 85), progressive: true })
       .toBuffer();
 
     console.log(
-      `[imageService] 🖼️ Optimize รูปสำหรับ AI: (${width}x${height}, ${(imageBuffer.length / 1024).toFixed(1)}KB) -> (${(resizedBuffer.length / 1024).toFixed(1)}KB JPEG)`
+      `[imageService] 🖼️ Optimize รูปสำหรับ AI: (${width}x${height}, ${(imageBuffer.length / 1024).toFixed(1)}KB) -> (${targetWidth}x${targetHeight} max, ${(resizedBuffer.length / 1024).toFixed(1)}KB JPEG)`
     );
     return resizedBuffer;
   } catch (err) {

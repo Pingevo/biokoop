@@ -57,7 +57,32 @@ const DEFAULT_CONFIG = {
     { id: "activities", name: "ZONE 6 - วันนี้เหมาะกับ", visible: true },
     { id: "tips", name: "ZONE 7 - TIPS BOX", visible: true }
   ],
-  disclaimer: "หมายเหตุ: ข้อมูลจากอุปกรณ์สวมใส่ใช้สำหรับการติดตามสุขภาพทั่วไป ไม่สามารถใช้แทนคำแนะนำจากผู้เชี่ยวชาญได้"
+  disclaimer: "หมายเหตุ: ข้อมูลจากอุปกรณ์สวมใส่ใช้สำหรับการติดตามสุขภาพทั่วไป ไม่สามารถใช้แทนคำแนะนำจากผู้เชี่ยวชาญได้",
+  weeklyConfig: {
+    brandTitle: "BIOKOOP",
+    headerSubtitle: "AI HEALTH INTELLIGENCE",
+    headerSubtext: "วิเคราะห์ภาพรวมการฟื้นตัว ภาระร่างกาย และคุณภาพการนอนหลับ",
+    footerQuote: "“เข้าใจร่างกายวันนี้ เพื่อพรุ่งนี้ที่ดีกว่า”",
+    footerSub: "AI HEALTH INTELLIGENCE",
+    colors: {
+      ink: "#0B0F19",
+      sub: "#1E293B",
+      border: "#CBD5E1",
+      cardBg: "#FFFFFF",
+      blue: "#0284C7",
+      green: "#15803D",
+      purple: "#7C3AED"
+    },
+    visibility: {
+      showHeroImage: true,
+      showBodyLoadTrend: true,
+      showAiInsights: true,
+      showRecoveryTrend: true,
+      showActivityGuide: true,
+      showHypnogram: true,
+      showSleepTips: true
+    }
+  }
 };
 
 let cachedConfig = null;
@@ -68,11 +93,18 @@ export function getCardConfig() {
   try {
     if (fs.existsSync(CONFIG_PATH)) {
       const data = fs.readFileSync(CONFIG_PATH, "utf8");
+      const parsed = JSON.parse(data);
       cachedConfig = {
         ...DEFAULT_CONFIG,
-        ...JSON.parse(data),
-        colors: { ...DEFAULT_CONFIG.colors, ...(JSON.parse(data).colors || {}) },
-        textLabels: { ...DEFAULT_CONFIG.textLabels, ...(JSON.parse(data).textLabels || {}) }
+        ...parsed,
+        colors: { ...DEFAULT_CONFIG.colors, ...(parsed.colors || {}) },
+        textLabels: { ...DEFAULT_CONFIG.textLabels, ...(parsed.textLabels || {}) },
+        weeklyConfig: {
+          ...DEFAULT_CONFIG.weeklyConfig,
+          ...(parsed.weeklyConfig || {}),
+          colors: { ...DEFAULT_CONFIG.weeklyConfig.colors, ...(parsed.weeklyConfig?.colors || {}) },
+          visibility: { ...DEFAULT_CONFIG.weeklyConfig.visibility, ...(parsed.weeklyConfig?.visibility || {}) }
+        }
       };
       return cachedConfig;
     }
@@ -90,7 +122,13 @@ export function saveCardConfig(newConfig) {
       ...DEFAULT_CONFIG,
       ...newConfig,
       colors: { ...DEFAULT_CONFIG.colors, ...(newConfig.colors || {}) },
-      textLabels: { ...DEFAULT_CONFIG.textLabels, ...(newConfig.textLabels || {}) }
+      textLabels: { ...DEFAULT_CONFIG.textLabels, ...(newConfig.textLabels || {}) },
+      weeklyConfig: {
+        ...DEFAULT_CONFIG.weeklyConfig,
+        ...(newConfig.weeklyConfig || {}),
+        colors: { ...DEFAULT_CONFIG.weeklyConfig.colors, ...(newConfig.weeklyConfig?.colors || {}) },
+        visibility: { ...DEFAULT_CONFIG.weeklyConfig.visibility, ...(newConfig.weeklyConfig?.visibility || {}) }
+      }
     };
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(updated, null, 2), "utf8");
     cachedConfig = updated;

@@ -24,8 +24,12 @@ const requestSchema = new mongoose.Schema(
       default: "received",
       index: true,
     },
-    originalImageId: { type: mongoose.Schema.Types.ObjectId }, // GridFS file id
-    resultImageId: { type: mongoose.Schema.Types.ObjectId }, // GridFS file id
+    originalImageId: { type: mongoose.Schema.Types.ObjectId }, // GridFS file id (legacy: การ์ดรายวัน)
+    resultImageId: { type: mongoose.Schema.Types.ObjectId }, // GridFS file id (legacy: การ์ดรายวัน)
+    reportType: { type: String, default: "weekly" }, // "weekly" = รายงานเทรนด์รายสัปดาห์
+    originalImageIds: [{ type: mongoose.Schema.Types.ObjectId }], // รูปต้นฉบับ 3 รูป (Body Load / Recovery / Sleep Quality)
+    resultImageIds: [{ type: mongoose.Schema.Types.ObjectId }], // รูปรายงานผลลัพธ์ 3 หน้า
+    combinedResultImageId: { type: mongoose.Schema.Types.ObjectId }, // รูปรายงานผลลัพธ์แบบรวม 1 รูปเดียว (3-in-1 Panoramic)
     replyToken: { type: String },
     aiResult: { type: mongoose.Schema.Types.Mixed }, // ผล validate แล้ว (สำหรับ compose)
     errorMessage: { type: String },

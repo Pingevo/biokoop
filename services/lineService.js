@@ -576,6 +576,371 @@ export async function sendResultCardWithShare(lineUserId, imageUrl, replyToken =
   }
 }
 
+// สร้าง Flex Message Carousel สำหรับเลื่อนปัดดูรายงานสุขภาพ 3 หน้าในแนวนอน (พร้อมการ์ดภาพรวม 3-in-1 แผ่นเดียว)
+export function buildWeeklyReportCarouselFlex(imageUrls = [], aiData = null, combinedImageUrl = null) {
+  const pageMeta = [
+    {
+      title: "หน้าที่ 1 • ภาพรวมสุขภาพ",
+      subTitle: "Overview & Health Trend",
+      badgeColor: "#3B82F6",
+      summary: aiData?.overview?.summary || "ภาพรวมภาระร่างกาย การฟื้นตัว และการนอนหลับสัปดาห์นี้",
+    },
+    {
+      title: "หน้าที่ 2 • กิจกรรม & การฟื้นตัว",
+      subTitle: "Activity & Recovery",
+      badgeColor: "#16A34A",
+      summary: aiData?.activity?.aiInsight || "การออกกำลังกาย โซนหัวใจ และสมดุลการฟื้นฟูของร่างกาย",
+    },
+    {
+      title: "หน้าที่ 3 • คุณภาพการนอนหลับ",
+      subTitle: "Sleep Analytics",
+      badgeColor: "#8B5CF6",
+      summary: aiData?.sleep?.aiInsight || "ประสิทธิภาพการนอนหลับ และสัดส่วนระยะหลับลึก-ตื่น",
+    },
+  ];
+
+  const bubbles = [];
+
+  // การ์ดที่ 1: ภาพรวม 3-in-1 แผ่นเดียว (ถ้ามี)
+  if (combinedImageUrl) {
+    const shareCombinedText = encodeURIComponent(
+      `ดูรายงานสุขภาพ biokoop ภาพรวม 3-in-1 แผ่นเดียว 🔴⚪⚫\n${combinedImageUrl}`
+    );
+    const shareCombinedUrl = `https://line.me/R/msg/text/?${shareCombinedText}`;
+
+    bubbles.push({
+      type: "bubble",
+      size: "giga",
+      hero: {
+        type: "image",
+        url: combinedImageUrl,
+        size: "full",
+        aspectRatio: "3076:1798",
+        aspectMode: "fit",
+        backgroundColor: "#FFFFFF",
+        action: {
+          type: "uri",
+          label: "ดูรูปเต็ม",
+          uri: combinedImageUrl,
+        },
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "16px",
+        paddingTop: "12px",
+        contents: [
+          {
+            type: "box",
+            layout: "horizontal",
+            contents: [
+              {
+                type: "text",
+                text: "🖼️ ภาพรวม 3-in-1 แผ่นเดียว",
+                weight: "bold",
+                size: "sm",
+                color: "#0F172A",
+                flex: 1,
+              },
+              {
+                type: "text",
+                text: "Panoramic",
+                weight: "bold",
+                size: "xs",
+                color: "#16A34A",
+                align: "end",
+              },
+            ],
+          },
+          {
+            type: "text",
+            text: "ครบทั้งภาพรวม กิจกรรม และการนอนในรูปเดียว",
+            size: "xxs",
+            color: "#64748B",
+            weight: "bold",
+            margin: "xs",
+          },
+          {
+            type: "text",
+            text: "เหมาะสำหรับบันทึกลงอัลบั้มมือถือ หรือแชร์ต่อให้เพื่อนในแผ่นเดียวค่ะ",
+            size: "xs",
+            color: "#475569",
+            wrap: true,
+            maxLines: 2,
+            margin: "sm",
+          },
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "horizontal",
+        spacing: "sm",
+        paddingAll: "14px",
+        paddingTop: "0px",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            color: "#0F172A",
+            height: "sm",
+            action: {
+              type: "uri",
+              label: "🔍 ดูภาพรวมแผ่นเดียว",
+              uri: combinedImageUrl,
+            },
+            flex: 2,
+          },
+          {
+            type: "button",
+            style: "secondary",
+            height: "sm",
+            action: {
+              type: "uri",
+              label: "📲 แชร์",
+              uri: shareCombinedUrl,
+            },
+            flex: 1,
+          },
+        ],
+      },
+    });
+  }
+
+  // การ์ดหน้าที่ 1, 2, 3
+  imageUrls.slice(0, 3).forEach((url, idx) => {
+    const meta = pageMeta[idx] || {
+      title: `หน้าที่ ${idx + 1}`,
+      subTitle: "Health Report",
+      badgeColor: "#3B82F6",
+      summary: "",
+    };
+
+    const shareText = encodeURIComponent(
+      `ดูรายงานสุขภาพ biokoop (${meta.title}) 🔴⚪⚫\n${url}`
+    );
+    const shareUrl = `https://line.me/R/msg/text/?${shareText}`;
+
+    bubbles.push({
+      type: "bubble",
+      size: "giga",
+      hero: {
+        type: "image",
+        url: url,
+        size: "full",
+        aspectRatio: "1024:1450",
+        aspectMode: "fit",
+        backgroundColor: "#FFFFFF",
+        action: {
+          type: "uri",
+          label: "ดูรูปเต็ม",
+          uri: url,
+        },
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "16px",
+        paddingTop: "12px",
+        contents: [
+          {
+            type: "box",
+            layout: "horizontal",
+            contents: [
+              {
+                type: "text",
+                text: meta.title,
+                weight: "bold",
+                size: "sm",
+                color: "#0F172A",
+                flex: 1,
+              },
+              {
+                type: "text",
+                text: `${idx + 1}/3`,
+                weight: "bold",
+                size: "xs",
+                color: "#94A3B8",
+                align: "end",
+              },
+            ],
+          },
+          {
+            type: "text",
+            text: meta.subTitle,
+            size: "xxs",
+            color: meta.badgeColor,
+            weight: "bold",
+            margin: "xs",
+          },
+          ...(meta.summary
+            ? [
+                {
+                  type: "text",
+                  text: meta.summary,
+                  size: "xs",
+                  color: "#475569",
+                  wrap: true,
+                  maxLines: 2,
+                  margin: "sm",
+                },
+              ]
+            : []),
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "horizontal",
+        spacing: "sm",
+        paddingAll: "14px",
+        paddingTop: "0px",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            color: meta.badgeColor,
+            height: "sm",
+            action: {
+              type: "uri",
+              label: "🔍 ดูรูปเต็ม",
+              uri: url,
+            },
+            flex: 2,
+          },
+          {
+            type: "button",
+            style: "secondary",
+            height: "sm",
+            action: {
+              type: "uri",
+              label: "📲 แชร์",
+              uri: shareUrl,
+            },
+            flex: 1,
+          },
+        ],
+      },
+    });
+  });
+
+  return {
+    type: "flex",
+    altText: "📊 รายงานเทรนด์สุขภาพรายสัปดาห์ (เลื่อนปัดซ้าย-ขวาเพื่อดูรายงาน)",
+    contents: {
+      type: "carousel",
+      contents: bubbles,
+    },
+  };
+}
+
+// ส่งรายงานสุขภาพรายสัปดาห์ (รองรับทั้ง Flex Carousel, ภาพรวม 3-in-1 และรูปเดี่ยว 3 หน้า) พร้อมข้อความสรุปและ Quick Reply
+export async function sendWeeklyReportImages(lineUserId, imageUrls, aiData = null, combinedImageUrl = null) {
+  const displayMode = (process.env.WEEKLY_REPORT_DISPLAY_MODE || "both").toLowerCase();
+  const shareTarget = combinedImageUrl || imageUrls[0] || "";
+  const shareText = encodeURIComponent(
+    `ดูรายงานสุขภาพรายสัปดาห์ biokoop ของฉัน 🔴⚪⚫\n${shareTarget}`
+  );
+  const shareUrl = `https://line.me/R/msg/text/?${shareText}`;
+
+  const ov = aiData?.overview || {};
+  const metricLine = [
+    ov.bodyLoad != null ? `Body Load ${ov.bodyLoad}` : null,
+    ov.recoveryPercent != null ? `Recovery ${Math.round(ov.recoveryPercent)}%` : null,
+    ov.sleepQualityPercent != null ? `Sleep ${Math.round(ov.sleepQualityPercent)}%` : null,
+  ].filter(Boolean).join(" • ");
+
+  const summaryMsg = {
+    type: "text",
+    text:
+      `📊 รายงานเทรนด์สุขภาพรายสัปดาห์ของคุณพร้อมแล้วค่ะ\n` +
+      (metricLine ? `${metricLine}\n\n` : "\n") +
+      `${ov.summary ? ov.summary : "เลื่อนดูสไลด์รายงาน หรือบันทึกภาพแผ่นเดียวด้านบนได้เลยค่ะ"}\n\n` +
+      `🖼️ แผ่นที่ 1 ภาพรวม 3-in-1 • หรือดูแยก 3 หน้าด้านล่างได้นะคะ`,
+    quickReply: {
+      items: [
+        {
+          type: "action",
+          action: { type: "uri", label: "📲 แชร์ให้เพื่อน", uri: shareUrl },
+        },
+        {
+          type: "action",
+          action: { type: "cameraRoll", label: "📸 วิเคราะห์สัปดาห์ใหม่" },
+        },
+        {
+          type: "action",
+          action: { type: "message", label: "📊 ผลลัพธ์ล่าสุด", text: "ผลลัพธ์ล่าสุด" },
+        },
+      ],
+    },
+  };
+
+  const carouselFlex = buildWeeklyReportCarouselFlex(imageUrls, aiData, combinedImageUrl);
+  const combinedImageMsg = combinedImageUrl
+    ? {
+        type: "image",
+        originalContentUrl: combinedImageUrl,
+        previewImageUrl: combinedImageUrl,
+      }
+    : null;
+
+  const imageMessages = imageUrls.slice(0, 3).map((u) => ({
+    type: "image",
+    originalContentUrl: u,
+    previewImageUrl: u,
+  }));
+
+  let allMessages = [];
+  if (displayMode === "carousel") {
+    allMessages = [carouselFlex, summaryMsg];
+  } else if (displayMode === "images") {
+    allMessages = [...(combinedImageMsg ? [combinedImageMsg] : []), ...imageMessages, summaryMsg];
+  } else if (displayMode === "combined_only") {
+    allMessages = [...(combinedImageMsg ? [combinedImageMsg] : []), summaryMsg];
+  } else {
+    // "both" (ค่าเริ่มต้น): ส่งทั้งสไลด์ Carousel, ภาพรวมแผ่นเดียว (3-in-1), ภาพแยก 3 หน้า และข้อความสรุป
+    allMessages = [
+      carouselFlex,
+      ...(combinedImageMsg ? [combinedImageMsg] : []),
+      ...imageMessages,
+      summaryMsg,
+    ];
+  }
+
+  // LINE Push Message อนุญาตไม่เกิน 5 ข้อความต่อ 1 API call
+  // หากมีเกิน 5 ข้อความ ให้แบ่งส่งเป็นชุดละไม่เกิน 4 ข้อความ
+  const chunks = [];
+  for (let i = 0; i < allMessages.length; i += 4) {
+    chunks.push(allMessages.slice(i, i + 4));
+  }
+
+  try {
+    for (const chunk of chunks) {
+      await withRetry(() =>
+        client.pushMessage({
+          to: lineUserId,
+          messages: chunk,
+        })
+      );
+    }
+    for (const u of imageUrls) {
+      logLineMessage({ lineUserId, sendType: "push", messageType: "image", content: u, status: "success" });
+    }
+    if (combinedImageUrl) {
+      logLineMessage({ lineUserId, sendType: "push", messageType: "image", content: combinedImageUrl, status: "success" });
+    }
+    return { ok: true };
+  } catch (err) {
+    logLineMessage({
+      lineUserId,
+      sendType: "push",
+      messageType: "image",
+      content: imageUrls.join(" "),
+      status: "failed",
+      errorDetail: err.message,
+    });
+    throw err;
+  }
+}
+
 export async function pushText(lineUserId, text) {
   try {
     const res = await client.pushMessage({

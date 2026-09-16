@@ -77,5 +77,30 @@
       "visible": true
     }
   ],
-  "disclaimer": "หมายเหตุ: ข้อมูลจากอุปกรณ์สวมใส่ใช้สำหรับการติดตามสุขภาพทั่วไป ไม่สามารถใช้แทนคำแนะนำจากผู้เชี่ยวชาญได้"
+  "disclaimer": "หมายเหตุ: ข้อมูลจากอุปกรณ์สวมใส่ใช้สำหรับการติดตามสุขภาพทั่วไป ไม่สามารถใช้แทนคำแนะนำจากผู้เชี่ยวชาญได้",
+  "weeklyConfig": {
+    "brandTitle": "BIOKOOP",
+    "headerSubtitle": "AI HEALTH INTELLIGENCE",
+    "headerSubtext": "วิเคราะห์ภาพรวมการฟื้นตัว ภาระร่างกาย และคุณภาพการนอนหลับ",
+    "footerQuote": "“เข้าใจร่างกายวันนี้ เพื่อพรุ่งนี้ที่ดีกว่า”",
+    "footerSub": "AI HEALTH INTELLIGENCE",
+    "colors": {
+      "ink": "#0B0F19",
+      "sub": "#1E293B",
+      "border": "#CBD5E1",
+      "cardBg": "#FFFFFF",
+      "blue": "#0284C7",
+      "green": "#15803D",
+      "purple": "#7C3AED"
+    },
+    "visibility": {
+      "showHeroImage": true,
+      "showBodyLoadTrend": true,
+      "showAiInsights": true,
+      "showRecoveryTrend": true,
+      "showActivityGuide": true,
+      "showHypnogram": true,
+      "showSleepTips": true
+    }
+  }
 }

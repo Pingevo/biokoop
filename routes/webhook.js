@@ -8,9 +8,10 @@ import {
   replyTextWithQuickReply,
   replyImage,
   sendResultCardWithShare,
+  sendWeeklyReportImages,
   getProfile,
 } from "../services/lineService.js";
-import { processImageMessage } from "../services/pipeline.js";
+import { queueWeeklyImage } from "../services/pipeline.js";
 import { getBotMessagesConfig } from "../services/botMessagesConfigService.js";
 import { User } from "../models/User.js";
 import { Request, REQUEST_STATUS } from "../models/Request.js";
@@ -307,14 +308,33 @@ async function handleEvent(event) {
           const lastRequest = await Request.findOne({
             lineUserId,
             status: REQUEST_STATUS.SENT,
-            resultImageId: { $exists: true },
+            $or: [
+              { resultImageIds: { $exists: true, $not: { $size: 0 } } },
+              { resultImageId: { $exists: true } },
+            ],
           }).sort({ completedAt: -1, createdAt: -1 });
 
-          if (lastRequest?.resultImageId) {
-            const imageUrl = `${process.env.PUBLIC_BASE_URL}/results/${lastRequest.resultImageId}.png`;
-            await sendResultCardWithShare(lineUserId, imageUrl, replyToken).catch((err) =>
-              console.error("[webhook] sendResultCardWithShare(latest) error:", err)
-            );
+          const ids =
+            Array.isArray(lastRequest?.resultImageIds) && lastRequest.resultImageIds.length
+              ? lastRequest.resultImageIds
+              : lastRequest?.resultImageId
+                ? [lastRequest.resultImageId]
+                : [];
+
+          if (ids.length) {
+            const imageUrls = ids.map((id) => `${process.env.PUBLIC_BASE_URL}/results/${id}.png`);
+            const combinedUrl = lastRequest.combinedResultImageId
+              ? `${process.env.PUBLIC_BASE_URL}/results/${lastRequest.combinedResultImageId}.png`
+              : null;
+            if (imageUrls.length > 1) {
+              await sendWeeklyReportImages(lineUserId, imageUrls, lastRequest.aiResult, combinedUrl).catch((err) =>
+                console.error("[webhook] sendWeeklyReportImages(latest) error:", err)
+              );
+            } else {
+              await sendResultCardWithShare(lineUserId, imageUrls[0], replyToken).catch((err) =>
+                console.error("[webhook] sendResultCardWithShare(latest) error:", err)
+              );
+            }
           } else {
             await replyText(replyToken, autoReplies.noResult, lineUserId).catch((err) =>
               console.error("[webhook] replyText(no-result) error:", err)
@@ -354,7 +374,7 @@ async function handleEvent(event) {
 
     if (isImageFile) {
       const messageId = event.message.id;
-      await processImageMessage({ lineUserId, messageId, replyToken });
+      await queueWeeklyImage({ lineUserId, messageId, replyToken });
     } else if (msgType === "text" && replyToken) {
       await replyText(replyToken, autoReplies.textFallback, lineUserId).catch((err) =>
         console.error("[webhook] replyText(fallback) error:", err)

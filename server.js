@@ -12,6 +12,7 @@ import adminRoute from "./routes/admin.js";
 import adminAuthRoute from "./routes/adminAuth.js";
 import registerRoute from "./routes/register.js";
 import healthRoute from "./routes/health.js";
+import { requireAdmin } from "./middlewares/adminAuth.js";
 
 const app = express();
 
@@ -24,8 +25,13 @@ app.set("trust proxy", 1);
 // ต้องการ raw body สำหรับ verify signature เอง (จัดการอยู่ใน lineMiddleware แล้ว)
 app.use("/webhook", webhookRoute);
 
-app.use(express.json());
-app.use(express.static("public"));
+app.use(express.json({ limit: "30mb" }));
+app.use(express.urlencoded({ extended: true, limit: "30mb" }));
+// เสิร์ฟ public assets ทั่วไป แต่กัน /admin ออกจาก static เพื่อไม่ให้เปิดหน้าแอดมินโดยไม่ผ่าน session
+app.use((req, res, next) => {
+  if (req.path === "/admin" || req.path.startsWith("/admin/")) return next();
+  return express.static("public")(req, res, next);
+});
 
 // Session สำหรับหลังบ้าน admin (login ผ่าน system81 SSO ของ ITSR)
 // ใช้ cookie ชื่อ biokoop_admin_sid แยกจาก session อื่น ๆ ถ้ามี
@@ -76,6 +82,11 @@ app.use("/results", resultsRoute);
 
 // /admin/auth — system81 SSO flow (redirect/callback/logout) ต้องอยู่ก่อน /admin เพื่อให้เข้าถึงได้ตอนยังไม่ login
 app.use("/admin/auth", adminAuthRoute);
+
+// Admin UI เป็น admin-only เช่นเดียวกับ API — direct URL และ /admin/index.html ต้องมี session
+app.get(["/admin", "/admin/", "/admin/index.html"], requireAdmin, (req, res) => {
+  res.sendFile("public/admin/index.html", { root: process.cwd() });
+});
 app.use("/admin", adminRoute);
 
 app.get("/", (req, res) => {

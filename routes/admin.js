@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { Router } from "express";
 import { Request, REQUEST_STATUS } from "../models/Request.js";
 import { User } from "../models/User.js";
@@ -5,16 +7,19 @@ import { AdminUser } from "../models/AdminUser.js";
 import { RequestLog, logStep } from "../models/RequestLog.js";
 import { LineMessageLog } from "../models/LineMessageLog.js";
 import { openDownloadStream, getFileMetadata } from "../services/storageService.js";
-import { pushImage, pushText } from "../services/lineService.js";
+import { pushImage, pushText, sendWeeklyReportImages } from "../services/lineService.js";
 import { getCardConfig, saveCardConfig } from "../services/cardConfigService.js";
 import { getKieslectConfig, saveKieslectConfig } from "../services/kieslectConfigService.js";
 import { getBotMessagesConfig, saveBotMessagesConfig, resetBotMessagesConfig } from "../services/botMessagesConfigService.js";
 import { getPricingConfig, savePricingConfig, estimateCost, getPricingPresets } from "../services/apiPricingConfigService.js";
-import { getGradeConfig, saveGradeConfig } from "../services/gradeConfigService.js";
+import { getGradeConfig, saveGradeConfig, getGradeForScore } from "../services/gradeConfigService.js";
 import { getRegistrationConfig, saveRegistrationConfig } from "../services/registrationConfigService.js";
 import { lookupInDbWallet } from "../services/dbWalletService.js";
 import { RegistrationCode } from "../models/RegistrationCode.js";
 import { renderBiokoopCard } from "../services/cardTemplate.js";
+import { analyzeImageWithCrossCheck, validateAiResult, analyzeWeeklyImages } from "../services/aiService.js";
+import { initImageService, composeWeeklyReport, composeWeeklyCombinedReport } from "../services/imageService.js";
+import { renderWeeklyReportSvgs } from "../services/weeklyReportTemplate.js";
 import { requireAdmin, requireSuperadmin } from "../middlewares/adminAuth.js";
 import { AdminAuditLog, logAdminAction } from "../models/AdminAuditLog.js";
 
@@ -235,8 +240,8 @@ router.get("/api/requests", requireAdmin, async (req, res) => {
     const items = requests.map((r) => ({
       ...r,
       user: userMap.get(r.lineUserId) || { lineUserId: r.lineUserId, displayName: "ผู้ใช้ LINE" },
-      hasOriginalImage: !!r.originalImageId,
-      hasResultImage: !!r.resultImageId,
+      hasOriginalImage: !!(r.originalImageId || r.originalImageIds?.length),
+      hasResultImage: !!(r.resultImageId || r.resultImageIds?.length),
     }));
 
     res.json({
@@ -270,6 +275,13 @@ router.get("/api/requests/:id", requireAdmin, async (req, res) => {
       request.resultImageId ? getFileMetadata("results", request.resultImageId) : null,
     ]);
 
+    const originalIds = Array.isArray(request.originalImageIds) && request.originalImageIds.length
+      ? request.originalImageIds
+      : request.originalImageId ? [request.originalImageId] : [];
+    const resultIds = Array.isArray(request.resultImageIds) && request.resultImageIds.length
+      ? request.resultImageIds
+      : request.resultImageId ? [request.resultImageId] : [];
+
     res.json({
       ok: true,
       request: {
@@ -278,6 +290,8 @@ router.get("/api/requests/:id", requireAdmin, async (req, res) => {
         logs,
         originalImageUrl: request.originalImageId ? `/admin/api/requests/${request._id}/original` : null,
         resultImageUrl: request.resultImageId ? `/results/${request.resultImageId}.png` : null,
+        originalImageUrls: originalIds.map((_, idx) => `/admin/api/requests/${request._id}/originals/${idx}`),
+        resultImageUrls: resultIds.map((id) => `/results/${id}.png`),
         originalFileSize: originalMeta ? originalMeta.length : null,
         resultFileSize: resultMeta ? resultMeta.length : null,
       },
@@ -304,20 +318,49 @@ router.get("/api/requests/:id/original", requireAdmin, async (req, res) => {
   }
 });
 
+// GET /admin/api/requests/:id/originals/:idx - ดูรูปต้นฉบับรายใบของรายงานรายสัปดาห์ (0-2)
+router.get("/api/requests/:id/originals/:idx", requireAdmin, async (req, res) => {
+  try {
+    const request = await Request.findById(req.params.id);
+    const idx = parseInt(req.params.idx) || 0;
+    const id = request?.originalImageIds?.[idx];
+    if (!id) return res.status(404).send("Image not found");
+    const stream = openDownloadStream("original_images", id);
+    res.set("Content-Type", "image/jpeg");
+    res.set("Cache-Control", "private, max-age=3600");
+    stream.on("error", () => res.status(404).send("Stream error"));
+    stream.pipe(res);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
 // POST /admin/api/requests/:id/approve-send - อนุมัติส่งรูปผลลัพธ์ LINE Push
 router.post("/api/requests/:id/approve-send", requireAdmin, async (req, res) => {
   try {
     const request = await Request.findById(req.params.id);
     if (!request) return res.status(404).json({ ok: false, error: "ไม่พบคำขอนี้" });
 
-    if (!request.resultImageId) {
+    const resultIds = Array.isArray(request.resultImageIds) && request.resultImageIds.length
+      ? request.resultImageIds
+      : request.resultImageId ? [request.resultImageId] : [];
+
+    if (!resultIds.length) {
       return res.status(400).json({ ok: false, error: "คำขอนี้ยังไม่มีรูปการ์ดผลลัพธ์ที่สร้างเสร็จ" });
     }
 
-    const imageUrl = `${process.env.PUBLIC_BASE_URL}/results/${request.resultImageId}.png`;
+    const imageUrls = resultIds.map((id) => `${process.env.PUBLIC_BASE_URL}/results/${id}.png`);
 
-    // ส่ง LINE Push Image Message
-    await pushImage(request.lineUserId, imageUrl);
+    // ส่ง LINE Push (รายสัปดาห์: ภาพ 3 หน้า + สรุป, เดิม: ภาพเดียว)
+    if (imageUrls.length > 1) {
+      const combinedUrl = request.combinedResultImageId
+        ? `${process.env.PUBLIC_BASE_URL}/results/${request.combinedResultImageId}.png`
+        : null;
+      await sendWeeklyReportImages(request.lineUserId, imageUrls, request.aiResult, combinedUrl);
+    } else {
+      await pushImage(request.lineUserId, imageUrls[0]);
+    }
+    const imageUrl = imageUrls.join(" ");
 
     // บันทึก Log และเปลี่ยนสถานะเป็น SENT
     request.status = REQUEST_STATUS.SENT;
@@ -668,12 +711,106 @@ router.post("/api/kieslect-config", requireSuperadmin, (req, res) => {
   res.json({ ok: true, config: result.config });
 });
 
-// POST /admin/api/card-preview - เรนเดอร์ SVG preview ตามแบบที่กำลังปรับแต่ง
-router.post("/api/card-preview", requireAdmin, (req, res) => {
+// POST /admin/api/card-preview - เรนเดอร์ SVG preview ตามแบบที่กำลังปรับแต่ง (รองรับทั้ง weekly 3 การ์ด และ daily การ์ดรายวัน)
+router.post("/api/card-preview", requireAdmin, async (req, res) => {
   try {
-    const draftConfig = req.body?.config || null;
-    const includeKieslect = req.body?.includeKieslect !== false;
-    const draftKieslectConfig = req.body?.draftKieslectConfig || null;
+    const { mode = "weekly", page = 1, weeklyConfig, config: draftConfig, includeKieslect, draftKieslectConfig } = req.body;
+
+    if (mode === "weekly") {
+      const sampleWeeklyData = {
+        detected: true,
+        appName: "Kieslect App",
+        foundPages: ["body_load", "recovery", "sleep_quality"],
+        reportDate: "11 ต.ค. 2569",
+        days: ["Sat 05", "Sun 06", "Mon 07", "Tue 08", "Wed 09", "Thu 10", "Fri 11"],
+        confidence: 0.94,
+        overview: {
+          bodyLoad: 6.9,
+          bodyLoadLabel: "สมดุล เหมาะกับการเพิ่มกิจกรรม",
+          recoveryPercent: 71,
+          sleepQualityPercent: 98,
+          summary:
+            "เมื่อดูจากแนวโน้มการนอนในช่วงนี้ ร่างกายของคุณอยู่ในภาวะพร้อมและสมดุลกว่าเดิมค่ะ คุณสามารถเพิ่มกิจกรรมระดับกลางได้อย่างปลอดภัย และควรรักษาเวลานอนให้คงที่อยู่เสมอนะคะ",
+          highlights: [
+            "การออกกำลังสม่ำเสมอ Zone 1-3",
+            "รักษาเวลานอนให้คงที่",
+            "ดูแลอารมณ์ให้ผ่อนคลาย ลดความเครียดก่อนนอน",
+          ],
+          firstSteps: [
+            "เดินสบาย ๆ 20 นาที ให้อยู่ใน Zone 1-3",
+            "เข้านอนเวลาเดิมทุกวัน เพิ่ม Sleep Consistency",
+            "ดื่มน้ำให้เพียงพอและยืดเส้นก่อนนอนสักเล็กน้อย",
+          ],
+        },
+        activity: {
+          bodyLoadToday: 6.9,
+          bodyLoadStatus: "อยู่ช่วงสมดุล เหมาะกับการเพิ่มกิจกรรมระดับกลาง",
+          bodyLoadSeries: [7.3, 13.1, 6.1, 7.5, 7.1, 6.0, 6.9],
+          hrZone13Today: "0:40",
+          hrZone13Compare: "0:25",
+          hrZone45Today: "0:00",
+          hrZone45Compare: "0:00",
+          strengthToday: "0:00",
+          strengthCompare: "0:00",
+          stepsToday: "4,315",
+          stepsCompare: "3,471",
+          caloriesToday: "247",
+          recoveryPercent: 71,
+          recoveryStatus: "ฟื้นตัวดี อยู่ในเกณฑ์สีเขียวต่อเนื่อง",
+          hrvToday: "51 ms",
+          hrvCompare: "48",
+          rhrToday: "56 bpm",
+          rhrCompare: "58",
+          sleepPerformanceToday: "98%",
+          sleepPerformanceCompare: "78%",
+          hrvSeries: [48, 47, 48, 52, 56, 50, 51],
+          rhrSeries: [56, 60, 58, 62, 57, 58, 59, 56],
+          recoverySeries: [67, 59, 56, 73, 75, 68, 71],
+          aiInsight:
+            "กิจกรรมในช่วงสัปดาห์นี้ออกแรงปานกลาง ทำให้หัวใจทำงานได้ดีและเร่งการฟื้นตัว เมื่อปรับการพักผ่อนเพียงพอ Recovery ก็ดีขึ้นอย่างต่อเนื่องค่ะ",
+          tips: "รักษาระดับกิจกรรมไม่ให้หนักนานเกิน และพักนานขึ้นในวันที่ Body Load สูง เพื่อให้ร่างกายฟื้นตัวดียิ่งขึ้นนะคะ",
+        },
+        sleep: {
+          qualityPercent: 98,
+          qualityStatus: "หลับลึกเพียงพอ ฟื้นฟูสมบูรณ์",
+          totalDuration: "7 ชม. 38 นาที",
+          durationCompare: "7 ชม. 15 นาที",
+          restorativeDuration: "4 ชม. 05 นาที",
+          restorativeCompare: "3 ชม. 45 นาที",
+          sleepConsistency: "91%",
+          deepSleep: "1h 55m",
+          lightSleep: "4h 15m",
+          remSleep: "1h 28m",
+          awake: "12m",
+          scoreSeries: [82, 85, 88, 92, 94, 95, 98],
+          aiInsight:
+            "สัดส่วนการนอนหลับลึกและ REM อยู่ในเกณฑ์ยอดเยี่ยม การฟื้นฟูเซลล์สมองและกล้ามเนื้อทำงานได้อย่างเต็มที่ ร่างกายสดชื่นพร้อมสำหรับวันใหม่ค่ะ",
+          tips: "งดหน้าจอก่อนเข้านอน 30 นาที และรักษาอุณหภูมิห้องให้อยู่ในระดับ 23-25 องศาเซลเซียส เพื่อคงคุณภาพการนอนหลับลึกระดับนี้นะคะ",
+        },
+      };
+
+      const cfg = weeklyConfig || getCardConfig()?.weeklyConfig;
+      const { svgs } = renderWeeklyReportSvgs(sampleWeeklyData, cfg);
+
+      if (page === "comb") {
+        await initImageService();
+        const { pngBuffers } = composeWeeklyReport(sampleWeeklyData, cfg);
+        let combinedPngBase64 = null;
+        try {
+          const combBuf = await composeWeeklyCombinedReport(pngBuffers);
+          if (combBuf) combinedPngBase64 = `data:image/png;base64,${combBuf.toString("base64")}`;
+        } catch (ce) {
+          console.error("[card-preview] composeWeeklyCombinedReport error:", ce.message);
+        }
+        return res.json({ ok: true, mode: "weekly", page: "comb", combinedPngBase64, svgs });
+      }
+
+      const pNum = typeof page === "number" ? page : (parseInt(page, 10) || 1);
+      const pageIndex = Math.max(0, Math.min(2, pNum - 1));
+      const selectedSvg = svgs[pageIndex] || svgs[0];
+      return res.json({ ok: true, mode: "weekly", page: pageIndex + 1, svg: selectedSvg, svgs });
+    }
+
     const svg = renderBiokoopCard(
       {
         score: 63,
@@ -701,11 +838,221 @@ router.post("/api/card-preview", requireAdmin, (req, res) => {
       },
       draftConfig
     );
-    res.json({ ok: true, svg });
+    res.json({ ok: true, mode: "daily", svg });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+
+// GET /admin/api/test-samples - ดึงรายการรูปตัวอย่างในเครื่องสำหรับทดสอบ
+router.get("/api/test-samples", requireAdmin, (req, res) => {
+  try {
+    const candidateFiles = [
+      { id: "test_biokoop_real.png", name: "Biokoop App (7h 15m / Score 72)", path: "./test_biokoop_real.png" },
+      { id: "dynamic_audit_low_score.png", name: "Low Score Sample (Score 55)", path: "./dynamic_audit_low_score.png" },
+      { id: "scratch_card_fixed.png", name: "Kieslect Recovery Sample", path: "./scratch_card_fixed.png" },
+      { id: "test_nature_card.png", name: "Nature Card Sample", path: "./test_nature_card.png" },
+    ];
+    const available = candidateFiles
+      .filter(f => fs.existsSync(f.path))
+      .map(f => {
+        const buf = fs.readFileSync(f.path);
+        return {
+          id: f.id,
+          name: f.name,
+          sizeKb: (buf.length / 1024).toFixed(1),
+          dataUri: `data:image/png;base64,${buf.toString("base64")}`,
+        };
+      });
+
+    // เพิ่มชุดตัวอย่างรายสัปดาห์ 3 ภาพ (Weekly Report Pack)
+    if (fs.existsSync("./samples/weekly")) {
+      const weeklyFiles = ["kieslect_body_load.jpg", "kieslect_recovery.jpg", "kieslect_sleep_quality.jpg"];
+      const packFiles = [];
+      for (const wf of weeklyFiles) {
+        const fp = `./samples/weekly/${wf}`;
+        if (fs.existsSync(fp)) {
+          const buf = fs.readFileSync(fp);
+          packFiles.push({
+            name: wf,
+            sizeKb: (buf.length / 1024).toFixed(1),
+            dataUri: `data:image/jpeg;base64,${buf.toString("base64")}`,
+          });
+        }
+      }
+      if (packFiles.length > 0) {
+        available.unshift({
+          id: "weekly_kieslect_3pack",
+          name: "⭐ ชุดตัวอย่าง Kieslect รายสัปดาห์ (3 ภาพ)",
+          isWeeklyPack: true,
+          packFiles,
+          sizeKb: packFiles.reduce((acc, f) => acc + parseFloat(f.sizeKb), 0).toFixed(1),
+        });
+      }
+    }
+
+    res.json({ ok: true, samples: available });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// POST /admin/api/test-ai-analyze - ทดสอบส่งรูปภาพให้ AI วิเคราะห์ (รองรับทั้ง 1 รูปภาพ และหลายรูปภาพ/รายงานรายสัปดาห์)
+router.post("/api/test-ai-analyze", requireAdmin, async (req, res) => {
+  try {
+    const { imageBase64, images = [], imagesBase64 = [], mimeType = "image/jpeg", nickname = "ทดสอบ", gender = "หญิง" } = req.body;
+    
+    // รวมรายการรูปภาพให้เป็นรูปแบบเดียวกัน
+    let imageList = [];
+    if (Array.isArray(images) && images.length > 0) {
+      imageList = images;
+    } else if (Array.isArray(imagesBase64) && imagesBase64.length > 0) {
+      imageList = imagesBase64.map(b => ({ base64: b, mimeType }));
+    } else if (imageBase64) {
+      imageList = [{ base64: imageBase64, mimeType }];
+    }
+
+    if (imageList.length === 0) {
+      return res.status(400).json({ ok: false, error: "กรุณาแนบรูปภาพอย่างน้อย 1 รูปค่ะ" });
+    }
+
+    const mockProfile = {
+      nickname: nickname || "ทดสอบ",
+      gender: gender || "หญิง",
+      lineUserId: "admin_test_user",
+    };
+
+    // ─── WEEKLY REPORT FLOW (รายงานสุขภาพ 3 หน้า และ 3-in-1 ในแผ่นเดียว) ───
+    // รองรับทั้ง 1 รูปภาพ และหลายรูปภาพ (2-3 รูป) จะสร้างรายงาน 3 หน้า และ 3-in-1 เสมอ
+    if (req.body.forceMode !== "daily") {
+      const imageBuffers = imageList.map(img => {
+        const clean = (img.base64 || "").replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, "");
+        return Buffer.from(clean, "base64");
+      });
+
+      const startTime = Date.now();
+      const aiResult = await analyzeWeeklyImages(imageBuffers, mimeType, mockProfile);
+      const durationMs = Date.now() - startTime;
+
+      if (!aiResult.ok) {
+        return res.json({
+          ok: false,
+          reportType: "weekly",
+          error: aiResult.error || "AI วิเคราะห์รายงานสัปดาห์ไม่สำเร็จ",
+          durationMs,
+        });
+      }
+
+      await initImageService();
+      const weeklyData = aiResult.data;
+      const { svgs } = renderWeeklyReportSvgs(weeklyData);
+      const { pngBuffers } = composeWeeklyReport(weeklyData);
+
+      let combinedPngBase64 = null;
+      try {
+        const combBuf = await composeWeeklyCombinedReport(pngBuffers);
+        if (combBuf) combinedPngBase64 = `data:image/png;base64,${combBuf.toString("base64")}`;
+      } catch (ce) {
+        console.error("[test-ai] composeWeeklyCombinedReport error:", ce.message);
+      }
+
+      const pages = [
+        { pageNo: 1, title: "หน้า 1: ภาพรวมสุขภาพ (Overview)", svg: svgs[0], pngBase64: `data:image/png;base64,${pngBuffers[0].toString("base64")}` },
+        { pageNo: 2, title: "หน้า 2: กิจกรรมและการฟื้นตัว (Activity & Recovery)", svg: svgs[1], pngBase64: `data:image/png;base64,${pngBuffers[1].toString("base64")}` },
+        { pageNo: 3, title: "หน้า 3: คุณภาพการนอนและการพักฟื้น (Sleep Analysis)", svg: svgs[2], pngBase64: `data:image/png;base64,${pngBuffers[2].toString("base64")}` },
+      ];
+
+      return res.json({
+        ok: true,
+        reportType: "weekly",
+        durationMs,
+        detected: weeklyData.detected,
+        confidence: weeklyData.confidence,
+        foundPages: weeklyData.foundPages || [],
+        notes: weeklyData.notes,
+        data: weeklyData,
+        pages,
+        combinedPngBase64,
+        rawResult: aiResult,
+      });
+    }
+
+    // ─── DAILY CARD FLOW: เฉพาะกรณีระบุ forceMode === 'daily' เท่านั้น (Legacy Single Card) ───
+    const singleBase64 = imageList[0].base64;
+    const cleanBase64 = singleBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, "");
+    const imageBuffer = Buffer.from(cleanBase64, "base64");
+
+    const startTime = Date.now();
+    const aiResult = await analyzeImageWithCrossCheck(imageBuffer, mimeType, mockProfile);
+    const durationMs = Date.now() - startTime;
+
+    if (!aiResult.ok) {
+      return res.json({
+        ok: false,
+        reportType: "daily",
+        error: aiResult.error || "AI วิเคราะห์ไม่สำเร็จ",
+        durationMs,
+      });
+    }
+
+    const aiData = aiResult.data;
+    const r = aiData.result || {};
+    const score = typeof r.score === "number" && r.score > 0 ? r.score : 75;
+    const gradeInfo = getGradeForScore(score);
+    const grade = gradeInfo.grade || r.grade || "B";
+
+    const cardData = {
+      appName: r.appName || "Smart Watch",
+      headline: r.headline || gradeInfo.headline || "",
+      tips: r.tips || gradeInfo.tips || "",
+      score: score,
+      grade: grade,
+      stars: Math.round((score / 100) * 5),
+      sleepTime: r.sleepTime || "ไม่มีข้อมูล",
+      sleepTimeRange: r.sleepTimeRange || "",
+      sleepEfficiency: r.sleepEfficiency || "ไม่มีข้อมูล",
+      soundSleep: r.soundSleepTime || r.soundSleep || "ไม่มีข้อมูล",
+      avgHeartRate: r.avgHeartRate || "ไม่มีข้อมูล",
+      hrv: r.hrv || "ไม่มีข้อมูล",
+      spo2: r.spo2 || "ไม่มีข้อมูล",
+      aiSummary: r.aiSummary || gradeInfo.summary || "",
+      deepSleep: { value: r.deepSleepTime || "-", percent: r.deepSleepPercent ?? 0 },
+      lightSleep: { value: r.lightSleepTime || "-", percent: r.lightSleepPercent ?? 0 },
+      remSleep: { value: r.remSleepTime || "-", percent: r.remSleepPercent ?? 0 },
+      restlessness: { value: "-" },
+      awake: { value: r.awakeTime || "-", percent: r.awakePercent ?? 0 },
+      recoveryPercent: r.recoveryPercent ?? null,
+      bodyLoad: r.bodyLoad ?? null,
+    };
+
+    let cardSvg = null;
+    try {
+      cardSvg = renderBiokoopCard(cardData);
+    } catch (e) {
+      console.error("[test-ai] Card render error:", e);
+    }
+
+    const validation = validateAiResult(aiData, 0.7);
+
+    res.json({
+      ok: true,
+      reportType: "daily",
+      durationMs,
+      detected: aiData.detected,
+      confidence: aiData.confidence,
+      notes: aiData.notes,
+      rawResult: aiData,
+      parsedData: r,
+      cardData,
+      cardSvg,
+      validation,
+    });
+  } catch (err) {
+    console.error("[test-ai] Error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 
 // GET /admin/api/bot-messages-config - ดึงข้อความ/สีที่บอท LINE ใช้ตอบผู้ใช้
 router.get("/api/bot-messages-config", requireAdmin, (req, res) => {
@@ -796,6 +1143,101 @@ router.get("/api/usage-stats/daily-quota", requireAdmin, async (req, res) => {
       },
     });
   } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// GET /admin/api/line-quota - นับถอยหลังและสรุปจำนวนข้อความ LINE คงเหลือ วันนี้ / สัปดาห์นี้ / เดือนนี้
+router.get("/api/line-quota", requireAdmin, async (req, res) => {
+  try {
+    const axios = (await import("axios")).default;
+    const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+
+    let quotaType = "limited";
+    let monthlyQuota = 300;
+    let monthlyUsage = 0;
+    let lineApiOk = false;
+
+    if (token) {
+      try {
+        const [qRes, cRes] = await Promise.all([
+          axios.get("https://api.line.me/v2/bot/message/quota", {
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 5000,
+          }),
+          axios.get("https://api.line.me/v2/bot/message/quota/consumption", {
+            headers: { Authorization: `Bearer ${token}` },
+            timeout: 5000,
+          }),
+        ]);
+        quotaType = qRes.data?.type || "limited";
+        monthlyQuota = qRes.data?.value != null ? qRes.data.value : 300;
+        monthlyUsage = cRes.data?.totalUsage != null ? cRes.data.totalUsage : 0;
+        lineApiOk = true;
+      } catch (lineErr) {
+        console.warn("[line-quota] LINE API check error:", lineErr.message);
+      }
+    }
+
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayOfWeek = (now.getDay() + 6) % 7; // Mon = 0
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const daysInMonth = lastDayOfMonth.getDate();
+    const daysRemaining = Math.max(1, daysInMonth - now.getDate() + 1);
+    const weeksRemaining = Math.max(1, Math.ceil(daysRemaining / 7));
+
+    const [todayPush, weekPush, monthPush, todayReplies, monthReplies] = await Promise.all([
+      LineMessageLog.countDocuments({ sendType: "push", status: "success", createdAt: { $gte: startOfDay } }),
+      LineMessageLog.countDocuments({ sendType: "push", status: "success", createdAt: { $gte: startOfWeek } }),
+      LineMessageLog.countDocuments({ sendType: "push", status: "success", createdAt: { $gte: startOfMonth } }),
+      LineMessageLog.countDocuments({ sendType: "reply", status: "success", createdAt: { $gte: startOfDay } }),
+      LineMessageLog.countDocuments({ sendType: "reply", status: "success", createdAt: { $gte: startOfMonth } }),
+    ]);
+
+    const effectiveMonthlyUsage = lineApiOk ? monthlyUsage : monthPush;
+    const remainingMonthly = Math.max(0, monthlyQuota - effectiveMonthlyUsage);
+    const percentMonthUsed = monthlyQuota > 0 ? Math.min(100, Number(((effectiveMonthlyUsage / monthlyQuota) * 100).toFixed(1))) : 0;
+
+    // คำนวณงบเป้าหมายรายวันและรายสัปดาห์จากโควต้าคงเหลือที่แบ่งตามเวลา
+    const dailyTarget = Math.max(1, Math.round(remainingMonthly / daysRemaining));
+    const remainingDaily = Math.max(0, dailyTarget - todayPush);
+
+    const weeklyTarget = Math.max(1, Math.round(remainingMonthly / weeksRemaining));
+    const remainingWeekly = Math.max(0, weeklyTarget - weekPush);
+
+    res.json({
+      ok: true,
+      data: {
+        lineApiOk,
+        quotaType,
+        daysInMonth,
+        daysRemaining,
+        weeksRemaining,
+        daily: {
+          target: dailyTarget,
+          used: todayPush,
+          remaining: remainingDaily,
+          replies: todayReplies,
+        },
+        weekly: {
+          target: weeklyTarget,
+          used: weekPush,
+          remaining: remainingWeekly,
+        },
+        monthly: {
+          total: monthlyQuota,
+          used: effectiveMonthlyUsage,
+          remaining: remainingMonthly,
+          percentUsed: percentMonthUsed,
+          replies: monthReplies,
+        },
+      },
+    });
+  } catch (err) {
+    console.error("[line-quota] error:", err);
     res.status(500).json({ ok: false, error: err.message });
   }
 });
@@ -950,10 +1392,17 @@ router.get("/api/users/:lineUserId/usage-requests", requireAdmin, async (req, re
         totalTokens,
         cost,
         costFormatted,
-        hasOriginalImage: !!r.originalImageId,
-        hasResultImage: !!r.resultImageId,
-        originalImageUrl: r.originalImageId ? `/admin/api/requests/${r._id}/original-image` : null,
-        resultImageUrl: r.resultImageId ? `/admin/api/requests/${r._id}/result-image` : null,
+        hasOriginalImage: !!(r.originalImageId || r.originalImageIds?.length),
+        hasResultImage: !!(r.resultImageId || r.resultImageIds?.length),
+        originalImageUrl: (r.originalImageIds?.length || r.originalImageId)
+          ? `/admin/api/requests/${r._id}/originals/0`
+          : null,
+        resultImageUrl: (r.resultImageIds?.length || r.resultImageId)
+          ? `/results/${(r.resultImageIds?.[0] || r.resultImageId)}.png`
+          : null,
+        resultImageUrls: (r.resultImageIds?.length ? r.resultImageIds : r.resultImageId ? [r.resultImageId] : [])
+          .map((id) => `/results/${id}.png`),
+        reportType: r.reportType || "weekly",
       };
     });
 

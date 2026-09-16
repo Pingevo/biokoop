@@ -8,6 +8,8 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "worker": "node jobs/processor.js",
+    "test:menu": "node scripts/test_menu.js",
+    "test:image": "node test_image.js",
     "setup:richmenu": "node scripts/setupRichMenu.js"
   },
   "dependencies": {
