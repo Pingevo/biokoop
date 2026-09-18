@@ -37,9 +37,8 @@ const imageBatches = new Map(); // lineUserId -> { items: [{ messageId, buffer, 
 
 function expiryMessage() {
   return (
-    `ระบบยังได้รับภาพไม่ครบ 3 หน้าภายในเวลาที่กำหนดค่ะ 🌿\n\n` +
-    `หากต้องการรายงานสุขภาพรายสัปดาห์ ส่งภาพ Screenshot จากแอป Kieslect ให้ครบ 3 หน้านี้อีกครั้งได้เลยนะคะ\n` +
-    PAGE_DEFS.map((p, i) => `${i + 1}) ${p.emoji} ${p.label}`).join("\n")
+    `ยังได้รับภาพไม่ครบ 3 หน้าภายในเวลาค่ะ 🌿\n` +
+    `หากต้องการวิเคราะห์ ส่งภาพ Screenshot ใหม่อีกครั้งได้เลยนะคะ 📲`
   );
 }
 
@@ -48,41 +47,38 @@ function checklistMessage(batch) {
   const have = new Set(batch.items.map((it) => it.page).filter(Boolean));
   const lines = PAGE_DEFS.map((p) => {
     const got = have.has(p.id);
-    return `${got ? "✅" : "⬜"} ${p.emoji} ${p.label}${got ? " (มีแล้ว)" : ""}`;
+    return `${got ? "✅" : "⬜"} ${p.emoji} ${p.label}`;
   });
   return lines.join("\n");
 }
 
-// สร้างข้อความแจ้งสถานะหลังรับภาพใหม่
+// สร้างข้อความแจ้งสถานะหลังรับภาพใหม่ ให้สั้น กระชับ เข้าใจง่ายทันที
 function ackMessage(batch) {
   const have = new Set(batch.items.map((it) => it.page).filter(Boolean));
   const missing = PAGE_DEFS.filter((p) => !have.has(p.id));
   const gotCount = have.size;
 
-  let header;
   if (gotCount === 0) {
-    header = `ยังไม่สามารถจำแนกภาพนี้ได้ชัดเจนค่ะ 🤔 ลองส่งภาพใหม่อีกครั้งนะคะ`;
-  } else if (missing.length === 0) {
-    header = `ครบทั้ง 3 หน้าแล้วค่ะ 🤍 กำลังเริ่มวิเคราะห์เทรนด์สุขภาพรายสัปดาห์...`;
-  } else {
-    header = `ได้รับภาพ ${gotCount} จาก 3 หน้าแล้วค่ะ ✨ ยังขาดอีก ${missing.length} หน้า: ${missing.map((m) => m.label).join(", ")}`;
+    return "ยังไม่สามารถจำแนกภาพนี้ได้ค่ะ 🤔 ลองส่งภาพใหม่อีกครั้งนะคะ";
   }
 
+  const promptNext =
+    missing.length === 1
+      ? "ส่งหน้าสุดท้ายต่อได้เลยนะคะ 📲"
+      : `ส่งต่ออีก ${missing.length} หน้าได้เลยนะคะ 📲`;
+
   return (
-    `${header}\n\n` +
-    `สถานะการรับภาพ:\n${checklistMessage(batch)}\n\n` +
-    (missing.length > 0
-      ? `ส่งภาพ Screenshot จากแอป Kieslect ให้ครบทั้ง 3 หน้า (ลำดับไหนก็ได้ค่ะ) เมื่อครบ AI จะวิเคราะห์ให้ทันทีค่ะ`
-      : `กรุณารอสักครู่นะคะ ⏳`)
+    `ได้รับภาพแล้วค่ะ (${gotCount}/3) ✨\n\n` +
+    `${checklistMessage(batch)}\n\n` +
+    promptNext
   );
 }
 
 // ข้อความแจ้งภาพซ้ำประเภท
 function duplicateMessage(pageLabel) {
   return (
-    `ภาพนี้เป็นหน้า "${pageLabel}" ซ้ำกับที่มีแล้วค่ะ 😊\n\n` +
-    `ระบบจะใช้ภาพแรกที่ส่งมาของแต่ละหน้าไปวิเคราะห์ ไม่ต้องส่งซ้ำนะคะ\n` +
-    `ถ้าภาพแรกไม่ชัด ส่งภาพใหม่ที่ชัดกว่ามาแทนได้เลยค่ะ`
+    `ภาพหน้า "${pageLabel}" มีแล้วค่ะ 😊\n` +
+    `สามารถส่งหน้าที่เหลือต่อได้เลยนะคะ 📲`
   );
 }
 
@@ -193,7 +189,7 @@ export async function queueWeeklyImage({ lineUserId, messageId, replyToken }) {
   if (replyToken) {
     await replyText(
       replyToken,
-      `ครบทั้ง 3 หน้าแล้วค่ะ 🤍 AI กำลังวิเคราะห์เทรนด์สุขภาพรายสัปดาห์ของคุณ กรุณารอสักครู่นะคะ... ⏳`,
+      `ได้รับครบทั้ง 3 หน้าแล้วค่ะ ✨\nAI กำลังวิเคราะห์เทรนด์สุขภาพให้นะคะ กรุณารอสักครู่ค่ะ ⏳`,
       lineUserId
     ).catch(() => {});
   }
@@ -240,7 +236,7 @@ async function processWeeklyReport({ lineUserId, batch, replyToken }) {
   try {
     replyText(
       replyToken,
-      "ได้รับรูปครบ 3 รูปแล้วค่ะ 🤍 AI กำลังวิเคราะห์เทรนด์สุขภาพรายสัปดาห์ของคุณ กรุณารอสักครู่นะคะ... ⏳",
+      "ได้รับครบทั้ง 3 หน้าแล้วค่ะ ✨\nAI กำลังวิเคราะห์เทรนด์สุขภาพให้นะคะ กรุณารอสักครู่ค่ะ ⏳",
       lineUserId
     ).catch(() => {});
     showLoadingAnimation(lineUserId, 45).catch(() => {});

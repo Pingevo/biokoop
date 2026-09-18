@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 const CONFIG_PATH = path.join(__dirname, "../config/registrationConfig.json");
 
 const DEFAULT_CONFIG = {
-  mode: "none", // "none" | "imei" | "order_sn" | "order_id" | "any" | "both_imei_and_order"
+  mode: "none", // "none" | "imei" | "order_sn" | "order_id" | "any" | "both_imei_and_order" | "no_registration"
   isRequired: true,
   preventDuplicate: true,
   whitelistOnly: false,

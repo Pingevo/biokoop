@@ -1,0 +1,25 @@
+[
+  {
+    "id": "audit_1789621348360",
+    "createdAt": "2026-09-17T05:02:28.360Z",
+    "auditId": "test-1789621348360",
+    "scenarioOrUser": "mock:balanced",
+    "modelUsed": "mock-fallback",
+    "doctorScore": 5,
+    "doctorComments": "การวิเคราะห์ภาพรวมมีความแม่นยำดีมาก",
+    "groundTruthCorrections": {
+      "loadStatus": "Balanced",
+      "sleepStatus": "Optimal"
+    },
+    "approvedForClient": true,
+    "auditedBy": "Dr. Admin Test"
+  },
+  {
+    "id": "audit_1789621089739",
+    "createdAt": "2026-09-17T04:58:09.739Z",
+    "scenarioOrUser": "Test Overreaching Case",
+    "rating": 5,
+    "comment": "AI ตรวจจับ HRV ดิ่งในสัปดาห์ที่ 4 ได้อย่างถูกต้อง",
+    "aiScore": 68
+  }
+]

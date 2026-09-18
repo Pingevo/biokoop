@@ -1,6 +1,24 @@
 import { getGradeConfig } from "./gradeConfigService.js";
 import { logAiUsage } from "./aiUsageLogger.js";
 
+// fetch ธรรมดาไม่มี timeout ในตัว — ถ้า OpenRouter/Gemini ค้าง (network stall, upstream ไม่ตอบ)
+// await จะค้างตลอดไปโดยไม่ throw ทำให้ try/catch ที่ครอบไว้ไม่ทำงาน และผู้ใช้ไม่ได้รับการตอบกลับใดๆ เลย
+// ฟังก์ชันนี้ใส่ AbortController เพื่อให้ fetch ค้างนานเกินไปแล้ว throw ออกมาแทน
+async function fetchWithTimeout(url, options = {}, timeoutMs = 45000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error(`Request timeout หลังจากรอ ${timeoutMs / 1000} วินาที (${url})`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const SYSTEM_PROMPT = `คุณเป็นระบบวิเคราะห์รูปภาพหน้าจอ Smartwatch/แอปสุขภาพสำหรับการนอนหลับระดับผู้เชี่ยวชาญ (Biokoop Senior Health & Sleep AI Specialist)
 วิเคราะห์รูปภาพผลการนอนอย่างละเอียดแม่นยำ พร้อมวิเคราะห์ผลกระทบต่อร่างกาย โครงสร้างการนอน (Deep/REM/Light sleep) และให้คำแนะนำเชิงลึกที่สอดคล้องกับหลักวิทยาศาสตร์การนอนหลับและการฟื้นฟูร่างกาย
 
@@ -121,9 +139,9 @@ const WEEKLY_SYSTEM_PROMPT = `คุณเป็นระบบวิเคร�
     "bodyLoadLabel": "string ป้ายสถานะใต้วงแหวน Body Load เช่น 'สมดุลดี' (ถ้าในภาพมี)",
     "recoveryPercent": 71,
     "sleepQualityPercent": 98,
-    "summary": "string สรุปภาพรวมสุขภาพสัปดาห์นี้ 2-3 ประโยค ภาษาไทย กระชับ อบอุ่น เป็นกันเอง",
+    "summary": "string สรุปภาพรวมสุขภาพตลอดสัปดาห์ 2-3 ประโยค ภาษาไทย สละสลวย กระชับ อบอุ่น เป็นกันเอง สรุปแนวโน้มสัปดาห์นี้ของทั้ง 3 ด้าน (ภาระร่างกาย, การฟื้นตัว, และคุณภาพการนอน) ให้มองเป็นภาพรวมรายสัปดาห์ ห้ามใช้คำว่า 'วันนี้' หรือ 'ในวันถัดไป' เนื่องจากเป็นรายงานภาพรวมรายสัปดาห์ (ให้ใช้ 'สัปดาห์นี้' หรือ 'ตลอดสัปดาห์ที่ผ่านมา')",
     "highlights": ["string จุดเด่น/ข้อสังเกตสั้นๆ 2-3 ข้อ เช่น 'ออกกำลังกายสม่ำเสมอใน Zone 1-3'", 'นอนตรงเวลามากขึ้น'"],
-    "firstSteps": ["string คำแนะนำสั้นมาก 3 ข้อ สำหรับเริ่มต้นวันนี้ เช่น เดินสบาย 20 นาที โซน 1-3 / เข้านอนเวลาเดิมทุกวัน / ดื่มน้ำให้พอและยืดเส้นก่อนนอน"]
+    "firstSteps": ["string คำแนะนำสั้นมาก 3 ข้อ สำหรับแนวทางปฏิบัติสัปดาห์นี้ เช่น ออกกำลังกายเน้นโซน 1-3 สม่ำเสมอ / รักษาเวลานอนให้ตรงเวลา / ดื่มน้ำให้เพียงพอและยืดเหยียดกล้ามเนื้อ"]
   },
   "activity": {
     "bodyLoadToday": 6.9,
@@ -171,15 +189,26 @@ const WEEKLY_SYSTEM_PROMPT = `คุณเป็นระบบวิเคร�
     "aiInsight": "string วิเคราะห์เชิงลึกด้านการนอน 2-3 ประโยค อ้างอิงตัวเลขจริง เช่น ประสิทธิภาพการนอน 92% และฟื้นตัวได้ดี",
     "tips": "string คำแนะนำด้านการนอน 1-2 ประโยค เช่น เข้านอนเวลาเดิมทุกวัน"
   },
+  "lowConfidenceFields": [
+    {
+      "field": "string เช่น 'sleep.stageDeepPercent' หรือ 'activity.rhrToday'",
+      "page": "string เช่น 'Sleep Quality' หรือ 'Recovery'",
+      "label": "string ชื่อฟิลด์ เช่น 'Deep Sleep' หรือ 'Resting HR'",
+      "value": "string หรือ number ค่าที่อ่านได้",
+      "reason": "string สาเหตุ เช่น ตัวเลขเบลอ / ขอบภาพตัด / กราฟไม่มีตัวเลขกำกับ",
+      "confidence": 0.5
+    }
+  ],
   "confidence": number 0-1,
   "notes": "string หมายเหตุอย่างเป็นมิตรหากมีข้อแนะนำเพิ่มเติม"
 }
 
 ถ้าพบภาพไม่ครบ 3 ประเภท (เช่นขาดหน้า Sleep Quality) หรือภาพไม่ใช่หน้าจอแอปสุขภาพ ให้ตอบ "detected": false และระบุใน "foundPages" ว่าพบหน้าอะไรบ้าง และ "notes" บอกว่าขาดหน้าไหน อย่างเป็นมิตร เช่น 'ยังขาดภาพหน้า "Sleep Quality" ค่ะ ลองส่งเพิ่มอีกครั้งนะคะ'
+หากมีตัวเลขใดในภาพที่เบลอ ไม่ชัดเจน มีข้อความบัง หรือไม่มั่นใจในการอ่าน ให้ระบุรายการใน "lowConfidenceFields" เสมอ เพื่อช่วยระบบตรวจสอบความถูกต้องนะคะ
 
 คำแนะนำน้ำเสียง: ใช้น้ำเสียงผู้เชี่ยวชาญหญิงที่พูดจาสุภาพ อบอุ่น ใส่ใจ ในส่วน summary, aiInsight, tips, notes ให้ลงท้ายประโยคด้วย 'ค่ะ', 'นะคะ' เสมอ และหากทราบชื่อเล่นผู้ใช้ ให้เรียกว่า 'คุณ<ชื่อเล่น>'`;
 
-const WEEKLY_MAX_OUTPUT_TOKENS = 3200;
+const WEEKLY_MAX_OUTPUT_TOKENS = 8000;
 const WEEKLY_CONFIDENCE_THRESHOLD = Number(process.env.CONFIDENCE_THRESHOLD || 0.7);
 
 function buildWeeklyPromptText(userProfile = {}) {
@@ -218,7 +247,21 @@ export function parseWeeklyAiResponse(rawText) {
     return { ok: false, error: "AI_SCHEMA_MISMATCH", raw: parsed };
   }
 
-  return { ok: true, data: { ...parsed, detected, confidence } };
+  if (parsed?.overview && typeof parsed.overview.summary === "string") {
+    parsed.overview.summary = parsed.overview.summary
+      .replace(/คะแนนคุณภาพการนอนหลับวันนี้/g, "คุณภาพการนอนหลับสัปดาห์นี้")
+      .replace(/คุณภาพการนอนหลับวันนี้/g, "คุณภาพการนอนหลับสัปดาห์นี้")
+      .replace(/การนอนหลับวันนี้/g, "การนอนหลับสัปดาห์นี้")
+      .replace(/กิจกรรมวันนี้/g, "กิจกรรมในสัปดาห์นี้")
+      .replace(/วันนี้/g, "ในสัปดาห์นี้")
+      .replace(/เมื่อคืน/g, "ในรอบสัปดาห์นี้")
+      .replace(/ในวันถัดไป/g, "ในแต่ละวัน")
+      .replace(/วันถัดไป/g, "สัปดาห์ถัดไป");
+  }
+
+  const lowConfidenceFields = Array.isArray(parsed.lowConfidenceFields) ? parsed.lowConfidenceFields : [];
+
+  return { ok: true, data: { ...parsed, detected, confidence, lowConfidenceFields } };
 }
 
 // เช็คค่าขั้นต่ำของผลวิเคราะห์รายสัปดาห์ (ไม่ผูกกับ AI)
@@ -252,7 +295,7 @@ async function analyzeWeeklyImagesOpenRouter(imageBuffers, mimeType = "image/jpe
   const userDisplayName = userProfile.nickname ? `คุณ${userProfile.nickname}` : (userProfile.lineUserId || "LINE User");
   const referenceTag = userProfile.lineUserId ? `line_user:${userProfile.lineUserId}` : "biokoop_app";
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const response = await fetchWithTimeout("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -265,9 +308,10 @@ async function analyzeWeeklyImagesOpenRouter(imageBuffers, mimeType = "image/jpe
       messages: [{ role: "user", content }],
       temperature: 0.1,
       max_tokens: WEEKLY_MAX_OUTPUT_TOKENS,
+      reasoning: { effort: "low" },
       response_format: { type: "json_object" },
     }),
-  });
+  }, 75000);
 
   const durationMs = Date.now() - startTime;
 
@@ -333,7 +377,7 @@ async function analyzeWeeklyImagesGemini(imageBuffers, mimeType = "image/jpeg", 
   for (const modelName of CANDIDATE_MODELS) {
     const startTime = Date.now();
     try {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
         {
           method: "POST",
@@ -346,7 +390,8 @@ async function analyzeWeeklyImagesGemini(imageBuffers, mimeType = "image/jpeg", 
               responseMimeType: "application/json",
             },
           }),
-        }
+        },
+        75000
       );
 
       const durationMs = Date.now() - startTime;
@@ -455,7 +500,7 @@ async function classifyWeeklyImageOpenRouter(imageBuffer, mimeType = "image/jpeg
   const model = process.env.OPENROUTER_MODEL || "openai/gpt-4o-mini";
   const imageBase64 = imageBuffer.toString("base64");
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const response = await fetchWithTimeout("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -475,10 +520,11 @@ async function classifyWeeklyImageOpenRouter(imageBuffer, mimeType = "image/jpeg
         },
       ],
       temperature: 0,
-      max_tokens: 80,
+      max_tokens: 300,
+      reasoning: { effort: "low" },
       response_format: { type: "json_object" },
     }),
-  });
+  }, 20000);
 
   if (!response.ok) {
     const errText = await response.text();
@@ -521,7 +567,7 @@ async function classifyWeeklyImageGemini(imageBuffer, mimeType = "image/jpeg") {
 
   // ใช้โมเดล flash-lite ตัวแรกที่คุ้นเคยสำหรับงานเล็ก
   const modelName = CANDIDATE_MODELS[0];
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
     {
       method: "POST",
@@ -541,7 +587,8 @@ async function classifyWeeklyImageGemini(imageBuffer, mimeType = "image/jpeg") {
           responseMimeType: "application/json",
         },
       }),
-    }
+    },
+    20000
   );
 
   if (!response.ok) {
@@ -650,7 +697,7 @@ async function analyzeImageGemini(imageBuffer, mimeType = "image/jpeg", userProf
   for (const modelName of CANDIDATE_MODELS) {
     const startTime = Date.now();
     try {
-      const response = await fetch(
+      const response = await fetchWithTimeout(
         `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`,
         {
           method: "POST",
@@ -673,7 +720,8 @@ async function analyzeImageGemini(imageBuffer, mimeType = "image/jpeg", userProf
               responseMimeType: "application/json",
             },
           }),
-        }
+        },
+        45000
       );
 
       const durationMs = Date.now() - startTime;
@@ -771,7 +819,7 @@ export async function analyzeImageOpenRouter(imageBuffer, mimeType = "image/jpeg
   const userDisplayName = userProfile.nickname ? `คุณ${userProfile.nickname}` : (userProfile.lineUserId || "LINE User");
   const referenceTag = userProfile.lineUserId ? `line_user:${userProfile.lineUserId}` : "biokoop_app";
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const response = await fetchWithTimeout("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -791,9 +839,11 @@ export async function analyzeImageOpenRouter(imageBuffer, mimeType = "image/jpeg
         },
       ],
       temperature: 0.1,
+      max_tokens: 3000,
+      reasoning: { effort: "low" },
       response_format: { type: "json_object" },
     }),
-  });
+  }, 45000);
 
   const durationMs = Date.now() - startTime;
 
@@ -905,4 +955,7 @@ export function validateAiResult(aiData, confidenceThreshold = 0.7) {
 
   return { valid: problems.length === 0, problems };
 }
+
+// Re-export quality & discrepancy checks from aiQualityService
+export { checkWeeklyAnomalies, checkDailyAnomalies } from "./aiQualityService.js";
 

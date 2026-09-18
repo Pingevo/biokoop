@@ -108,6 +108,9 @@ router.post("/api/register", async (req, res) => {
     if (!birthdate || isNaN(new Date(birthdate).getTime())) {
       return res.status(400).json({ ok: false, error: "กรุณาระบุวันเกิดที่ถูกต้อง" });
     }
+    if (!["male", "female"].includes(gender)) {
+      return res.status(400).json({ ok: false, error: "กรุณาระบุเพศ (ชาย หรือ หญิง)" });
+    }
 
     // ตรวจสอบเบอร์โทรศัพท์ (อย่างน้อย 9-10 หลัก)
     const cleanPhone = (phone || "").replace(/[^0-9]/g, "");
@@ -265,7 +268,7 @@ router.post("/api/register", async (req, res) => {
       phone: cleanPhone,
       firstName: (firstName || "").trim(),
       lastName: (lastName || "").trim(),
-      gender: ["male", "female", "other", "unspecified"].includes(gender) ? gender : "unspecified",
+      gender,
       province: (province || "").trim(),
       pdpaConsent: true,
       pdpaConsentAt: new Date(),

@@ -2,19 +2,33 @@
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ลงทะเบียนผู้ใช้งาน - biokoop</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&display=swap" rel="stylesheet">
   <style>
+    .mi {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 1.15em;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      vertical-align: -0.2em;
+      color: inherit;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
     :root {
       --bg-dark: #ffffff;
-      --bg-card: #ffffff;
-      --bg-input: #f8f8f8;
-      --border-color: #e5e5e5;
+      --bg-card: rgba(255, 255, 255, 0.45);
+      --bg-input: rgba(248, 248, 248, 0.35);
+      --border-color: rgba(229, 229, 229, 0.45);
       --text-main: #18181b;
-      --text-muted: #71717a;
+      --text-muted: #52525b;
       --primary: #dc2626;
       --primary-hover: #b91c1c;
       --accent: #dc2626;
@@ -30,15 +44,10 @@
     }
 
     body {
-      background-color: var(--bg-dark);
-      background-image:
-        radial-gradient(circle at 15% 20%, rgba(220, 38, 38, 0.07), transparent 40%),
-        radial-gradient(circle at 85% 15%, rgba(220, 38, 38, 0.05), transparent 38%),
-        radial-gradient(circle at 50% 100%, rgba(24, 24, 27, 0.04), transparent 45%),
-        linear-gradient(rgba(24, 24, 27, 0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(24, 24, 27, 0.035) 1px, transparent 1px);
-      background-size: auto, auto, auto, 42px 42px, 42px 42px;
-      background-position: 0 0, 0 0, 0 0, center, center;
+      background-color: #000;
+      background-image: url('/assets/backgrounds/mountain-hero.jpg');
+      background-size: cover;
+      background-position: center;
       background-attachment: fixed;
       color: var(--text-main);
       min-height: 100vh;
@@ -48,6 +57,14 @@
       padding: 16px;
       position: relative;
       overflow-x: hidden;
+    }
+
+    .bg-video-overlay {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.35) 40%, rgba(0, 0, 0, 0.55));
+      z-index: -1;
+      pointer-events: none;
     }
 
     body::before,
@@ -88,12 +105,14 @@
 
     .card {
       background: var(--bg-card);
+      backdrop-filter: blur(22px) saturate(150%);
+      -webkit-backdrop-filter: blur(22px) saturate(150%);
       border: 1px solid var(--border-color);
       border-radius: var(--radius);
       width: 100%;
       max-width: 480px;
       padding: 28px 24px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.35);
       position: relative;
       z-index: 1;
       overflow: hidden;
@@ -180,11 +199,13 @@
       font-size: 22px;
       font-weight: 600;
       margin-bottom: 6px;
+      text-wrap: balance;
     }
 
     .subtitle {
       font-size: 14px;
       color: var(--text-muted);
+      text-wrap: balance;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -218,11 +239,12 @@
       font-weight: 600;
       color: var(--primary);
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.04em;
       margin: 20px 0 12px;
       display: flex;
       align-items: center;
       gap: 6px;
+      text-wrap: balance;
     }
 
     .form-group {
@@ -235,6 +257,7 @@
       font-weight: 500;
       margin-bottom: 6px;
       color: var(--text-main);
+      cursor: pointer;
     }
 
     .required {
@@ -259,13 +282,21 @@
       padding: 12px 14px;
       border-radius: 10px;
       font-size: 15px;
+      font-variant-numeric: tabular-nums;
       outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
     }
 
     input:focus, select:focus {
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+    }
+
+    input:focus-visible, select:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 1px;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2);
     }
 
     .gender-grid {
@@ -283,11 +314,21 @@
       cursor: pointer;
       font-size: 13px;
       color: var(--text-main);
-      transition: all 0.2s;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .gender-option:focus-visible,
+    .gender-option:focus-within {
+      outline: 2px solid var(--primary);
+      outline-offset: 1px;
     }
 
     .gender-option input {
-      display: none;
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      pointer-events: none;
     }
 
     .gender-option.active {
@@ -360,10 +401,15 @@
       font-weight: 600;
       cursor: pointer;
       margin-top: 24px;
-      transition: all 0.2s;
+      transition: opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
       box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
       position: relative;
       overflow: hidden;
+    }
+
+    .btn-submit:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
     }
 
     .btn-submit::before {
@@ -429,9 +475,10 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      background: rgba(255, 255, 255, 0.97);
+      background: linear-gradient(rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.8)), rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       color: var(--text-main);
-      backdrop-filter: blur(8px);
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -475,13 +522,15 @@
 
     .success-content {
       position: relative;
-      background: #ffffff;
+      background: var(--bg-card);
+      backdrop-filter: blur(22px) saturate(150%);
+      -webkit-backdrop-filter: blur(22px) saturate(150%);
       border: 1px solid var(--border-color);
       border-radius: var(--radius);
       width: 100%;
       max-width: 380px;
       padding: 40px 28px 32px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.35);
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -595,6 +644,8 @@
 </head>
 <body>
 
+  <div class="bg-video-overlay"></div>
+
   <div class="card">
     <div class="header">
       <div class="logo-badge">
@@ -610,59 +661,71 @@
     </div>
 
     <div id="alreadyRegisteredNotice" class="already-registered-notice" style="display: none;">
-      ℹ️ คุณลงทะเบียนไว้แล้ว ระบบได้ดึงข้อมูลเดิมของคุณมาแสดงไว้ให้ — การกดยืนยันด้านล่างคือการ <strong>แก้ไขข้อมูล</strong> ไม่ใช่การลงทะเบียนใหม่
+      <i class="mi">info</i> คุณลงทะเบียนไว้แล้ว ระบบได้ดึงข้อมูลเดิมของคุณมาแสดงไว้ให้ — การกดยืนยันด้านล่างคือการ <strong>แก้ไขข้อมูล</strong> ไม่ใช่การลงทะเบียนใหม่
     </div>
 
     <form id="regForm" onsubmit="submitForm(event)">
       <input type="hidden" id="lineUserId" name="lineUserId">
 
       <!-- Required Fields Section -->
-      <div class="section-title">📌 ข้อมูลที่จำเป็น (Required)</div>
+      <div class="section-title"><i class="mi">push_pin</i> ข้อมูลที่จำเป็น (Required)</div>
 
       <div class="form-group">
-        <label>ชื่อเล่น <span class="required">*</span></label>
-        <input type="text" id="nickname" required placeholder="เช่น น้องบี, ต้น">
+        <label for="nickname">ชื่อเล่น <span class="required">*</span></label>
+        <input type="text" id="nickname" name="nickname" required autocomplete="nickname" placeholder="เช่น น้องบี, ต้น">
       </div>
 
       <div class="form-group">
-        <label>วันเกิด <span class="required">*</span></label>
-        <input type="date" id="birthdate" required>
+        <label for="birthdate">วันเกิด <span class="required">*</span></label>
+        <input type="date" id="birthdate" name="birthdate" required autocomplete="bday">
       </div>
 
       <div class="form-group">
-        <label>เบอร์โทรศัพท์ <span class="required">*</span></label>
-        <input type="tel" id="phone" required placeholder="0812345678" maxlength="10">
+        <label for="phone">เบอร์โทรศัพท์ <span class="required">*</span></label>
+        <input type="tel" id="phone" name="phone" required autocomplete="tel" inputmode="tel" placeholder="0812345678" maxlength="10">
+      </div>
+
+      <div class="form-group">
+        <label id="genderGroupLabel">เพศ <span class="required">*</span></label>
+        <div class="gender-grid" role="radiogroup" aria-labelledby="genderGroupLabel">
+          <label class="gender-option active" onclick="selectGender('male', this)" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){selectGender('male', this); event.preventDefault();}">
+            <input type="radio" id="genderMale" name="gender" value="male" checked tabindex="-1"> ชาย
+          </label>
+          <label class="gender-option" onclick="selectGender('female', this)" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){selectGender('female', this); event.preventDefault();}">
+            <input type="radio" id="genderFemale" name="gender" value="female" tabindex="-1"> หญิง
+          </label>
+        </div>
       </div>
 
       <!-- Device / Order Verification Section (Dynamic based on Admin Config) -->
       <div id="identifierSection" style="display: none; background: rgba(220, 38, 38, 0.03); border: 1px solid rgba(220, 38, 38, 0.15); padding: 14px; border-radius: 12px; margin-bottom: 20px;">
-        <div class="section-title" id="identifierSectionTitle" style="color: var(--accent); margin-bottom: 12px;">🏷️ ข้อมูลยืนยันอุปกรณ์ / คำสั่งซื้อ</div>
+        <div class="section-title" id="identifierSectionTitle" style="color: var(--accent); margin-bottom: 12px;"><i class="mi">sell</i> ข้อมูลยืนยันอุปกรณ์ / คำสั่งซื้อ</div>
         
         <div id="identifierSingleContainer">
           <div id="identifierAnyContainer" class="form-group" style="display: none;">
-            <label>เลือกประเภทข้อมูลที่ใช้ยืนยัน <span class="required">*</span></label>
-            <select id="identifierTypeSelect" onchange="onIdentifierTypeChange()">
-              <option value="imei">📱 เลข IMEI อุปกรณ์</option>
-              <option value="order_sn">📦 เลข Order SN</option>
-              <option value="order_id">🧾 เลข Order ID / ใบเสร็จ</option>
+            <label for="identifierTypeSelect">เลือกประเภทข้อมูลที่ใช้ยืนยัน <span class="required">*</span></label>
+            <select id="identifierTypeSelect" name="identifierTypeSelect" onchange="onIdentifierTypeChange()">
+              <option value="imei">เลข IMEI อุปกรณ์</option>
+              <option value="order_sn">เลข Order SN</option>
+              <option value="order_id">เลข Order ID / ใบเสร็จ</option>
             </select>
           </div>
 
           <div class="form-group" style="margin-bottom: 0;">
-            <label id="identifierLabel">รหัสยืนยัน <span id="identifierRequiredBadge" class="required">*</span></label>
-            <input type="text" id="identifierValue" placeholder="ระบุรหัสสำหรับลงทะเบียน">
+            <label id="identifierLabel" for="identifierValue">รหัสยืนยัน <span id="identifierRequiredBadge" class="required">*</span></label>
+            <input type="text" id="identifierValue" name="identifierValue" autocomplete="off" spellcheck="false" placeholder="ระบุรหัสสำหรับลงทะเบียน">
           </div>
         </div>
 
         <!-- Both IMEI & Order Container -->
         <div id="identifierBothContainer" style="display: none; flex-direction: column; gap: 12px;">
           <div class="form-group" style="margin-bottom: 0;">
-            <label>📱 เลข IMEI อุปกรณ์ <span class="required">*</span></label>
-            <input type="text" id="bothImeiValue" placeholder="เช่น 358249091234567">
+            <label for="bothImeiValue"><i class="mi">smartphone</i> เลข IMEI อุปกรณ์ <span class="required">*</span></label>
+            <input type="text" id="bothImeiValue" name="bothImeiValue" autocomplete="off" spellcheck="false" inputmode="numeric" placeholder="เช่น 358249091234567">
           </div>
           <div class="form-group" style="margin-bottom: 0;">
-            <label>🧾 เลข Order ID / Order SN <span class="required">*</span></label>
-            <input type="text" id="bothOrderValue" placeholder="เช่น ORD-9928174 หรือ SN2026-8812">
+            <label for="bothOrderValue"><i class="mi">receipt_long</i> เลข Order ID / Order SN <span class="required">*</span></label>
+            <input type="text" id="bothOrderValue" name="bothOrderValue" autocomplete="off" spellcheck="false" placeholder="เช่น ORD-9928174 หรือ SN2026-8812">
           </div>
         </div>
 
@@ -670,46 +733,28 @@
       </div>
 
       <!-- Optional Fields Section -->
-      <div class="section-title">📝 ข้อมูลเพิ่มเติม <span class="optional-tag">(ไม่บังคับ)</span></div>
+      <div class="section-title"><i class="mi">edit_note</i> ข้อมูลเพิ่มเติม <span class="optional-tag">(ไม่บังคับ)</span></div>
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
         <div class="form-group">
-          <label>ชื่อจริง <span class="optional-tag">(ถ้ามี)</span></label>
-          <input type="text" id="firstName" placeholder="ชื่อจริง">
+          <label for="firstName">ชื่อจริง <span class="optional-tag">(ถ้ามี)</span></label>
+          <input type="text" id="firstName" name="firstName" autocomplete="given-name" placeholder="ชื่อจริง">
         </div>
         <div class="form-group">
-          <label>นามสกุล <span class="optional-tag">(ถ้ามี)</span></label>
-          <input type="text" id="lastName" placeholder="นามสกุล">
+          <label for="lastName">นามสกุล <span class="optional-tag">(ถ้ามี)</span></label>
+          <input type="text" id="lastName" name="lastName" autocomplete="family-name" placeholder="นามสกุล">
         </div>
       </div>
 
       <div class="form-group">
-        <label>เพศ <span class="optional-tag">(ถ้ามี)</span></label>
-        <div class="gender-grid">
-          <label class="gender-option active" onclick="selectGender('unspecified', this)">
-            <input type="radio" name="gender" value="unspecified" checked> ไม่ระบุ
-          </label>
-          <label class="gender-option" onclick="selectGender('male', this)">
-            <input type="radio" name="gender" value="male"> ชาย
-          </label>
-          <label class="gender-option" onclick="selectGender('female', this)">
-            <input type="radio" name="gender" value="female"> หญิง
-          </label>
-          <label class="gender-option" onclick="selectGender('other', this)">
-            <input type="radio" name="gender" value="other"> อื่นๆ
-          </label>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>จังหวัดที่อาศัยอยู่ <span class="optional-tag">(ถ้ามี)</span></label>
-        <select id="province">
+        <label for="province">จังหวัดที่อาศัยอยู่ <span class="optional-tag">(ถ้ามี)</span></label>
+        <select id="province" name="province">
           <option value="">-- เลือกจังหวัด --</option>
         </select>
       </div>
 
       <!-- PDPA Consent Section -->
-      <div class="section-title">🔒 ความยินยอมตาม PDPA</div>
+      <div class="section-title"><i class="mi">lock</i> ความยินยอมตาม PDPA</div>
 
       <div class="pdpa-box">
         <p style="margin-bottom: 8px;"><strong>biokoop</strong> เก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคลของท่านดังนี้:</p>
@@ -721,12 +766,12 @@
         <p style="margin-top: 8px;">เพื่อวัตถุประสงค์ในการให้บริการวิเคราะห์และสรุปผลข้อมูลสุขภาพการนอนผ่าน LINE เท่านั้น ระบบจะไม่เปิดเผยข้อมูลของท่านต่อบุคคลภายนอก ยกเว้นผู้ให้บริการที่จำเป็นต่อการประมวลผล (LINE, Google Gemini AI) ท่านสามารถขอลบ/แก้ไขข้อมูลได้โดยติดต่อทีมงานผ่านแชท LINE</p>
       </div>
 
-      <label class="pdpa-consent-label">
-        <input type="checkbox" id="pdpaConsent" required>
+      <label class="pdpa-consent-label" for="pdpaConsent">
+        <input type="checkbox" id="pdpaConsent" name="pdpaConsent" required>
         <span>ข้าพเจ้าได้อ่านและยินยอมให้ biokoop เก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคลของข้าพเจ้า รวมถึงข้อมูลสุขภาพซึ่งเป็นข้อมูลอ่อนไหว ตามที่ระบุไว้ข้างต้น <span class="required">*</span></span>
       </label>
 
-      <div id="errorMsg" class="error-msg"></div>
+      <div id="errorMsg" class="error-msg" role="alert" aria-live="polite"></div>
 
       <button type="submit" id="submitBtn" class="btn-submit" disabled>
         <span id="submitBtnText">ยืนยันลงทะเบียน</span>
@@ -768,7 +813,7 @@
       "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
     ];
 
-    let selectedGenderVal = 'unspecified';
+    let selectedGenderVal = 'male';
     let isEditMode = false;
     let currentRegConfig = { mode: 'none' };
 
@@ -827,13 +872,13 @@
         if (anyContainer) anyContainer.style.display = 'none';
         if (label && input) {
           if (mode === 'imei') {
-            label.innerHTML = `📱 เลข IMEI อุปกรณ์ ${currentRegConfig.isRequired ? '<span class="required">*</span>' : ''}`;
+            label.innerHTML = `<i class="mi">smartphone</i> เลข IMEI อุปกรณ์ ${currentRegConfig.isRequired ? '<span class="required">*</span>' : ''}`;
             input.placeholder = 'เช่น 358249091234567';
           } else if (mode === 'order_sn') {
-            label.innerHTML = `📦 เลข Order SN ${currentRegConfig.isRequired ? '<span class="required">*</span>' : ''}`;
+            label.innerHTML = `<i class="mi">inventory_2</i> เลข Order SN ${currentRegConfig.isRequired ? '<span class="required">*</span>' : ''}`;
             input.placeholder = 'เช่น SN2026-884920';
           } else if (mode === 'order_id') {
-            label.innerHTML = `🧾 เลข Order ID / ใบเสร็จ ${currentRegConfig.isRequired ? '<span class="required">*</span>' : ''}`;
+            label.innerHTML = `<i class="mi">receipt_long</i> เลข Order ID / ใบเสร็จ ${currentRegConfig.isRequired ? '<span class="required">*</span>' : ''}`;
             input.placeholder = 'เช่น ORD-9928174';
           }
         }
@@ -858,13 +903,13 @@
       const isReq = currentRegConfig.isRequired;
 
       if (type === 'imei') {
-        label.innerHTML = `📱 เลข IMEI อุปกรณ์ ${isReq ? '<span class="required">*</span>' : ''}`;
+        label.innerHTML = `<i class="mi">smartphone</i> เลข IMEI อุปกรณ์ ${isReq ? '<span class="required">*</span>' : ''}`;
         input.placeholder = 'เช่น 358249091234567';
       } else if (type === 'order_sn') {
-        label.innerHTML = `📦 เลข Order SN ${isReq ? '<span class="required">*</span>' : ''}`;
+        label.innerHTML = `<i class="mi">inventory_2</i> เลข Order SN ${isReq ? '<span class="required">*</span>' : ''}`;
         input.placeholder = 'เช่น SN2026-884920';
       } else if (type === 'order_id') {
-        label.innerHTML = `🧾 เลข Order ID / ใบเสร็จ ${isReq ? '<span class="required">*</span>' : ''}`;
+        label.innerHTML = `<i class="mi">receipt_long</i> เลข Order ID / ใบเสร็จ ${isReq ? '<span class="required">*</span>' : ''}`;
         input.placeholder = 'เช่น ORD-9928174';
       }
     }
@@ -958,11 +1003,16 @@
       el.classList.add('active');
     }
 
-    function showError(msg) {
+    function showError(msg, fieldId) {
       const err = document.getElementById('errorMsg');
       if (err) {
         err.textContent = msg;
         err.style.display = 'block';
+        err.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      if (fieldId) {
+        const el = document.getElementById(fieldId);
+        if (el && typeof el.focus === 'function') el.focus();
       }
     }
 
@@ -989,7 +1039,7 @@
         imeiValue = (document.getElementById('bothImeiValue')?.value || '').trim();
         orderValue = (document.getElementById('bothOrderValue')?.value || '').trim();
         if (currentRegConfig.isRequired && (!imeiValue || !orderValue)) {
-          return showError('กรุณาระบุทั้งเลข IMEI และ Order ให้ครบถ้วน');
+          return showError('กรุณาระบุทั้งเลข IMEI และ Order ให้ครบถ้วน', !imeiValue ? 'bothImeiValue' : 'bothOrderValue');
         }
       } else if (currentRegConfig.mode !== 'none') {
         if (identifierType === 'any') {
@@ -998,22 +1048,22 @@
         identifierValue = (document.getElementById('identifierValue')?.value || '').trim();
         if (currentRegConfig.isRequired && !identifierValue) {
           const typeLabels = { imei: 'เลข IMEI อุปกรณ์', order_sn: 'เลข Order SN', order_id: 'เลข Order ID' };
-          return showError(`กรุณาระบุ ${typeLabels[identifierType] || 'รหัสยืนยัน'}`);
+          return showError(`กรุณาระบุ ${typeLabels[identifierType] || 'รหัสยืนยัน'}`, 'identifierValue');
         }
       }
 
       if (!lineUserId) {
         return showError('ไม่พบรหัสผู้ใช้ LINE กรุณาเปิดลิงก์ผ่าน LINE OA');
       }
-      if (!nickname) return showError('กรุณาระบุชื่อเล่น');
-      if (!birthdate) return showError('กรุณาระบุวันเกิด');
-      if (!phone || phone.replace(/[^0-9]/g, '').length < 9) return showError('กรุณาระบุเบอร์โทรศัพท์ 9-10 หลัก');
-      if (!pdpaConsent) return showError('กรุณายินยอมให้เก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคล (PDPA) ก่อนลงทะเบียน');
+      if (!nickname) return showError('กรุณาระบุชื่อเล่น', 'nickname');
+      if (!birthdate) return showError('กรุณาระบุวันเกิด', 'birthdate');
+      if (!phone || phone.replace(/[^0-9]/g, '').length < 9) return showError('กรุณาระบุเบอร์โทรศัพท์ 9-10 หลัก', 'phone');
+      if (!pdpaConsent) return showError('กรุณายินยอมให้เก็บรวบรวม ใช้ และประมวลผลข้อมูลส่วนบุคคล (PDPA) ก่อนลงทะเบียน', 'pdpaConsent');
 
       const submitBtn = document.getElementById('submitBtn');
       submitBtn.disabled = true;
       submitBtn.classList.add('loading');
-      document.getElementById('submitBtnText').textContent = 'กำลังบันทึกข้อมูล...';
+      document.getElementById('submitBtnText').textContent = 'กำลังบันทึกข้อมูล…';
 
       try {
         const res = await fetch('/api/register', {

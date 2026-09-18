@@ -6,7 +6,7 @@ import { User } from "../models/User.js";
 import { AdminUser } from "../models/AdminUser.js";
 import { RequestLog, logStep } from "../models/RequestLog.js";
 import { LineMessageLog } from "../models/LineMessageLog.js";
-import { openDownloadStream, getFileMetadata } from "../services/storageService.js";
+import { openDownloadStream, getFileMetadata, saveImage } from "../services/storageService.js";
 import { pushImage, pushText, sendWeeklyReportImages } from "../services/lineService.js";
 import { getCardConfig, saveCardConfig } from "../services/cardConfigService.js";
 import { getKieslectConfig, saveKieslectConfig } from "../services/kieslectConfigService.js";
@@ -17,11 +17,19 @@ import { getRegistrationConfig, saveRegistrationConfig } from "../services/regis
 import { lookupInDbWallet } from "../services/dbWalletService.js";
 import { RegistrationCode } from "../models/RegistrationCode.js";
 import { renderBiokoopCard } from "../services/cardTemplate.js";
-import { analyzeImageWithCrossCheck, validateAiResult, analyzeWeeklyImages } from "../services/aiService.js";
+import { analyzeImageWithCrossCheck, validateAiResult, analyzeWeeklyImages, checkWeeklyAnomalies, checkDailyAnomalies } from "../services/aiService.js";
 import { initImageService, composeWeeklyReport, composeWeeklyCombinedReport } from "../services/imageService.js";
 import { renderWeeklyReportSvgs } from "../services/weeklyReportTemplate.js";
 import { requireAdmin, requireSuperadmin } from "../middlewares/adminAuth.js";
 import { AdminAuditLog, logAdminAction } from "../models/AdminAuditLog.js";
+import { AiTestAudit } from "../models/AiTestAudit.js";
+import {
+  aggregateUserMonthlyData,
+  generateMockMonthlyData,
+  analyzeMonthlyDataWithAi,
+  saveMonthlyAuditFeedback,
+  getMonthlyAuditHistory,
+} from "../services/monthlyAnalyticsService.js";
 
 function maskKey(key) {
   if (!key) return "ไม่ได้ตั้งค่า (Not Set)";
@@ -149,7 +157,7 @@ router.get("/api/stats", requireAdmin, async (req, res) => {
     const isFree = pricingConfig.planMode === "free";
     const currency = pricingConfig.currency || "USD";
     const costFormattedAll = isFree
-      ? "$0.000000 (🎁 ฟรี 100%)"
+      ? "$0.000000 (ฟรี 100%)"
       : `${currency} ${totalEstimatedCostAll.toFixed(6)}`;
 
     const apiKeysStatus = {
@@ -640,10 +648,11 @@ router.get("/api/users/:lineUserId/chat-history", requireAdmin, async (req, res)
 router.post("/api/users/:lineUserId/send-message", requireAdmin, async (req, res) => {
   try {
     const { lineUserId } = req.params;
-    const { message } = req.body || {};
+    const { message, imageBase64 } = req.body || {};
+    const text = (message || "").trim();
 
-    if (!message || !message.trim()) {
-      return res.status(400).json({ ok: false, error: "กรุณาระบุข้อความที่ต้องการส่ง" });
+    if (!text && !imageBase64) {
+      return res.status(400).json({ ok: false, error: "กรุณาระบุข้อความหรือแนบรูปภาพที่ต้องการส่ง" });
     }
 
     const user = await User.findOne({ lineUserId }).lean();
@@ -651,30 +660,71 @@ router.post("/api/users/:lineUserId/send-message", requireAdmin, async (req, res
       return res.status(404).json({ ok: false, error: "ไม่พบผู้ใช้นี้ในระบบ" });
     }
 
-    let sentReal = false;
-    try {
-      await pushText(lineUserId, message.trim());
-      sentReal = true;
-    } catch (err) {
-      console.warn(`[admin] ⚠️ ส่ง Push LINE ไม่สำเร็จ (อาจใช้ Mock User หรือไม่ได้ต่อ LINE จริง): ${err.message}`);
-      await LineMessageLog.create({
-        lineUserId,
-        sendType: "push",
-        messageType: "text",
-        content: message.trim(),
-        status: "success",
-      });
+    if (imageBase64 && !process.env.PUBLIC_BASE_URL) {
+      // ไม่ใช่กรณี mock — เป็น misconfiguration จริง (LINE จะปฏิเสธ relative URL) ต้องแจ้ง error ชัดเจน ไม่ใช่ swallow เงียบๆ
+      return res.status(500).json({ ok: false, error: "PUBLIC_BASE_URL ไม่ได้ตั้งค่าไว้ ไม่สามารถส่งรูปภาพไปยัง LINE ได้" });
     }
+
+    let sentImage = null; // null = ไม่ได้ส่ง, true = สำเร็จ, false = ล้มเหลว
+    let sentText = null;
+    let sendError = null;
+
+    if (imageBase64) {
+      try {
+        const clean = imageBase64.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, "");
+        const rawBuffer = Buffer.from(clean, "base64");
+        // /results/:id.png เสิร์ฟเป็น Content-Type: image/png เสมอ (ดู routes/results.js) -> แปลงเป็น PNG จริงก่อนเก็บ
+        // เพื่อไม่ให้ bytes กับ Content-Type ไม่ตรงกัน (LINE จะโหลดรูปไม่ขึ้นถ้าไฟล์จริงเป็น JPEG แต่ประกาศเป็น PNG)
+        const sharp = (await import("sharp")).default;
+        const pngBuffer = await sharp(rawBuffer).png().toBuffer();
+        const fileId = await saveImage("results", pngBuffer, `admin-chat-${Date.now()}.png`, "image/png");
+        const imageUrl = `${process.env.PUBLIC_BASE_URL}/results/${fileId}.png`;
+        await pushImage(lineUserId, imageUrl);
+        sentImage = true;
+      } catch (err) {
+        console.warn(`[admin] ⚠️ ส่งรูปภาพ Push LINE ไม่สำเร็จ (อาจใช้ Mock User หรือไม่ได้ต่อ LINE จริง): ${err.message}`);
+        sentImage = false;
+        sendError = err.message;
+      }
+    }
+
+    if (text) {
+      try {
+        await pushText(lineUserId, text);
+        sentText = true;
+      } catch (err) {
+        console.warn(`[admin] ⚠️ ส่งข้อความ Push LINE ไม่สำเร็จ (อาจใช้ Mock User หรือไม่ได้ต่อ LINE จริง): ${err.message}`);
+        sentText = false;
+        sendError = sendError || err.message;
+        await LineMessageLog.create({
+          lineUserId,
+          sendType: "push",
+          messageType: "text",
+          content: text,
+          status: "success",
+        });
+      }
+    }
+
+    // sentReal = true เฉพาะเมื่อทุกอย่างที่พยายามส่งสำเร็จจริง ไม่ปนกับ mock fallback
+    const attempted = [sentImage, sentText].filter(v => v !== null);
+    const sentReal = attempted.length > 0 && attempted.every(v => v === true);
 
     res.json({
       ok: true,
       sentReal,
-      message: sentReal ? "ส่งข้อความไปยัง LINE ผู้ใช้เรียบร้อยแล้ว" : "บันทึกข้อความจำลองเรียบร้อยแล้ว",
+      sentImage,
+      sentText,
+      message: sentReal ? "ส่งข้อความไปยัง LINE ผู้ใช้เรียบร้อยแล้ว" : "บันทึกข้อความจำลองเรียบร้อยแล้ว (LINE ส่งไม่สำเร็จบางส่วน หรือทั้งหมด)",
     });
 
     await logAdminAction(req, "send_message", lineUserId, "User", {
       sentReal,
-      messagePreview: message.trim().slice(0, 120),
+      sentImage,
+      sentText,
+      sendError,
+      hasImage: !!imageBase64,
+      messagePreview: (text || "").slice(0, 120),
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -962,10 +1012,13 @@ router.post("/api/test-ai-analyze", requireAdmin, async (req, res) => {
         { pageNo: 3, title: "หน้า 3: คุณภาพการนอนและการพักฟื้น (Sleep Analysis)", svg: svgs[2], pngBase64: `data:image/png;base64,${pngBuffers[2].toString("base64")}` },
       ];
 
+      const qualityCheck = checkWeeklyAnomalies(weeklyData);
+
       return res.json({
         ok: true,
         reportType: "weekly",
         durationMs,
+        aiModel: aiResult.model,
         detected: weeklyData.detected,
         confidence: weeklyData.confidence,
         foundPages: weeklyData.foundPages || [],
@@ -974,6 +1027,8 @@ router.post("/api/test-ai-analyze", requireAdmin, async (req, res) => {
         pages,
         combinedPngBase64,
         rawResult: aiResult,
+        qualityCheck,
+        lowConfidenceFields: weeklyData.lowConfidenceFields || [],
       });
     }
 
@@ -1034,10 +1089,18 @@ router.post("/api/test-ai-analyze", requireAdmin, async (req, res) => {
 
     const validation = validateAiResult(aiData, 0.7);
 
+    // ตรวจสอบความผิดปกติและความสมเหตุสมผลของการ์ดเดี่ยว
+    const qualityCheck = checkDailyAnomalies({
+      parsedData: r,
+      confidence: aiData.confidence,
+      detected: aiData.detected,
+    });
+
     res.json({
       ok: true,
       reportType: "daily",
       durationMs,
+      aiModel: aiResult.model,
       detected: aiData.detected,
       confidence: aiData.confidence,
       notes: aiData.notes,
@@ -1046,9 +1109,221 @@ router.post("/api/test-ai-analyze", requireAdmin, async (req, res) => {
       cardData,
       cardSvg,
       validation,
+      qualityCheck,
     });
   } catch (err) {
     console.error("[test-ai] Error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// POST /admin/api/ai-test-audits - บันทึกผลการประเมินการทดสอบ AI และจุดที่แอดมินแจ้งว่าเพี้ยน
+router.post("/api/ai-test-audits", requireAdmin, async (req, res) => {
+  try {
+    const {
+      testType = "weekly",
+      modelName = "ไม่ทราบโมเดล",
+      confidence = 0,
+      durationMs = 0,
+      imageCount = 1,
+      detected = true,
+      foundPages = [],
+      qualityStatus = "passed",
+      autoAnomalies = [],
+      adminFeedback = {},
+      extractedSnapshot = {},
+    } = req.body || {};
+
+    const adminUser = req.session?.adminUser?.username || "Admin";
+
+    const audit = new AiTestAudit({
+      testType,
+      modelName,
+      confidence,
+      durationMs,
+      imageCount,
+      detected,
+      foundPages,
+      qualityStatus,
+      autoAnomalies: Array.isArray(autoAnomalies) ? autoAnomalies : [],
+      adminFeedback: {
+        rating: Number(adminFeedback.rating) || 5,
+        accuracyStatus: adminFeedback.accuracyStatus || "accurate",
+        flaggedFields: Array.isArray(adminFeedback.flaggedFields) ? adminFeedback.flaggedFields : [],
+        notes: adminFeedback.notes || "",
+        adminUser: adminFeedback.adminUser || adminUser,
+      },
+      extractedSnapshot,
+    });
+
+    await audit.save();
+
+    await logAdminAction(req, "save_ai_test_audit", audit._id, "AiTestAudit", {
+      testType,
+      accuracyStatus: audit.adminFeedback.accuracyStatus,
+      flaggedCount: audit.adminFeedback.flaggedFields.length,
+      rating: audit.adminFeedback.rating,
+    });
+
+    res.json({
+      ok: true,
+      message: "บันทึกข้อมูลการประเมินและสถิติเรียบร้อยแล้วค่ะ",
+      audit,
+    });
+  } catch (err) {
+    console.error("[ai-test-audits] POST Error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// GET /admin/api/ai-test-audits/stats - สถิติสะสมจุดที่ AI อ่านเพี้ยนและความแม่นยำ
+router.get("/api/ai-test-audits/stats", requireAdmin, async (req, res) => {
+  try {
+    const totalCount = await AiTestAudit.countDocuments();
+
+    // นับตาม accuracyStatus
+    const statusCounts = await AiTestAudit.aggregate([
+      { $group: { _id: "$adminFeedback.accuracyStatus", count: { $sum: 1 } } }
+    ]);
+    const statusMap = { accurate: 0, minor_errors: 0, major_errors: 0, unusable: 0 };
+    for (const item of statusCounts) {
+      if (item._id && statusMap[item._id] !== undefined) {
+        statusMap[item._id] = item.count;
+      }
+    }
+
+    // ค่าความมั่นใจเฉลี่ย และเวลาเฉลี่ย
+    const avgStats = await AiTestAudit.aggregate([
+      {
+        $group: {
+          _id: null,
+          avgConfidence: { $avg: "$confidence" },
+          avgDuration: { $avg: "$durationMs" },
+          avgRating: { $avg: "$adminFeedback.rating" },
+        }
+      }
+    ]);
+    const avgConfidence = avgStats[0]?.avgConfidence ? Math.round(avgStats[0].avgConfidence * 100) : 0;
+    const avgDurationMs = avgStats[0]?.avgDuration ? Math.round(avgStats[0].avgDuration) : 0;
+    const avgRating = avgStats[0]?.avgRating ? Number(avgStats[0].avgRating.toFixed(1)) : 0;
+
+    // Top Inaccurate Fields ที่แอดมินแจ้งเพี้ยน (flaggedFields)
+    const topFlaggedFields = await AiTestAudit.aggregate([
+      { $unwind: "$adminFeedback.flaggedFields" },
+      {
+        $group: {
+          _id: {
+            field: "$adminFeedback.flaggedFields.field",
+            label: "$adminFeedback.flaggedFields.fieldLabel",
+            page: "$adminFeedback.flaggedFields.page",
+          },
+          count: { $sum: 1 },
+          reasons: { $push: "$adminFeedback.flaggedFields.reason" },
+          samples: {
+            $push: {
+              readValue: "$adminFeedback.flaggedFields.readValue",
+              correctedValue: "$adminFeedback.flaggedFields.correctedValue",
+            }
+          }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // Top Auto-detected Anomalies
+    const topAutoAnomalies = await AiTestAudit.aggregate([
+      { $unwind: "$autoAnomalies" },
+      {
+        $group: {
+          _id: {
+            field: "$autoAnomalies.field",
+            label: "$autoAnomalies.label",
+            page: "$autoAnomalies.page",
+            severity: "$autoAnomalies.severity",
+          },
+          count: { $sum: 1 },
+          sampleIssues: { $addToSet: "$autoAnomalies.issue" }
+        }
+      },
+      { $sort: { count: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // รายการทดสอบ 10 รายการล่าสุด
+    const recentAudits = await AiTestAudit.find()
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
+
+    const accurateTotal = statusMap.accurate;
+    const accuracyRate = totalCount > 0 ? Math.round((accurateTotal / totalCount) * 100) : 100;
+
+    res.json({
+      ok: true,
+      stats: {
+        totalCount,
+        accuracyRate,
+        statusMap,
+        avgConfidence,
+        avgDurationMs,
+        avgRating,
+        topFlaggedFields: topFlaggedFields.map(f => ({
+          field: f._id.field,
+          label: f._id.label || f._id.field,
+          page: f._id.page || "-",
+          count: f.count,
+          reasons: f.reasons.filter(Boolean).slice(0, 3),
+          samples: f.samples.slice(0, 2),
+        })),
+        topAutoAnomalies: topAutoAnomalies.map(a => ({
+          field: a._id.field,
+          label: a._id.label || a._id.field,
+          page: a._id.page || "-",
+          severity: a._id.severity || "warning",
+          count: a.count,
+          sampleIssues: a.sampleIssues.slice(0, 2),
+        })),
+        recentAudits,
+      }
+    });
+  } catch (err) {
+    console.error("[ai-test-audits/stats] GET Error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// GET /admin/api/ai-test-audits - รายการประวัติการประเมิน
+router.get("/api/ai-test-audits", requireAdmin, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const status = req.query.status;
+    const hasFlagged = req.query.hasFlagged === "true";
+
+    const filter = {};
+    if (status) filter["adminFeedback.accuracyStatus"] = status;
+    if (hasFlagged) filter["adminFeedback.flaggedFields.0"] = { $exists: true };
+
+    const total = await AiTestAudit.countDocuments(filter);
+    const audits = await AiTestAudit.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    res.json({
+      ok: true,
+      audits,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      }
+    });
+  } catch (err) {
+    console.error("[ai-test-audits] GET Error:", err);
     res.status(500).json({ ok: false, error: err.message });
   }
 });
@@ -1336,7 +1611,7 @@ router.get("/api/usage-stats", requireAdmin, async (req, res) => {
 
     for (const u of usersList) {
       u.estimatedCostFormatted = isFree
-        ? "🎁 ฟรี (Free Tier)"
+        ? "ฟรี (Free Tier)"
         : `${currency} ${u.estimatedCost.toFixed(6)}`;
       u.modelsUsed = [...new Set(u.byModel.map((m) => m.model))];
       u.requestsCount = u.requestCount;
@@ -1349,7 +1624,7 @@ router.get("/api/usage-stats", requireAdmin, async (req, res) => {
 
     totals.totalRequests = totals.requestCount;
     totals.costFormatted = isFree
-      ? "$0.000000 (🎁 ฟรี 100%)"
+      ? "$0.000000 (ฟรี 100%)"
       : `${currency} ${totals.estimatedCost.toFixed(6)}`;
 
     res.json({ ok: true, pricing, currency, isFree, totals, users: usersList });
@@ -1380,7 +1655,7 @@ router.get("/api/users/:lineUserId/usage-requests", requireAdmin, async (req, re
       const model = r.aiModel || "gemini-3.5-flash-lite";
 
       const cost = estimateCost(model, promptTokens, completionTokens);
-      const costFormatted = isFree ? "🎁 ฟรี (Free Tier)" : `${currency} ${cost.toFixed(6)}`;
+      const costFormatted = isFree ? "ฟรี (Free Tier)" : `${currency} ${cost.toFixed(6)}`;
 
       return {
         _id: r._id,
@@ -1723,7 +1998,7 @@ router.get("/api/analytics/ai-evaluation", requireAdmin, async (req, res) => {
       const avgPrompt = m.requestCount > 0 ? Math.round(m.promptTokens / m.requestCount) : 0;
       const avgCompletion = m.requestCount > 0 ? Math.round(m.completionTokens / m.requestCount) : 0;
       const avgTotal = m.requestCount > 0 ? Math.round(m.totalTokens / m.requestCount) : 0;
-      const costFormatted = isFree ? "🎁 ฟรี (Free Tier)" : `${currency} ${m.estimatedCost.toFixed(6)}`;
+      const costFormatted = isFree ? "ฟรี (Free Tier)" : `${currency} ${m.estimatedCost.toFixed(6)}`;
 
       return {
         model: m.model,
@@ -2226,6 +2501,139 @@ router.get("/api/admin-audit", requireSuperadmin, async (req, res) => {
       data: logs,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) || 1 },
     });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// MONTHLY HEALTH LAB APIs (ห้องวิจัยและทดสอบวิเคราะห์แนวโน้มรายเดือน)
+// ═══════════════════════════════════════════════════════════════════
+
+// GET /admin/api/monthly-lab/users - รายชื่อผู้ใช้ที่มีประวัติรายงาน พร้อมจำนวนรายงาน
+router.get("/api/monthly-lab/users", requireAdmin, async (req, res) => {
+  try {
+    const userAgg = await Request.aggregate([
+      { $match: { aiResult: { $exists: true, $ne: null } } },
+      { $group: { _id: "$lineUserId", count: { $sum: 1 }, latestAt: { $max: "$createdAt" } } },
+      { $sort: { count: -1, latestAt: -1 } },
+      { $limit: 100 },
+    ]);
+
+    const lineUserIds = userAgg.map((u) => u._id);
+    const users = await User.find({ lineUserId: { $in: lineUserIds } })
+      .select("lineUserId displayName pictureUrl nickname gender")
+      .lean();
+
+    const userMap = new Map(users.map((u) => [u.lineUserId, u]));
+
+    const result = userAgg.map((item) => {
+      const u = userMap.get(item._id) || {};
+      return {
+        lineUserId: item._id,
+        count: item.count,
+        latestAt: item.latestAt,
+        displayName: u.displayName || "ผู้ใช้",
+        nickname: u.nickname || "",
+        pictureUrl: u.pictureUrl || "",
+        gender: u.gender || "unspecified",
+      };
+    });
+
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error("[monthly-lab] /users error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// GET /admin/api/monthly-lab/user-data/:lineUserId - รวมข้อมูล 4 สัปดาห์ของผู้ใช้จริง
+router.get("/api/monthly-lab/user-data/:lineUserId", requireAdmin, async (req, res) => {
+  try {
+    const weeks = parseInt(req.query.weeks) || 4;
+    const result = await aggregateUserMonthlyData(req.params.lineUserId, { weeks });
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    console.error("[monthly-lab] /user-data error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// GET /admin/api/monthly-lab/mock-data - ดึงข้อมูลจำลอง 4 สัปดาห์สำหรับเคสทดสอบ
+router.get("/api/monthly-lab/mock-data", requireAdmin, (req, res) => {
+  try {
+    const scenario = req.query.scenario || "balanced";
+    const result = generateMockMonthlyData(scenario);
+    res.json({ ok: true, data: result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// POST /admin/api/monthly-lab/analyze - สั่ง AI วิเคราะห์ข้อมูลสุขภาพรายเดือน
+router.post("/api/monthly-lab/analyze", requireAdmin, async (req, res) => {
+  try {
+    const { monthlyData, userProfile, preferredModel } = req.body || {};
+    if (!monthlyData || !monthlyData.weeksData) {
+      return res.status(400).json({ ok: false, error: "กรุณาระบุข้อมูลสุขภาพ (monthlyData) สำหรับการวิเคราะห์" });
+    }
+
+    const result = await analyzeMonthlyDataWithAi(monthlyData, userProfile || {}, preferredModel);
+    logAdminAction(req, "monthly_ai_analyze", "MonthlyHealthLab", "AI Analysis", {
+      model: result.meta?.model,
+      score: result.data?.monthlyScore,
+      weeks: monthlyData.weeksData?.length,
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("[monthly-lab] /analyze error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// POST /admin/api/monthly-lab/feedback - บันทึกการประเมินผล/Ground Truth ของแอดมิน
+router.post("/api/monthly-lab/feedback", requireAdmin, async (req, res) => {
+  try {
+    const {
+      scenarioOrUser,
+      rating,
+      comment,
+      aiScore,
+      aiStatus,
+      correctedSummary,
+      monthlyData,
+      aiResult,
+    } = req.body || {};
+
+    const saved = await saveMonthlyAuditFeedback({
+      scenarioOrUser: scenarioOrUser || "Unknown",
+      rating: Number(rating) || 5,
+      comment: comment || "",
+      aiScore: Number(aiScore) || 0,
+      aiStatus: aiStatus || "",
+      correctedSummary: correctedSummary || "",
+      reviewedBy: req.session?.adminUser?.username || "admin",
+      monthlyData,
+      aiResult,
+    });
+
+    logAdminAction(req, "monthly_ai_feedback", "MonthlyHealthLab", "Feedback Saved", {
+      scenarioOrUser,
+      rating,
+    });
+
+    res.json(saved);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// GET /admin/api/monthly-lab/feedbacks - ดึงประวัติการประเมินของแอดมิน
+router.get("/api/monthly-lab/feedbacks", requireAdmin, async (req, res) => {
+  try {
+    const history = await getMonthlyAuditHistory();
+    res.json({ ok: true, data: history });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }

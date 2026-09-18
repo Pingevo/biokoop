@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema(
     lastName: { type: String, default: "" },
     gender: {
       type: String,
-      enum: ["male", "female", "other", "unspecified"],
+      enum: ["male", "female", "other", "unspecified"], // "other"/"unspecified" คงไว้เพื่อความเข้ากันได้กับข้อมูลเก่า — ฟอร์มลงทะเบียนปัจจุบันให้เลือกได้แค่ชาย/หญิง
       default: "unspecified",
     },
     province: { type: String, default: "" },

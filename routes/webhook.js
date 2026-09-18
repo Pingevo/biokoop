@@ -13,6 +13,7 @@ import {
 } from "../services/lineService.js";
 import { queueWeeklyImage } from "../services/pipeline.js";
 import { getBotMessagesConfig } from "../services/botMessagesConfigService.js";
+import { getRegistrationConfig } from "../services/registrationConfigService.js";
 import { User } from "../models/User.js";
 import { Request, REQUEST_STATUS } from "../models/Request.js";
 import { logLineMessage } from "../models/LineMessageLog.js";
@@ -97,10 +98,14 @@ async function handleEvent(event) {
     user = await User.touch(lineUserId, profile);
   }
 
+  // หากเปิดโหมด "no_registration" ให้ถือว่าผู้ใช้ทุกคนพร้อมใช้งานทันทีโดยไม่ต้องลงทะเบียน
+  const skipRegistration = getRegistrationConfig().mode === "no_registration";
+  const isRegistered = user.isRegistered || skipRegistration;
+
   // ── FOLLOW EVENT (แอดเพื่อนใหม่ / เลิกติดตามแล้วแอดใหม่) ──
   if (event.type === "follow") {
     if (replyToken) {
-      await replyWelcomePrompt(replyToken, lineUserId, user.isRegistered).catch((err) => {
+      await replyWelcomePrompt(replyToken, lineUserId, isRegistered).catch((err) => {
         console.error("[webhook] replyWelcomePrompt error:", err);
       });
     }
@@ -213,7 +218,7 @@ async function handleEvent(event) {
     // 1. คำทักทายทั่วไป (สวัสดี, หวัดดี, hi, hello)
     if (/^(สวัสดี|หวัดดี|ดีครับ|ดีค่ะ|hi|hello|hey)/i.test(text)) {
       if (replyToken) {
-        if (!user.isRegistered) {
+        if (!isRegistered) {
           await replyRegistrationPrompt(
             replyToken,
             lineUserId,
@@ -233,7 +238,7 @@ async function handleEvent(event) {
     // 2. ปุ่ม "ลงทะเบียน" (ถ้าลงทะเบียนไปแล้ว ให้แสดงเป็นชุดข้อความ "แก้ไขข้อมูล" แทน)
     if (text === "ลงทะเบียน") {
       if (replyToken) {
-        await replyRegistrationPrompt(replyToken, lineUserId, "", user.isRegistered).catch((err) => {
+        await replyRegistrationPrompt(replyToken, lineUserId, "", isRegistered).catch((err) => {
           console.error("[webhook] replyRegistrationPrompt error:", err);
         });
       }
@@ -263,7 +268,7 @@ async function handleEvent(event) {
     // 5. ปุ่ม "เลือกภาพเพื่อวิเคราะห์"
     if (text === "เลือกภาพเพื่อวิเคราะห์" || text === "ส่งรูปวิเคราะห์") {
       if (replyToken) {
-        if (!user.isRegistered) {
+        if (!isRegistered) {
           await replyRegistrationPrompt(
             replyToken,
             lineUserId,
@@ -296,7 +301,7 @@ async function handleEvent(event) {
     // 6. ปุ่ม "ผลลัพธ์ล่าสุด"
     if (text === "ผลลัพธ์ล่าสุด") {
       if (replyToken) {
-        if (!user.isRegistered) {
+        if (!isRegistered) {
           await replyRegistrationPrompt(
             replyToken,
             lineUserId,
@@ -347,7 +352,8 @@ async function handleEvent(event) {
   }
 
   // หากผู้ใช้ยังไม่ได้ลงทะเบียน -> ส่ง Flex Message ชวนลงทะเบียนทันที (ข้อความ/รูปอื่นๆ ที่ไม่ใช่ปุ่มเมนู)
-  if (!user.isRegistered) {
+  // (ข้ามเงื่อนไขนี้ทั้งหมดหากแอดมินเปิดโหมด "no_registration")
+  if (!isRegistered) {
     if (replyToken) {
       await replyRegistrationPrompt(
         replyToken,

@@ -66,10 +66,14 @@ export function savePricingConfig(newConfig) {
 
 // ราคามาตรฐานกลางตามประกาศของ Google / OpenRouter (สำหรับให้แอดมินคลิกกดเลือก Preset)
 export const OFFICIAL_PRESETS = {
+  "gemini-3.8-flash": { name: "Google Gemini 3.8 Flash", inputPer1M: 0.15, outputPer1M: 0.60 },
   "gemini-2.5-flash": { name: "Google Gemini 2.5 Flash", inputPer1M: 0.075, outputPer1M: 0.30 },
   "gemini-3.5-flash-lite": { name: "Google Gemini 3.5 Flash Lite", inputPer1M: 0.075, outputPer1M: 0.30 },
   "gemini-3.6-flash": { name: "Google Gemini 3.6 Flash", inputPer1M: 0.15, outputPer1M: 0.60 },
+  "openrouter/google/gemini-3.8-flash": { name: "OpenRouter (Gemini 3.8 Flash)", inputPer1M: 0.15, outputPer1M: 0.60 },
   "openrouter/google/gemini-2.5-flash": { name: "OpenRouter (Gemini 2.5 Flash)", inputPer1M: 0.075, outputPer1M: 0.30 },
+  "openrouter/google/gemini-2.5-flash-lite": { name: "OpenRouter (Gemini 2.5 Flash Lite)", inputPer1M: 0.05, outputPer1M: 0.20 },
+  "openrouter/deepseek/deepseek-chat": { name: "OpenRouter (DeepSeek V3)", inputPer1M: 0.14, outputPer1M: 0.28 },
   "openrouter/openai/gpt-4o-mini": { name: "OpenRouter (GPT-4o mini)", inputPer1M: 0.15, outputPer1M: 0.60 },
 };
 

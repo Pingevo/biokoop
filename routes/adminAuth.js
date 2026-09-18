@@ -35,11 +35,15 @@ function renderErrorPage(res, status, title, message) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${title} — biokoop Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, "Segoe UI", "Kanit", "Sarabun", system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: grid; place-items: center; padding: 20px; }
+    .mi { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; font-size: inherit; line-height: 1; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle; -webkit-font-smoothing: antialiased; user-select: none; }
     .card { background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(148, 163, 184, 0.15); border-radius: 16px; padding: 32px; max-width: 460px; width: 100%; text-align: center; backdrop-filter: blur(14px); box-shadow: 0 20px 50px rgba(0,0,0,0.4); }
-    .icon { font-size: 44px; margin-bottom: 12px; }
+    .icon { font-size: 48px; margin-bottom: 12px; color: #f59e0b; }
     h1 { font-size: 18px; font-weight: 700; margin-bottom: 10px; color: #f8fafc; }
     p { font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 20px; }
     .btn { display: inline-block; background: #0284c7; color: #fff; text-decoration: none; padding: 10px 22px; border-radius: 10px; font-size: 14px; font-weight: 600; transition: background 0.15s; }
@@ -49,7 +53,7 @@ function renderErrorPage(res, status, title, message) {
 </head>
 <body>
   <div class="card">
-    <div class="icon">⚠️</div>
+    <div class="icon"><i class="mi">warning</i></div>
     <h1>${title}</h1>
     <p>${message}</p>
     <a class="btn" href="/admin/auth">← ลองเข้าสู่ระบบใหม่</a>

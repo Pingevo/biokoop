@@ -22,6 +22,40 @@ function getHeroBase64() {
   return "";
 }
 
+// โหลดโลโก้ KIESLECT และ BIOKOOP เป็น base64 สำหรับ Header และ Footer ให้สมจริงระดับพรีเมียม
+let _kieLogoBase64 = null;
+let _bioLogoBase64 = null;
+
+function getKieslectLogoBase64() {
+  if (_kieLogoBase64 !== null) return _kieLogoBase64;
+  try {
+    const p = path.resolve(__dirname, "../public/assets/logo/KIESLECT_500.png");
+    if (fs.existsSync(p)) {
+      _kieLogoBase64 = fs.readFileSync(p).toString("base64");
+      return _kieLogoBase64;
+    }
+  } catch (e) {
+    console.warn("[weeklyReportTemplate] Warning: Could not load KIESLECT_500.png:", e.message);
+  }
+  _kieLogoBase64 = "";
+  return _kieLogoBase64;
+}
+
+function getBiokoopLogoBase64() {
+  if (_bioLogoBase64 !== null) return _bioLogoBase64;
+  try {
+    const p = path.resolve(__dirname, "../public/assets/logo/BIOKOOP_500.png");
+    if (fs.existsSync(p)) {
+      _bioLogoBase64 = fs.readFileSync(p).toString("base64");
+      return _bioLogoBase64;
+    }
+  } catch (e) {
+    console.warn("[weeklyReportTemplate] Warning: Could not load BIOKOOP_500.png:", e.message);
+  }
+  _bioLogoBase64 = "";
+  return _bioLogoBase64;
+}
+
 const W = 1024;
 const PAGE_H = 1780; // ความสูงเท่ากันทั้ง 3 หน้า เพื่อต่อภาพ 3-in-1 ได้แนบสนิทไร้รอยต่อ
 
@@ -121,46 +155,156 @@ function esc(s = "") {
 
 function visualLength(str = "") {
   const baseOnly = str.replace(/[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E\u0E4D]/g, "");
-  return baseOnly.length;
+  let len = 0;
+  for (const ch of baseOnly) {
+    if (/[0-9]/.test(ch)) len += 0.95;
+    else if (/[A-Za-z]/.test(ch)) len += 0.9;
+    else if (/[\s:.,-]/.test(ch)) len += 0.5;
+    else len += 1.0;
+  }
+  return len;
 }
 
+const thaiSegmenter = typeof Intl !== "undefined" && Intl.Segmenter
+  ? new Intl.Segmenter("th", { granularity: "word" })
+  : null;
+
+/**
+ * ตัดข้อความขึ้นบรรทัดใหม่อย่างชาญฉลาดโดยตัดตามคำจริง (Intl.Segmenter)
+ * ปรับความกว้างอักขระไทยตามจริง ไม่ตัดคำขาด และไม่ล้นกรอบ
+ */
 export function wrapLines(text, maxWidthPx, fontSizePx) {
   const clean = prepareTextForSvg(text);
-  const cw = Number(fontSizePx) * 0.55;
-  const mxc = Math.max(8, Math.floor(maxWidthPx / cw));
   if (!clean) return [];
 
-  const rawTokens = clean.split(/(?<=\s)|(?<=[,!?:;])|(?<=\.(?!\d))/);
-  const words = [];
-  for (const tok of rawTokens) {
-    if (visualLength(tok) > mxc) {
-      let sub = "";
-      for (const ch of tok) {
-        if (visualLength(sub + ch) > mxc && sub) {
-          words.push(sub);
-          sub = ch;
-        } else {
-          sub += ch;
-        }
+  const isThai = /[\u0E00-\u0E7F]/.test(clean);
+  const cw = Number(fontSizePx) * (isThai ? 0.56 : 0.52);
+  const mxc = Math.max(5, Math.floor(maxWidthPx / cw));
+
+  let words = [];
+  if (thaiSegmenter) {
+    const rawWords = [...thaiSegmenter.segment(clean)].map((s) => s.segment);
+    // รวมคำลงท้าย หรือเครื่องหมายวรรคตอนเข้ากับคำก่อนหน้า ไม่ให้ตกบรรทัดเดี่ยวๆ
+    for (let i = 0; i < rawWords.length; i++) {
+      const w = rawWords[i];
+      // ป้องกันการแยกตัวเลข เช่น 22:00, 1-3, 7.5, 98%
+      if ((w === ":" || w === "-" || w === "." || w === "/") && words.length > 0 && /\d+$/.test(words[words.length - 1]) && i + 1 < rawWords.length && /^\d+/.test(rawWords[i + 1])) {
+        words[words.length - 1] += w + rawWords[i + 1];
+        i++;
+        continue;
       }
-      if (sub) words.push(sub);
-    } else {
-      words.push(tok);
+      if ((w === "(" || w === "[" || w === "“" || w === '"') && i + 1 < rawWords.length) {
+        rawWords[i + 1] = w + rawWords[i + 1];
+      } else if ((w === "คะ" || w === "ค่ะ" || w === "นะคะ" || w === "น่า" || w === ")" || w === "]" || w === "%" || w === "”") && words.length > 0) {
+        words[words.length - 1] += w;
+      } else {
+        words.push(w);
+      }
     }
+  } else {
+    words = clean.split(/(?<=\s)|(?<=[,!?:;])|(?<=\.(?!\d))/);
   }
 
   const lines = [];
   let cur = "";
+
   for (const w of words) {
-    if (visualLength(cur + w) > mxc && cur) {
+    const nextLen = visualLength(cur + w);
+    if (nextLen > mxc && cur.trim()) {
       lines.push(cur.trim());
-      cur = w;
+      cur = w.trimStart();
     } else {
       cur += w;
     }
   }
-  if (cur) lines.push(cur.trim());
+  if (cur.trim()) {
+    lines.push(cur.trim());
+  }
+
+  // ป้องกันคำลงท้ายเดี่ยวๆ ในบรรทัดสุดท้าย
+  if (lines.length > 1) {
+    const last = lines[lines.length - 1];
+    if (visualLength(last) <= 4 && (last.includes("คะ") || last.includes("ค่ะ") || last.startsWith(")"))) {
+      const prev = lines[lines.length - 2];
+      lines[lines.length - 2] = prev + " " + last;
+      lines.pop();
+    }
+  }
+
   return lines;
+}
+
+/**
+ * ปรับข้อความสถานะสุขภาพให้กระชับ ชัดเจน ไม่ยาวเกินไป และไม่ถูกตัดคำครึ่งๆ กลางๆ
+ */
+export function cleanStatusLabel(str, defaultFallback = "ระดับสมดุล", category = "general") {
+  if (!str || typeof str !== "string") return defaultFallback;
+  const s = str.trim();
+
+  // กำจัดคำเกริ่นนำยาวๆ
+  const cleaned = s
+    .replace(/^อยู่ในเกณฑ์/g, "")
+    .replace(/^อยู่ช่วง/g, "")
+    .replace(/^ช่วง/g, "")
+    .replace(/^การฟื้นตัวอยู่ใน/g, "")
+    .replace(/^การฟื้นตัว/g, "")
+    .replace(/^คุณภาพการนอนแสดงถึงอยู่ใน/g, "")
+    .replace(/^คุณภาพการนอนแสดงถึง/g, "")
+    .replace(/^คุณภาพการนอน/g, "")
+    .trim();
+
+  // จัดกลุ่มสถานะตามคำสำคัญ
+  if (cleaned.includes("ยอดเยี่ยม") || cleaned.includes("ดีเยี่ยม")) {
+    return category === "recovery" ? "ฟื้นตัวดีเยี่ยม" : (category === "sleep" ? "ยอดเยี่ยม" : "ดีเยี่ยม");
+  }
+  if (cleaned.includes("เขียว") || cleaned.includes("สีเขียว")) {
+    return category === "recovery" ? "ฟื้นตัวดี" : (category === "sleep" ? "ยอดเยี่ยม" : "ระดับดี");
+  }
+  if (cleaned.includes("ดีมาก")) {
+    return category === "recovery" ? "ฟื้นตัวดีมาก" : "ดีมาก";
+  }
+  if (cleaned.includes("ดี") && !cleaned.includes("ไม่ดี")) {
+    return category === "recovery" ? "ฟื้นตัวดี" : (category === "sleep" ? "ระดับดี" : "ระดับดี");
+  }
+  if (cleaned.includes("สมดุล")) {
+    return "ระดับสมดุล";
+  }
+  if (cleaned.includes("ปานกลาง") || cleaned.includes("พอใช้")) {
+    return "ระดับปานกลาง";
+  }
+  if (cleaned.includes("เหลือง") || cleaned.includes("ส้ม")) {
+    return "ระดับปานกลาง";
+  }
+  if (cleaned.includes("แดง")) {
+    return category === "recovery" ? "ควรพักฟื้น" : "ควรพักผ่อน";
+  }
+  if (cleaned.includes("ล้า") || cleaned.includes("พัก") || cleaned.includes("หนัก") || cleaned.includes("เครียด")) {
+    return "ควรพักผ่อน";
+  }
+  if (cleaned.includes("ปรับปรุง") || cleaned.includes("ต่ำ") || cleaned.includes("ไม่เพียงพอ") || cleaned.includes("ฟื้นฟู")) {
+    return category === "recovery" ? "ควรพักฟื้น" : "ควรปรับปรุง";
+  }
+
+  // หากข้อความกระชับอยู่แล้ว (ไม่เกิน 14 ตัวอักษร)
+  if (cleaned.length > 0 && cleaned.length <= 14) {
+    return cleaned;
+  }
+
+  // ตัดคำภาษาไทยเพื่อหาคำสั้น
+  if (thaiSegmenter) {
+    const words = [...thaiSegmenter.segment(cleaned)].map((w) => w.segment).filter((w) => w.trim());
+    let shortStr = "";
+    for (const w of words) {
+      if ((shortStr + w).length <= 10) {
+        shortStr += w;
+      } else {
+        break;
+      }
+    }
+    if (shortStr.length >= 2) return shortStr;
+  }
+
+  return defaultFallback;
 }
 
 function linesSvg(lines, x, y, lh, fs, fill, weight = 400, anchor = "start", maxLines = 99) {
@@ -183,12 +327,12 @@ const isNum = (v) => typeof v === "number" && !Number.isNaN(v);
 
 // ─── SVG Vector Icons ───
 function iRunner(x, y, s, col) {
-  return `<g fill="none" stroke="${col}" stroke-width="${s * 0.16}" stroke-linecap="round" stroke-linejoin="round">
-<circle cx="${x + s * 0.3}" cy="${y + s * 0.2}" r="${s * 0.14}"/>
-<polyline points="${x + s * 0.15},${y + s * 0.55} ${x + s * 0.42},${y + s * 0.4} ${x + s * 0.6},${y + s * 0.55} ${x + s * 0.85},${y + s * 0.7}"/>
-<polyline points="${x + s * 0.42},${y + s * 0.4} ${x + s * 0.35},${y + s * 0.75} ${x + s * 0.18},${y + s * 0.9}"/>
-<polyline points="${x + s * 0.6},${y + s * 0.55} ${x + s * 0.5},${y + s * 0.9}"/>
-<polyline points="${x + s * 0.3},${y + s * 0.32} ${x + s * 0.55},${y + s * 0.3} ${x + s * 0.72},${y + s * 0.18}"/>
+  return `<g fill="none" stroke="${col}" stroke-width="${s * 0.14}" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="${x + s * 0.35}" cy="${y + s * 0.2}" r="${s * 0.12}" fill="${col}" stroke="none"/>
+<polyline points="${x + s * 0.14},${y + s * 0.52} ${x + s * 0.42},${y + s * 0.38} ${x + s * 0.62},${y + s * 0.52} ${x + s * 0.86},${y + s * 0.68}"/>
+<polyline points="${x + s * 0.42},${y + s * 0.38} ${x + s * 0.34},${y + s * 0.72} ${x + s * 0.16},${y + s * 0.88}"/>
+<polyline points="${x + s * 0.62},${y + s * 0.52} ${x + s * 0.52},${y + s * 0.88}"/>
+<polyline points="${x + s * 0.34},${y + s * 0.32} ${x + s * 0.56},${y + s * 0.3} ${x + s * 0.74},${y + s * 0.18}"/>
 </g>`;
 }
 
@@ -197,79 +341,95 @@ function iLeaf(x, y, s, col) {
 }
 
 function iMoon(x, y, s, col) {
-  const r = s * 0.45;
-  return `<path d="M ${x + r * 0.35} ${y} C ${x - r * 0.75} ${y + r * 0.2}, ${x - r * 1.05} ${y + r * 1.35}, ${x + r * 0.35} ${y + r * 2} C ${x - r * 0.3} ${y + r * 1.5}, ${x - r * 0.3} ${y + r * 0.5}, ${x + r * 0.35} ${y} Z" fill="${col}" transform="translate(${s * 0.18},0)"/>`;
+  const cx = x + s * 0.5;
+  const cy = y + s * 0.5;
+  const r = s * 0.42;
+  return `<path d="M ${cx + r * 0.25} ${cy - r * 0.9} A ${r} ${r} 0 1 0 ${cx + r * 0.65} ${cy + r * 0.65} A ${r * 0.78} ${r * 0.78} 0 0 1 ${cx + r * 0.25} ${cy - r * 0.9} Z" fill="${col}"/>`;
 }
 
 function iHeart(x, y, s, col) {
-  const r = s * 0.45;
-  const cy = y + r;
-  return `<path d="M${x + r} ${cy + r * 0.7}C${x + r - r * 1.3} ${cy - r * 0.3},${x + r - r * 0.5} ${cy - r * 1.2},${x + r} ${cy - r * 0.4}C${x + r + r * 0.5} ${cy - r * 1.2},${x + r + r * 1.3} ${cy - r * 0.3},${x + r} ${cy + r * 0.7}Z" fill="${col}"/>`;
+  const cx = x + s * 0.5;
+  const cy = y + s * 0.46;
+  const r = s * 0.42;
+  return `<path d="M ${cx} ${cy + r * 0.82} C ${cx - r * 1.3} ${cy - r * 0.2}, ${cx - r * 0.6} ${cy - r * 1.1}, ${cx} ${cy - r * 0.35} C ${cx + r * 0.6} ${cy - r * 1.1}, ${cx + r * 1.3} ${cy - r * 0.2}, ${cx} ${cy + r * 0.82} Z" fill="${col}"/>`;
 }
 
 function iPulse(x, y, s, col) {
-  const r = s * 0.4;
   const cy = y + s * 0.5;
-  return `<polyline points="${x},${cy} ${x + r * 0.6},${cy} ${x + r * 0.85},${cy - r * 0.8} ${x + r * 1.2},${cy + r * 0.8} ${x + r * 1.45},${cy} ${x + r * 2},${cy}" fill="none" stroke="${col}" stroke-width="${s * 0.15}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  return `<polyline points="${x + s * 0.06},${cy} ${x + s * 0.24},${cy} ${x + s * 0.38},${cy - s * 0.38} ${x + s * 0.56},${cy + s * 0.38} ${x + s * 0.68},${cy - s * 0.16} ${x + s * 0.78},${cy} ${x + s * 0.94},${cy}" fill="none" stroke="${col}" stroke-width="${s * 0.15}" stroke-linecap="round" stroke-linejoin="round"/>`;
 }
 
-function iFlame(x, y, s, col) {
-  return `<path d="M ${x + s * 0.5} ${y} C ${x + s * 0.72} ${y + s * 0.3} ${x + s * 0.9} ${y + s * 0.42}, ${x + s * 0.88} ${y + s * 0.62} C ${x + s * 0.86} ${y + s * 0.85}, ${x + s * 0.68} ${y + s * 0.98}, ${x + s * 0.5} ${y + s} C ${x + s * 0.28} ${y + s * 0.98}, ${x + s * 0.12} ${y + s * 0.82}, ${x + s * 0.14} ${y + s * 0.6} C ${x + s * 0.16} ${y + s * 0.4}, ${x + s * 0.34} ${y + s * 0.26}, ${x + s * 0.5} ${y} Z M ${x + s * 0.5} ${y + s * 0.86} C ${x + s * 0.4} ${y + s * 0.86}, ${x + s * 0.33} ${y + s * 0.76}, ${x + s * 0.34} ${y + s * 0.66} C ${x + s * 0.35} ${y + s * 0.56}, ${x + s * 0.44} ${y + s * 0.5}, ${x + s * 0.5} ${y + s * 0.42} C ${x + s * 0.6} ${y + s * 0.52}, ${x + s * 0.67} ${y + s * 0.6}, ${x + s * 0.66} ${y + s * 0.68} C ${x + s * 0.65} ${y + s * 0.78}, ${x + s * 0.6} ${y + s * 0.86}, ${x + s * 0.5} ${y + s * 0.86} Z" fill="${col}"/>`;
+function iFlame(x, y, s, col = "#EA580C") {
+  const cx = x + s * 0.5;
+  const cy = y + s * 0.5;
+  return `<path d="M ${cx} ${cy - s * 0.46} C ${cx + s * 0.25} ${cy - s * 0.2} ${cx + s * 0.42} ${cy} ${cx + s * 0.38} ${cy + s * 0.2} C ${cx + s * 0.35} ${cy + s * 0.42} ${cx + s * 0.18} ${cy + s * 0.48} ${cx} ${cy + s * 0.48} C ${cx - s * 0.18} ${cy + s * 0.48} ${cx - s * 0.35} ${cy + s * 0.42} ${cx - s * 0.38} ${cy + s * 0.2} C ${cx - s * 0.42} ${cy} ${cx - s * 0.25} ${cy - s * 0.2} ${cx} ${cy - s * 0.46} Z" fill="${col}"/>
+<path d="M ${cx} ${cy + s * 0.44} C ${cx + s * 0.12} ${cy + s * 0.44} ${cx + s * 0.18} ${cy + s * 0.3} ${cx + s * 0.14} ${cy + s * 0.16} C ${cx + s * 0.08} ${cy + s * 0.06} ${cx} ${cy - s * 0.04} C ${cx} ${cy - s * 0.04} ${cx - s * 0.08} ${cy + s * 0.06} ${cx - s * 0.14} ${cy + s * 0.16} C ${cx - s * 0.18} ${cy + s * 0.3} ${cx - s * 0.12} ${cy + s * 0.44} ${cx} ${cy + s * 0.44} Z" fill="#FED7AA"/>`;
 }
 
 function iDumbbell(x, y, s, col) {
-  const sw = s * 0.14;
+  const cx = x + s * 0.5;
   const cy = y + s * 0.5;
+  const sw = s * 0.14;
   return `<g stroke="${col}" stroke-width="${sw}" stroke-linecap="round">
-<line x1="${x + s * 0.15}" y1="${cy}" x2="${x + s * 0.85}" y2="${cy}"/>
-<line x1="${x + s * 0.22}" y1="${cy - s * 0.24}" x2="${x + s * 0.22}" y2="${cy + s * 0.24}"/>
-<line x1="${x + s * 0.34}" y1="${cy - s * 0.14}" x2="${x + s * 0.34}" y2="${cy + s * 0.14}"/>
-<line x1="${x + s * 0.78}" y1="${cy - s * 0.24}" x2="${x + s * 0.78}" y2="${cy + s * 0.24}"/>
-<line x1="${x + s * 0.66}" y1="${cy - s * 0.14}" x2="${x + s * 0.66}" y2="${cy + s * 0.14}"/>
+<line x1="${cx - s * 0.34}" y1="${cy}" x2="${cx + s * 0.34}" y2="${cy}"/>
+<line x1="${cx - s * 0.28}" y1="${cy - s * 0.22}" x2="${cx - s * 0.28}" y2="${cy + s * 0.22}"/>
+<line x1="${cx - s * 0.18}" y1="${cy - s * 0.16}" x2="${cx - s * 0.18}" y2="${cy + s * 0.16}"/>
+<line x1="${cx + s * 0.28}" y1="${cy - s * 0.22}" x2="${cx + s * 0.28}" y2="${cy + s * 0.22}"/>
+<line x1="${cx + s * 0.18}" y1="${cy - s * 0.16}" x2="${cx + s * 0.18}" y2="${cy + s * 0.16}"/>
 </g>`;
 }
 
 function iSteps(x, y, s, col) {
+  const cx = x + s * 0.5;
+  const cy = y + s * 0.5;
+  const r = s * 0.44;
   return `<g fill="${col}">
-<ellipse cx="${x + s * 0.35}" cy="${y + s * 0.45}" rx="${s * 0.15}" ry="${s * 0.24}"/>
-<ellipse cx="${x + s * 0.72}" cy="${y + s * 0.75}" rx="${s * 0.15}" ry="${s * 0.24}"/>
-<circle cx="${x + s * 0.55}" cy="${y + s * 0.22}" r="${s * 0.07}"/>
-<circle cx="${x + s * 0.9}" cy="${y + s * 0.52}" r="${s * 0.07}"/>
+<ellipse cx="${cx - r * 0.38}" cy="${cy + r * 0.15}" rx="${r * 0.26}" ry="${r * 0.42}" transform="rotate(-15 ${cx - r * 0.38} ${cy + r * 0.15})"/>
+<ellipse cx="${cx + r * 0.38}" cy="${cy - r * 0.15}" rx="${r * 0.26}" ry="${r * 0.42}" transform="rotate(-15 ${cx + r * 0.38} ${cy - r * 0.15})"/>
+<circle cx="${cx - r * 0.38}" cy="${cy + r * 0.65}" r="${r * 0.14}"/>
+<circle cx="${cx + r * 0.38}" cy="${cy + r * 0.35}" r="${r * 0.14}"/>
 </g>`;
 }
 
 function iClock(x, y, s, col) {
-  const r = s * 0.42;
   const cx = x + s * 0.5;
   const cy = y + s * 0.5;
-  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${col}" stroke-width="${s * 0.12}"/>
-<line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy - r * 0.55}" stroke="${col}" stroke-width="${s * 0.12}" stroke-linecap="round"/>
-<line x1="${cx}" y1="${cy}" x2="${cx + r * 0.45}" y2="${cy}" stroke="${col}" stroke-width="${s * 0.12}" stroke-linecap="round"/>`;
+  const r = s * 0.42;
+  return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${col}" stroke-width="${s * 0.13}"/>
+<polyline points="${cx},${cy - r * 0.55} ${cx},${cy} ${cx + r * 0.48},${cy}" fill="none" stroke="${col}" stroke-width="${s * 0.13}" stroke-linecap="round" stroke-linejoin="round"/>`;
 }
 
 function iCalendar(x, y, s, col) {
-  const sw = s * 0.11;
-  return `<g fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="round">
-<rect x="${x + s * 0.12}" y="${y + s * 0.22}" width="${s * 0.76}" height="${s * 0.66}" rx="${s * 0.1}"/>
-<line x1="${x + s * 0.12}" y1="${y + s * 0.42}" x2="${x + s * 0.88}" y2="${y + s * 0.42}"/>
-<line x1="${x + s * 0.34}" y1="${y + s * 0.12}" x2="${x + s * 0.34}" y2="${y + s * 0.3}"/>
-<line x1="${x + s * 0.66}" y1="${y + s * 0.12}" x2="${x + s * 0.66}" y2="${y + s * 0.3}"/>
+  const sw = s * 0.12;
+  return `<g fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">
+<rect x="${x + s * 0.14}" y="${y + s * 0.22}" width="${s * 0.72}" height="${s * 0.64}" rx="${s * 0.12}"/>
+<line x1="${x + s * 0.14}" y1="${y + s * 0.44}" x2="${x + s * 0.86}" y2="${y + s * 0.44}"/>
+<line x1="${x + s * 0.35}" y1="${y + s * 0.12}" x2="${x + s * 0.35}" y2="${y + s * 0.24}"/>
+<line x1="${x + s * 0.65}" y1="${y + s * 0.12}" x2="${x + s * 0.65}" y2="${y + s * 0.24}"/>
+<circle cx="${x + s * 0.36}" cy="${y + s * 0.6}" r="${s * 0.04}" fill="${col}"/>
+<circle cx="${x + s * 0.50}" cy="${y + s * 0.6}" r="${s * 0.04}" fill="${col}"/>
+<circle cx="${x + s * 0.64}" cy="${y + s * 0.6}" r="${s * 0.04}" fill="${col}"/>
+<circle cx="${x + s * 0.36}" cy="${y + s * 0.74}" r="${s * 0.04}" fill="${col}"/>
+<circle cx="${x + s * 0.50}" cy="${y + s * 0.74}" r="${s * 0.04}" fill="${col}"/>
+<circle cx="${x + s * 0.64}" cy="${y + s * 0.74}" r="${s * 0.04}" fill="${col}"/>
 </g>`;
 }
 
 function iBolt(x, y, s, col) {
-  return `<polygon points="${x + s * 0.58},${y} ${x + s * 0.22},${y + s * 0.58} ${x + s * 0.46},${y + s * 0.58} ${x + s * 0.36},${y + s} ${x + s * 0.8},${y + s * 0.42} ${x + s * 0.54},${y + s * 0.42}" fill="${col}"/>`;
+  return `<polygon points="${x + s * 0.58},${y + s * 0.06} ${x + s * 0.22},${y + s * 0.52} ${x + s * 0.48},${y + s * 0.52} ${x + s * 0.38},${y + s * 0.94} ${x + s * 0.80},${y + s * 0.44} ${x + s * 0.52},${y + s * 0.44}" fill="${col}"/>`;
 }
 
 function iGear(x, y, s, col) {
   const cx = x + s * 0.5;
   const cy = y + s * 0.5;
   const r = s * 0.36;
-  return `<g fill="none" stroke="${col}" stroke-width="${s * 0.12}" stroke-linecap="round">
+  return `<g fill="none" stroke="${col}" stroke-width="${s * 0.13}" stroke-linecap="round">
 <circle cx="${cx}" cy="${cy}" r="${r}"/>
-<circle cx="${cx}" cy="${cy}" r="${r * 0.4}" fill="${col}"/>
-<line x1="${cx}" y1="${cy - r * 1.3}" x2="${cx}" y2="${cy + r * 1.3}"/>
-<line x1="${cx - r * 1.3}" y1="${cy}" x2="${cx + r * 1.3}" y2="${cy}"/>
+<circle cx="${cx}" cy="${cy}" r="${r * 0.35}" fill="${col}"/>
+<line x1="${cx}" y1="${cy - r * 1.35}" x2="${cx}" y2="${cy + r * 1.35}"/>
+<line x1="${cx - r * 1.35}" y1="${cy}" x2="${cx + r * 1.35}" y2="${cy}"/>
+<line x1="${cx - r * 0.95}" y1="${cy - r * 0.95}" x2="${cx + r * 0.95}" y2="${cy + r * 0.95}"/>
+<line x1="${cx - r * 0.95}" y1="${cy + r * 0.95}" x2="${cx + r * 0.95}" y2="${cy - r * 0.95}"/>
 </g>`;
 }
 
@@ -281,8 +441,8 @@ function iBulb(x, y, s, col) {
 }
 
 function iBrain(x, y, s, col) {
-  const sw = s * 0.11;
-  return `<g fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="round">
+  const sw = s * 0.12;
+  return `<g fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">
 <path d="M ${x + s * 0.5} ${y + s * 0.16} C ${x + s * 0.4} ${y + s * 0.06}, ${x + s * 0.24} ${y + s * 0.08}, ${x + s * 0.22} ${y + s * 0.2} C ${x + s * 0.1} ${y + s * 0.22}, ${x + s * 0.1} ${y + s * 0.38}, ${x + s * 0.18} ${y + s * 0.46} C ${x + s * 0.1} ${y + s * 0.54}, ${x + s * 0.14} ${y + s * 0.7}, ${x + s * 0.26} ${y + s * 0.72} C ${x + s * 0.3} ${y + s * 0.84}, ${x + s * 0.44} ${y + s * 0.88}, ${x + s * 0.5} ${y + s * 0.82} L ${x + s * 0.5} ${y + s * 0.16} Z"/>
 <path d="M ${x + s * 0.5} ${y + s * 0.16} C ${x + s * 0.6} ${y + s * 0.06}, ${x + s * 0.76} ${y + s * 0.08}, ${x + s * 0.78} ${y + s * 0.2} C ${x + s * 0.9} ${y + s * 0.22}, ${x + s * 0.9} ${y + s * 0.38}, ${x + s * 0.82} ${y + s * 0.46} C ${x + s * 0.9} ${y + s * 0.54}, ${x + s * 0.86} ${y + s * 0.7}, ${x + s * 0.74} ${y + s * 0.72} C ${x + s * 0.7} ${y + s * 0.84}, ${x + s * 0.56} ${y + s * 0.88}, ${x + s * 0.5} ${y + s * 0.82}"/>
 </g>`;
@@ -290,7 +450,8 @@ function iBrain(x, y, s, col) {
 
 function iWaterDrop(x, y, s, col) {
   const cx = x + s * 0.5;
-  return `<path d="M ${cx} ${y + s * 0.1} C ${cx} ${y + s * 0.1}, ${x + s * 0.85} ${y + s * 0.65}, ${x + s * 0.85} ${y + s * 0.75} C ${x + s * 0.85} ${y + s * 0.92}, ${x + s * 0.68} ${y + s}, ${cx} ${y + s} C ${x + s * 0.32} ${y + s}, ${x + s * 0.15} ${y + s * 0.92}, ${x + s * 0.15} ${y + s * 0.75} C ${x + s * 0.15} ${y + s * 0.65}, ${cx} ${y + s * 0.1}, ${cx} ${y + s * 0.1} Z" fill="${col}"/>`;
+  const cy = y + s * 0.55;
+  return `<path d="M ${cx} ${y + s * 0.1} C ${cx} ${y + s * 0.1}, ${cx + s * 0.38} ${cy + s * 0.12}, ${cx + s * 0.38} ${cy + s * 0.22} C ${cx + s * 0.38} ${cy + s * 0.38}, ${cx + s * 0.21} ${cy + s * 0.42}, ${cx} ${cy + s * 0.42} C ${cx - s * 0.21} ${cy + s * 0.42}, ${cx - s * 0.38} ${cy + s * 0.38}, ${cx - s * 0.38} ${cy + s * 0.22} C ${cx - s * 0.38} ${cy + s * 0.12}, ${cx} ${y + s * 0.1}, ${cx} ${y + s * 0.1} Z" fill="${col}"/>`;
 }
 
 function iCheckCircle(x, y, s, col = C.greenSoft) {
@@ -302,7 +463,7 @@ function iCheckCircle(x, y, s, col = C.greenSoft) {
 }
 
 function iconBadge(x, y, r, bg, iconFn, iconColor, iconScale = 1) {
-  const s = r * 1.1 * iconScale;
+  const s = r * 1.15 * iconScale;
   return `<circle cx="${x + r}" cy="${y + r}" r="${r}" fill="${bg}"/>${iconFn(x + r - s / 2, y + r - s / 2, s, iconColor)}`;
 }
 
@@ -366,10 +527,10 @@ export function calcTrend(todayVal, compareVal, { higherIsBetter = true } = {}) 
   };
 }
 
-// แยกหัวข้อและคำอธิบายย่อยจากประโยคคำแนะนำอย่างเป็นธรรมชาติ
+// แยกหัวข้อและคำอธิบายย่อยจากประโยคคำแนะนำอย่างเป็นธรรมชาติ ไม่ตัดคำขาด
 export function parseRecommendationStep(text, fallbackTitle = "", fallbackSub = "") {
   if (!text) return { title: fallbackTitle, sub: fallbackSub };
-  const raw = String(text).trim();
+  let raw = String(text).trim().replace(/สักเล็กน้อย$/g, "").trim();
   
   // รูปแบบมีวงเล็บ เช่น "เข้านอนเวลาเดิมทุกวัน (เพื่อเพิ่ม Sleep Consistency)"
   const parenMatch = raw.match(/^([^(]+)\s*\(([^)]+)\)$/);
@@ -385,14 +546,29 @@ export function parseRecommendationStep(text, fallbackTitle = "", fallbackSub = 
 
   // ถ้าประโยคยาวเกิน 20 ตัวอักษร ให้ตัดประโยคแรกเป็น title และส่วนหลังเป็น sub
   if (raw.length > 20) {
-    const splitTokens = ["เพื่อ", "เน้น", "ช่วย", "ให้อยู่ใน", "โดย", "เพิ่ม", "และ"];
+    const splitTokens = ["เพื่อเพิ่ม", "เพื่อ", "เพิ่ม", "ช่วย", "เสริม", "เน้น", "ให้อยู่ใน", "วันละ", "ต่อเนื่อง", "โดย", "และ"];
     for (const tok of splitTokens) {
       const idx = raw.indexOf(tok);
-      if (idx >= 8 && idx <= 28) {
-        const sub = tok === "และ" ? raw.slice(idx + 3).trim() : raw.slice(idx).trim();
+      if (idx >= 6 && idx <= 36) {
+        let title = raw.slice(0, idx).trim();
+        let sub = raw.slice(idx).trim();
+        title = title.replace(/\s+(เพิ่ม|เพื่อ|ช่วย|เสริม|และ|เน้น|โดย)$/, "").trim();
+        
+        // ถ้า sub ยาวเกิน 32 ตัวอักษร ให้ตัดประโยคขยายความรองออก เพื่อความกระชับ สวยงามในการ์ด ไม่ล้นกรอบ
+        if (sub.length > 32) {
+          const secondSplit = ["ช่วยให้", "เพื่อ", "และ", "โดย"];
+          for (const sTok of secondSplit) {
+            const sIdx = sub.indexOf(sTok, 8);
+            if (sIdx >= 10 && sIdx <= 30) {
+              sub = sub.slice(0, sIdx).trim();
+              break;
+            }
+          }
+        }
+
         return {
-          title: raw.slice(0, idx).trim(),
-          sub,
+          title: title || fallbackTitle,
+          sub: sub || fallbackSub,
         };
       }
     }
@@ -753,6 +929,115 @@ function metricTile(x, y, w, h, { label, value, compare = "", icon = null, accen
   return out;
 }
 
+// การ์ด 5 Metric Tiles ของ Body Load (Page 2 Card A) ตาม Mockup อ้างอิง
+function bodyLoadMetricTile(x, y, w, h, { label1, label2 = "", value, compare = "", icon = null, accent = C.ink, trend = null, isPositive = true }) {
+  let out = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="16" fill="#FFFFFF" stroke="${C.border}" stroke-width="1.2"/>`;
+  const cx = x + w / 2;
+  if (label2) {
+    out += `<text x="${cx}" y="${y + 19}" text-anchor="middle" font-family="Kanit" font-weight="700" font-size="12.5" fill="${C.sub}">${esc(label1)}</text>`;
+    out += `<text x="${cx}" y="${y + 33}" text-anchor="middle" font-family="Kanit" font-weight="700" font-size="12.5" fill="${C.sub}">${esc(label2)}</text>`;
+  } else {
+    out += `<text x="${cx}" y="${y + 26}" text-anchor="middle" font-family="Kanit" font-weight="700" font-size="13.5" fill="${C.sub}">${esc(label1)}</text>`;
+  }
+
+  const iconY = label2 ? y + 43 : y + 36;
+  const isize = 18;
+  if (icon) {
+    const ix = cx - isize / 2;
+    out += icon(ix, iconY, isize, accent);
+  }
+
+  if (trend === "up") {
+    const arrowCol = isPositive ? C.greenSoft : C.amberSoft;
+    out += `<polygon points="${cx + 14},${iconY + 14} ${cx + 19},${iconY + 4} ${cx + 24},${iconY + 14}" fill="${arrowCol}"/>`;
+  } else if (trend === "down") {
+    const arrowCol = isPositive ? C.greenSoft : C.rose;
+    out += `<polygon points="${cx + 14},${iconY + 4} ${cx + 19},${iconY + 14} ${cx + 24},${iconY + 4}" fill="${arrowCol}"/>`;
+  } else if (trend === "dot") {
+    out += `<circle cx="${cx + 18}" cy="${iconY + 9}" r="3.5" fill="#94A3B8"/>`;
+  }
+
+  const valStr = String(value ?? "-");
+  const valY = compare ? y + h - 34 : y + h - 22;
+  out += `<text x="${cx}" y="${valY}" text-anchor="middle" font-family="Kanit" font-weight="800" font-size="25" fill="${C.ink}">${esc(valStr)}</text>`;
+
+  if (compare) {
+    out += `<text x="${cx}" y="${y + h - 14}" text-anchor="middle" font-family="Kanit" font-weight="600" font-size="12.5" fill="#64748B">${esc(compare)}</text>`;
+  }
+  return out;
+}
+
+// การ์ด Metric Tile พร้อมวงกลมไอคอนพาสเทล (Recovery 3 ใบ & Sleep 4 ใบ) ตาม Mockup
+function badgeMetricTile(x, y, w, h, { label, value, compare = "", icon = null, iconBg = "#F1F5F9", iconColor = C.ink, trend = null, isPositive = true, centerLayout = false }) {
+  let out = `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="18" fill="#FFFFFF" stroke="${C.border}" stroke-width="1.2"/>`;
+  const valStr = String(value ?? "-");
+
+  if (!centerLayout) {
+    const cx = x + 34;
+    const cy = y + h / 2;
+    const r = 20;
+    out += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${iconBg}"/>`;
+    if (icon) {
+      out += icon(cx - 10, cy - 10, 20, iconColor);
+    }
+    const tx = x + 66;
+    out += `<text x="${tx}" y="${y + 28}" font-family="Kanit" font-weight="700" font-size="14.5" fill="${C.sub}">${esc(label)}</text>`;
+    out += `<text x="${tx}" y="${y + 60}" font-family="Kanit" font-weight="800" font-size="28" fill="${C.ink}">${esc(valStr)}</text>`;
+
+    const arrowCol = isPositive ? C.greenSoft : (trend === "up" ? C.amberSoft : C.rose);
+    const valW = estimateTextWidth(valStr, 28);
+    const arrowX = tx + valW + 8;
+    const arrowY = y + 50;
+    const as = 12;
+    if (trend === "up") {
+      out += `<polygon points="${arrowX},${arrowY + as * 0.4} ${arrowX + as * 0.5},${arrowY - as * 0.5} ${arrowX + as},${arrowY + as * 0.4}" fill="${arrowCol}"/>`;
+    } else if (trend === "down") {
+      out += `<polygon points="${arrowX},${arrowY - as * 0.5} ${arrowX + as * 0.5},${arrowY + as * 0.4} ${arrowX + as},${arrowY - as * 0.5}" fill="${arrowCol}"/>`;
+    } else if (trend === "dot") {
+      out += `<circle cx="${arrowX + 4}" cy="${arrowY}" r="3.5" fill="#94A3B8"/>`;
+    }
+
+    if (compare) {
+      out += `<text x="${tx}" y="${y + 82}" font-family="Kanit" font-weight="600" font-size="13" fill="#64748B">${esc(compare)}</text>`;
+    }
+  } else {
+    const cx = x + w / 2;
+    out += `<text x="${cx}" y="${y + 24}" text-anchor="middle" font-family="Kanit" font-weight="700" font-size="13.5" fill="${C.sub}">${esc(label)}</text>`;
+    
+    const cy = y + 50;
+    const r = 15;
+    out += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${iconBg}"/>`;
+    if (icon) {
+      out += icon(cx - 8, cy - 8, 16, iconColor);
+    }
+
+    const valFs = 24;
+    const valW = estimateTextWidth(valStr, valFs);
+    const arrowCol = isPositive ? C.greenSoft : (trend === "up" ? C.amberSoft : C.rose);
+    const as = 11;
+
+    if (trend === "up" || trend === "down") {
+      const totalW = valW + 16;
+      const startX = cx - totalW / 2;
+      out += `<text x="${startX}" y="${y + 88}" font-family="Kanit" font-weight="800" font-size="${valFs}" fill="${C.ink}">${esc(valStr)}</text>`;
+      const arrowX = startX + valW + 6;
+      const arrowY = y + 79;
+      if (trend === "up") {
+        out += `<polygon points="${arrowX},${arrowY + as * 0.4} ${arrowX + as * 0.5},${arrowY - as * 0.5} ${arrowX + as},${arrowY + as * 0.4}" fill="${arrowCol}"/>`;
+      } else {
+        out += `<polygon points="${arrowX},${arrowY - as * 0.5} ${arrowX + as * 0.5},${arrowY + as * 0.4} ${arrowX + as},${arrowY - as * 0.5}" fill="${arrowCol}"/>`;
+      }
+    } else {
+      out += `<text x="${cx}" y="${y + 88}" text-anchor="middle" font-family="Kanit" font-weight="800" font-size="${valFs}" fill="${C.ink}">${esc(valStr)}</text>`;
+    }
+
+    if (compare) {
+      out += `<text x="${cx}" y="${y + 108}" text-anchor="middle" font-family="Kanit" font-weight="600" font-size="12" fill="#64748B">${esc(compare)}</text>`;
+    }
+  }
+  return out;
+}
+
 // ─── Data Normalization ───
 export function normalizeWeeklyData(aiData = {}) {
   const ov = aiData.overview || {};
@@ -807,7 +1092,7 @@ export function normalizeWeeklyData(aiData = {}) {
       bodyLoadLabel: ov.bodyLoadLabel || act.bodyLoadStatus || "ระดับปานกลาง",
       recoveryPercent: isNum(ov.recoveryPercent) ? ov.recoveryPercent : (isNum(act.recoveryPercent) ? act.recoveryPercent : 71),
       sleepQualityPercent: isNum(ov.sleepQualityPercent) ? ov.sleepQualityPercent : (isNum(slp.qualityPercent) ? slp.qualityPercent : 98),
-      summary: ov.summary || "เมื่อคืนคุณนอนหลับได้มีคุณภาพ และร่างกายฟื้นตัวได้ดี ในขณะที่กิจกรรมวันนี้อยู่ในระดับปานกลาง คุณสามารถทำกิจกรรมต่างๆ ได้ตามปกติ แต่ควรรักษาเวลานอนให้สม่ำเสมอมากขึ้นนะคะ",
+      summary: ov.summary || "สัปดาห์นี้ร่างกายของคุณมีสมดุลที่ดี ทั้งกิจกรรม การฟื้นตัว และการนอนหลับอยู่ในเกณฑ์ที่น่าพอใจ ควรรักษาความสม่ำเสมอของการออกกำลังกายและการนอนหลับอย่างต่อเนื่องนะคะ",
       highlights: Array.isArray(ov.highlights) && ov.highlights.length ? ov.highlights.filter(Boolean).slice(0, 3) : [
         "รู้ร่างกายของคุณ",
         "เข้าใจแนวโน้มสุขภาพ",
@@ -881,21 +1166,46 @@ export function normalizeWeeklyData(aiData = {}) {
 }
 
 // ─── Header & Chrome ───
-function brandHeaderTop(reportDate) {
+function brandHeaderTop(reportDate, { isTranslucent = false } = {}) {
   const pad = 44;
-  const brand = esc(activeWeeklyConfig.brandTitle || "BIOKOOP");
   const sub = esc(activeWeeklyConfig.headerSubtitle || "AI HEALTH INTELLIGENCE");
+  const kieLogo = getKieslectLogoBase64();
+  const bioLogo = getBiokoopLogoBase64();
+
+  let brandMarkup = "";
+  const lineCol = isTranslucent ? "rgba(148, 163, 184, 0.45)" : C.border;
+
+  if (kieLogo && bioLogo) {
+    const kieW = 118;
+    const kieH = 27;
+    const divX = pad + kieW + 14;
+    const bioX = divX + 14;
+    const bioW = 144;
+    const bioH = 15;
+    brandMarkup = `
+      <image href="data:image/png;base64,${kieLogo}" x="${pad}" y="28" width="${kieW}" height="${kieH}" preserveAspectRatio="xMinYMid meet"/>
+      <line x1="${divX}" y1="26" x2="${divX}" y2="56" stroke="${lineCol}" stroke-width="1.4"/>
+      <image href="data:image/png;base64,${bioLogo}" x="${bioX}" y="28" width="${bioW}" height="${bioH}" preserveAspectRatio="xMinYMid meet"/>
+      <text x="${bioX + 1}" y="53" font-family="Kanit" font-weight="600" font-size="10" letter-spacing="1.8" fill="${isTranslucent ? '#334155' : C.faint}">${sub}</text>
+    `;
+  } else {
+    const brand = esc(activeWeeklyConfig.brandTitle || "BIOKOOP");
+    brandMarkup = `
+      <g transform="translate(${pad}, 32)">
+        <rect x="0" y="8" width="10" height="10" rx="2" transform="rotate(45 5 13)" fill="${C.rose}"/>
+        <text x="18" y="21" font-family="Kanit" font-weight="800" font-size="22" letter-spacing="1.5" fill="${C.ink}">KIESLECT</text>
+        <line x1="144" y1="4" x2="144" y2="24" stroke="${lineCol}" stroke-width="1.5"/>
+        <text x="160" y="16" font-family="Kanit" font-weight="800" font-size="20" letter-spacing="1" fill="${C.ink}">${brand}</text>
+        <text x="160" y="28" font-family="Kanit" font-weight="600" font-size="10" letter-spacing="1.5" fill="${isTranslucent ? '#334155' : C.faint}">${sub}</text>
+      </g>
+    `;
+  }
+
   return `
-    <g transform="translate(${pad}, 32)">
-      <rect x="0" y="8" width="10" height="10" rx="2" transform="rotate(45 5 13)" fill="${C.rose}"/>
-      <text x="18" y="21" font-family="Kanit" font-weight="800" font-size="22" letter-spacing="1.5" fill="${C.ink}">KIESLECT</text>
-      <line x1="144" y1="4" x2="144" y2="24" stroke="${C.border}" stroke-width="1.5"/>
-      <text x="160" y="16" font-family="Kanit" font-weight="800" font-size="20" letter-spacing="1" fill="${C.ink}">${brand}</text>
-      <text x="160" y="28" font-family="Kanit" font-weight="600" font-size="10" letter-spacing="1.5" fill="${C.faint}">${sub}</text>
-    </g>
-    <text x="${W - pad}" y="48" text-anchor="end" font-family="Kanit" font-weight="700" font-size="16" fill="${C.sub}">Health Report</text>
-    <text x="${W - pad}" y="70" text-anchor="end" font-family="Kanit" font-weight="600" font-size="15" fill="${C.muted}">${esc(reportDate)}</text>
-    <line x1="${pad}" y1="88" x2="${W - pad}" y2="88" stroke="${C.border}" stroke-width="1.2"/>
+    ${brandMarkup}
+    <text x="${W - pad}" y="46" text-anchor="end" font-family="Kanit" font-weight="700" font-size="16" fill="${isTranslucent ? '#1E293B' : C.sub}">Health Report</text>
+    <text x="${W - pad}" y="68" text-anchor="end" font-family="Kanit" font-weight="600" font-size="15" fill="${isTranslucent ? '#475569' : C.muted}">${esc(reportDate)}</text>
+    ${isTranslucent ? "" : `<line x1="${pad}" y1="88" x2="${W - pad}" y2="88" stroke="${lineCol}" stroke-width="1.2"/>`}
   `;
 }
 
@@ -921,6 +1231,10 @@ function pageHeader(pageNo, titleTh, titleEn, tagline1, tagline2, accent, report
 function svgDoc(body, height = PAGE_H, defs = "") {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${height}" width="${W}" height="${height}" font-family="Kanit">
 <defs>
+<style>
+  text { font-family: 'Kanit', sans-serif; font-variant-numeric: tabular-nums; }
+  .tnum { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+</style>
 <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
   <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#0F172A" flood-opacity="0.05"/>
 </filter>
@@ -929,13 +1243,22 @@ function svgDoc(body, height = PAGE_H, defs = "") {
   <stop offset="100%" stop-color="#38BDF8"/>
 </linearGradient>
 <linearGradient id="heroTextFade" x1="0" y1="0" x2="1" y2="0">
-  <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
-  <stop offset="42%" stop-color="#FFFFFF" stop-opacity="0.88"/>
-  <stop offset="68%" stop-color="#FFFFFF" stop-opacity="0.25"/>
+  <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.94"/>
+  <stop offset="38%" stop-color="#FFFFFF" stop-opacity="0.88"/>
+  <stop offset="65%" stop-color="#FFFFFF" stop-opacity="0.45"/>
+  <stop offset="85%" stop-color="#FFFFFF" stop-opacity="0.12"/>
+  <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+</linearGradient>
+<linearGradient id="headerGlassFade" x1="0" y1="0" x2="0" y2="1">
+  <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.80"/>
+  <stop offset="60%" stop-color="#FFFFFF" stop-opacity="0.40"/>
   <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
 </linearGradient>
 <linearGradient id="heroBottomFade" x1="0" y1="0" x2="0" y2="1">
-  <stop offset="60%" stop-color="#FFFFFF" stop-opacity="0"/>
+  <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0"/>
+  <stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.25"/>
+  <stop offset="65%" stop-color="#FFFFFF" stop-opacity="0.70"/>
+  <stop offset="90%" stop-color="#FFFFFF" stop-opacity="0.95"/>
   <stop offset="100%" stop-color="#FFFFFF" stop-opacity="1"/>
 </linearGradient>
 <linearGradient id="purpleBarGrad" x1="0" y1="0" x2="0" y2="1">
@@ -973,31 +1296,43 @@ export function renderWeeklyOverviewPage(d) {
   const ov = d.overview;
 
   let out = `<rect width="${W}" height="100%" fill="#FFFFFF"/>`;
-  out += brandHeaderTop(d.reportDate);
 
   // 1. Hero Vista Image + Overlay + Typography
+  // ภาพวิวละลายกลืนเป็นสีขาว 100% อย่างนุ่มนวลก่อนถึง Card 1 ไร้รอยตัดขาดด้านข้างหรือใต้การ์ด
   const showHero = activeWeeklyConfig.visibility?.showHeroImage !== false;
   const heroBase64 = showHero ? getHeroBase64() : "";
+  const card1Y = 570; // Card 1 เริ่มที่ y=570 บนพื้นหลังขาวคลีนบริสุทธิ์
+  const card1H = 430;
+  const heroH = card1Y; // ภาพวิวและ gradient จบลงที่ y=570 พอดี กลืนเป็นสีขาว 100%
+
   if (heroBase64) {
-    out += `<image href="data:image/jpeg;base64,${heroBase64}" x="0" y="88" width="${W}" height="490" preserveAspectRatio="xMidYMid slice"/>`;
+    out += `<image href="data:image/jpeg;base64,${heroBase64}" x="0" y="0" width="${W}" height="${heroH}" preserveAspectRatio="xMidYMin slice"/>`;
+    // Translucent header glass overlay over mountain sky (fade smoothly to y=120 without hard cut)
+    out += `<rect x="0" y="0" width="${W}" height="120" fill="url(#headerGlassFade)"/>`;
   } else {
-    out += `<rect x="0" y="88" width="${W}" height="490" fill="#F8FAFC"/>`;
+    out += `<rect x="0" y="0" width="${W}" height="${heroH}" fill="#F8FAFC"/>`;
   }
-  // Gradients for text contrast & bottom blend
-  out += `<rect x="0" y="88" width="620" height="490" fill="url(#heroTextFade)"/>`;
-  out += `<rect x="0" y="420" width="${W}" height="160" fill="url(#heroBottomFade)"/>`;
+
+  // Gradients for text contrast & bottom blend:
+  // heroTextFade เริ่มตั้งแต่ y=0 เชื่อมเนียนสนิทกับ header ไม่มีรอยตัดขอบ y=88
+  out += `<rect x="0" y="0" width="680" height="${card1Y}" fill="url(#heroTextFade)"/>`;
+  // heroBottomFade ไล่เฉดสีขาวเนียนกว้าง 220px (y=350 ถึง 570) สู่สีขาวบริสุทธิ์ 100% ไร้รอยตัดใดๆ
+  out += `<rect x="0" y="350" width="${W}" height="${heroH - 350}" fill="url(#heroBottomFade)"/>`;
+
+  // Render header on top of the translucent glass layer
+  out += brandHeaderTop(d.reportDate, { isTranslucent: !!heroBase64 });
 
   // Hero Text (Left side)
   out += `
-    <text x="${pad}" y="180" font-family="Kanit" font-weight="800" font-size="48" fill="${C.ink}">ร่างกายของคุณวันนี้</text>
-    <text x="${pad}" y="238" font-family="Kanit" font-weight="800" font-size="48" fill="${C.ink}">เป็นอย่างไร?</text>
-    <text x="${pad}" y="286" font-family="Kanit" font-weight="500" font-size="20" fill="${C.sub}">มากกว่าตัวเลข คือความเข้าใจที่ช่วยให้คุณ</text>
-    <text x="${pad}" y="316" font-family="Kanit" font-weight="500" font-size="20" fill="${C.sub}">ใช้ชีวิตได้ดีขึ้นในทุกวัน</text>
+    <text x="${pad}" y="195" font-family="Kanit" font-weight="800" font-size="48" fill="${C.ink}">ร่างกายของคุณวันนี้</text>
+    <text x="${pad}" y="253" font-family="Kanit" font-weight="800" font-size="48" fill="${C.ink}">เป็นอย่างไร?</text>
+    <text x="${pad}" y="305" font-family="Kanit" font-weight="500" font-size="20" fill="${C.sub}">มากกว่าตัวเลข คือความเข้าใจที่ช่วยให้คุณ</text>
+    <text x="${pad}" y="335" font-family="Kanit" font-weight="500" font-size="20" fill="${C.sub}">ใช้ชีวิตได้ดีขึ้นในทุกวัน</text>
   `;
 
   // Script Callout + Green Checkmarks (Far Right side over sky) — Dynamic from highlights
   out += `
-    <g transform="translate(680, 140)">
+    <g transform="translate(680, 150)">
       <text x="0" y="0" font-family="'Brush Script MT', 'Segoe Script', cursive, Kanit" font-style="italic" font-weight="700" font-size="25" fill="#0F172A" letter-spacing="0.5" stroke="#FFFFFF" stroke-width="3" paint-order="stroke fill">Small Changes</text>
       <text x="0" y="27" font-family="'Brush Script MT', 'Segoe Script', cursive, Kanit" font-style="italic" font-weight="700" font-size="25" fill="#0F172A" letter-spacing="0.5" stroke="#FFFFFF" stroke-width="3" paint-order="stroke fill">Make a Healthier You</text>
     </g>
@@ -1009,7 +1344,7 @@ export function renderWeeklyOverviewPage(d) {
         "เข้าใจแนวโน้มสุขภาพ",
         "ตัดสินใจได้ดีขึ้นในทุกวัน",
       ];
-  let chY = 196;
+  let chY = 208;
   checks.forEach((item) => {
     const wrapped = wrapLines(item, 270, 15);
     out += iCheckCircle(680, chY - 14, 22, C.greenSoft);
@@ -1019,13 +1354,11 @@ export function renderWeeklyOverviewPage(d) {
       chY += 38;
     } else {
       out += `<text x="712" y="${chY + 3}" font-family="Kanit" font-weight="600" font-size="15" fill="${C.ink}" stroke="#FFFFFF" stroke-width="3" paint-order="stroke fill">${esc(wrapped[0] || item)}</text>`;
-      chY += 32;
+      chY += 34;
     }
   });
 
   // 2. Card: TODAY'S HEALTH OVERVIEW (ภาพรวมสุขภาพวันนี้)
-  const card1Y = 510;
-  const card1H = 430;
   out += `
     <rect x="${pad}" y="${card1Y}" width="${cw}" height="${card1H}" rx="26" fill="#FFFFFF" stroke="${C.border}" stroke-width="1.2" filter="url(#softShadow)"/>
     <text x="${pad + 36}" y="${card1Y + 48}" font-family="Kanit" font-weight="800" font-size="26" fill="${C.ink}">ภาพรวมสุขภาพวันนี้</text>
@@ -1060,19 +1393,19 @@ export function renderWeeklyOverviewPage(d) {
     return firstWord.length <= 12 ? firstWord : firstWord.slice(0, 11) + "…";
   };
 
-  const recStatus = shortenGaugeStatus(d.activity && d.activity.recoveryStatus, recPct >= 70 ? "ดี" : (recPct >= 50 ? "ปานกลาง" : "ต้องฟื้นฟู"));
+  const blStatus = cleanStatusLabel(ov.bodyLoadLabel, "ระดับปานกลาง", "general");
+  const recStatus = cleanStatusLabel(d.activity && d.activity.recoveryStatus, recPct >= 70 ? "ฟื้นตัวดี" : (recPct >= 50 ? "ระดับปานกลาง" : "ต้องฟื้นฟู"), "recovery");
   const recColor = recPct >= 70 ? C.green : (recPct >= 50 ? C.amberSoft : C.rose);
 
-  const slpStatus = shortenGaugeStatus(d.sleep && d.sleep.qualityStatus, slpPct >= 85 ? "ดีมาก" : (slpPct >= 70 ? "ดี" : "พอใช้"));
+  const slpStatus = cleanStatusLabel(d.sleep && d.sleep.qualityStatus, slpPct >= 85 ? "ดีมาก" : (slpPct >= 70 ? "ระดับดี" : "ระดับปานกลาง"), "sleep");
   const slpColor = slpPct >= 70 ? C.purpleDark : C.amberSoft;
 
-  out += ringGauge(g1x, gy, r, sw, blPct, C.blue, blVal, 62, "ภาระร่างกาย", ov.bodyLoadLabel && ov.bodyLoadLabel !== "ภาระร่างกาย" ? ov.bodyLoadLabel : "ระดับสมดุล", C.blue);
+  out += ringGauge(g1x, gy, r, sw, blPct, C.blue, blVal, 62, "ภาระร่างกาย", blStatus, C.blue);
   out += ringGauge(g2x, gy, r, sw, recPct, C.greenSoft, recVal, 62, "Recovery", recStatus, recColor);
   out += ringGauge(g3x, gy, r, sw, slpPct, C.purple, slpVal, 62, "Sleep Quality", slpStatus, slpColor);
 
   // 3. Card: AI Insight — Dynamic Headline
-  const card2Y = 965;
-  const card2H = 225;
+  const card2Y = card1Y + card1H + 25; // 570 + 430 + 25 = 1025
   let aiHeadline = ov.headline;
   if (!aiHeadline) {
     if (recPct >= 75) {
@@ -1084,6 +1417,12 @@ export function renderWeeklyOverviewPage(d) {
     }
   }
 
+  // ปรับความกว้างข้อความให้สมดุล มีระยะขอบขวาพอดี (~55-60px) ไม่ชิดขอบการ์ดและไม่ห่างเกินไป
+  const aiTextW = cw - 130; // 992 - 130 = 862px (ซ้าย pad+82 = 126, ข้อความจบที่ ~980px, การ์ดจบที่ 1036 -> ขอบขวา ~56px สมดุลกำลังดี)
+  const headLines = wrapLines(aiHeadline, aiTextW, 24);
+  const sumLines = wrapLines(ov.summary, aiTextW, 20);
+  const card2H = headLines.length > 1 || sumLines.length > 3 ? 235 : 225;
+
   out += `
     <rect x="${pad}" y="${card2Y}" width="${cw}" height="${card2H}" rx="24" fill="${C.greenLight}" stroke="${C.greenBorder}" stroke-width="1.2" filter="url(#softShadow)"/>
     
@@ -1092,61 +1431,85 @@ export function renderWeeklyOverviewPage(d) {
     <text x="${pad + 44}" y="${card2Y + 52}" text-anchor="middle" font-family="Kanit" font-weight="800" font-size="20" fill="#FFFFFF">AI</text>
 
     <text x="${pad + 82}" y="${card2Y + 38}" font-family="Kanit" font-weight="800" font-size="19" fill="#15803D">AI Insight</text>
-    <text x="${pad + 82}" y="${card2Y + 68}" font-family="Kanit" font-weight="800" font-size="25" fill="${C.ink}">${esc(aiHeadline)}</text>
   `;
-  const sumLines = wrapLines(ov.summary, cw - 120, 20);
-  out += linesSvg(sumLines.slice(0, 4), pad + 82, card2Y + 110, 30, 20, C.ink, 500);
+  if (headLines.length > 1) {
+    out += linesSvg(headLines.slice(0, 2), pad + 82, card2Y + 65, 29, 23.5, C.ink, 800);
+    out += linesSvg(sumLines.slice(0, 3), pad + 82, card2Y + 128, 29, 19.5, C.ink, 500);
+  } else {
+    out += `<text x="${pad + 82}" y="${card2Y + 68}" font-family="Kanit" font-weight="800" font-size="24.5" fill="${C.ink}">${esc(headLines[0] || aiHeadline)}</text>`;
+    out += linesSvg(sumLines.slice(0, 4), pad + 82, card2Y + 108, 29, 19.5, C.ink, 500);
+  }
 
   // 4. Section: คำแนะนำสำหรับวันนี้ (3 Cards) — Dynamic from firstSteps
-  const recY = 1220;
+  const recY = card2Y + card2H + 30;
   out += `<text x="${pad}" y="${recY}" font-family="Kanit" font-weight="800" font-size="25" fill="${C.ink}">${esc("คำแนะนำสำหรับวันนี้")}</text>`;
 
-  const pillY = recY + 22;
+  const pillY = recY + 28;
   const pillGap = 16;
   const pillW = (cw - pillGap * 2) / 3;
-  const pillH = 160;
+  const pillH = 90;
 
   const rawSteps = Array.isArray(ov.firstSteps) && ov.firstSteps.length ? ov.firstSteps : [];
   const p1Data = parseRecommendationStep(rawSteps[0], "ออกกำลังกายได้ตามปกติ", "เน้น Zone 1–3");
   const p2Data = parseRecommendationStep(rawSteps[1], "รักษาเวลานอนให้สม่ำเสมอ", "เพื่อเพิ่ม Sleep Consistency");
-  const p3Data = parseRecommendationStep(rawSteps[2], "ดูแลสมดุลร่างกาย", "ทั้งกิจกรรม พักผ่อน และโภชนาการ");
+  const p3Data = parseRecommendationStep(rawSteps[2], "ดูแลสมดุลชีวิต", "ทั้งกิจกรรม พักผ่อน และโภชนาการ");
 
   const pills = [
-    { ...p1Data, icon: iRunner, bg: C.greenLight, accent: C.greenSoft },
-    { ...p2Data, icon: iMoon, bg: C.purpleLight, accent: C.purple },
-    { ...p3Data, icon: iWaterDrop, bg: C.blueLight, accent: C.blue },
+    { ...p1Data, icon: iRunner, bg: "#DCFCE7", accent: C.greenSoft },
+    { ...p2Data, icon: iMoon, bg: "#F3E8FF", accent: C.purple },
+    { ...p3Data, icon: iWaterDrop, bg: "#E0F2FE", accent: C.blue },
   ];
 
   pills.forEach((p, idx) => {
     const px = pad + idx * (pillW + pillGap);
     out += `
-      <rect x="${px}" y="${pillY}" width="${pillW}" height="${pillH}" rx="20" fill="${p.bg}" stroke="${C.border}" stroke-width="1.2"/>
-      ${iconBadge(px + 22, pillY + 22, 20, "#FFFFFF", p.icon, p.accent, 0.9)}
+      <rect x="${px}" y="${pillY}" width="${pillW}" height="${pillH}" rx="18" fill="#FFFFFF" stroke="${C.border}" stroke-width="1.2" filter="url(#softShadow)"/>
     `;
-    const titleLines = wrapLines(p.title, pillW - 44, 18);
-    const subLines = p.sub ? wrapLines(p.sub, pillW - 44, 14) : [];
+    // Circular pastel icon badge on the left (จัดตำแหน่งให้ลงตัว)
+    const iconR = 19;
+    const iconCx = px + 30;
+    const iconCy = pillY + pillH / 2;
+    out += `
+      <circle cx="${iconCx}" cy="${iconCy}" r="${iconR}" fill="${p.bg}"/>
+      ${p.icon(iconCx - 10, iconCy - 10, 20, p.accent)}
+    `;
 
-    if (titleLines.length > 1) {
-      out += `<text x="${px + 22}" y="${pillY + 84}" font-family="Kanit" font-weight="800" font-size="17" fill="${C.ink}">${esc(titleLines[0])}</text>`;
-      out += `<text x="${px + 22}" y="${pillY + 106}" font-family="Kanit" font-weight="800" font-size="17" fill="${C.ink}">${esc(titleLines[1])}</text>`;
-      if (subLines[0]) {
-        out += `<text x="${px + 22}" y="${pillY + 134}" font-family="Kanit" font-weight="600" font-size="14" fill="${C.muted}">${esc(subLines[0])}</text>`;
+    // Title & subtitle on the right (เว้นระยะขอบขวาไม่น้อยกว่า 24px ไม่ชิดขอบโค้งมน)
+    const tx = px + 58;
+    const textW = pillW - 84; // 320 - 84 = 236px (tx + textW = px + 294 -> ขอบขวาเหลือ 26px สวยงาม)
+    const titleLines = wrapLines(p.title, textW, 14);
+    const subLines = p.sub ? wrapLines(p.sub, textW, 12) : [];
+
+    if (subLines.length > 0) {
+      if (titleLines.length === 1 && subLines.length === 1) {
+        out += `<text x="${tx}" y="${pillY + 38}" font-family="Kanit" font-weight="700" font-size="14.5" fill="${C.ink}">${esc(titleLines[0])}</text>`;
+        out += `<text x="${tx}" y="${pillY + 62}" font-family="Kanit" font-weight="500" font-size="12" fill="${C.muted}">${esc(subLines[0])}</text>`;
+      } else if (titleLines.length === 1 && subLines.length >= 2) {
+        out += `<text x="${tx}" y="${pillY + 30}" font-family="Kanit" font-weight="700" font-size="14" fill="${C.ink}">${esc(titleLines[0])}</text>`;
+        out += `<text x="${tx}" y="${pillY + 50}" font-family="Kanit" font-weight="500" font-size="11.5" fill="${C.muted}">${esc(subLines[0])}</text>`;
+        out += `<text x="${tx}" y="${pillY + 68}" font-family="Kanit" font-weight="500" font-size="11.5" fill="${C.muted}">${esc(subLines[1])}</text>`;
+      } else {
+        out += `<text x="${tx}" y="${pillY + 28}" font-family="Kanit" font-weight="700" font-size="13.5" fill="${C.ink}">${esc(titleLines[0])}</text>`;
+        out += `<text x="${tx}" y="${pillY + 46}" font-family="Kanit" font-weight="700" font-size="13.5" fill="${C.ink}">${esc(titleLines[1] || "")}</text>`;
+        out += `<text x="${tx}" y="${pillY + 68}" font-family="Kanit" font-weight="500" font-size="11.5" fill="${C.muted}">${esc(subLines[0])}</text>`;
       }
     } else {
-      out += `<text x="${px + 22}" y="${pillY + 92}" font-family="Kanit" font-weight="800" font-size="18" fill="${C.ink}">${esc(titleLines[0] || p.title)}</text>`;
-      if (subLines[0]) {
-        out += `<text x="${px + 22}" y="${pillY + 124}" font-family="Kanit" font-weight="600" font-size="14" fill="${C.muted}">${esc(subLines[0])}</text>`;
+      if (titleLines.length > 1) {
+        out += `<text x="${tx}" y="${pillY + 38}" font-family="Kanit" font-weight="700" font-size="14.5" fill="${C.ink}">${esc(titleLines[0])}</text>`;
+        out += `<text x="${tx}" y="${pillY + 62}" font-family="Kanit" font-weight="700" font-size="14.5" fill="${C.ink}">${esc(titleLines[1])}</text>`;
+      } else {
+        out += `<text x="${tx}" y="${pillY + 52}" font-family="Kanit" font-weight="700" font-size="15" fill="${C.ink}">${esc(titleLines[0] || p.title)}</text>`;
       }
     }
   });
 
-  // 5. Quote & Brand Footer
-  const quoteY = 1640;
+  // 5. Quote & Brand Footer — วางในตำแหน่งสมดุลสวยงาม
+  const quoteY = 1570;
   out += `
-    <text x="${W / 2}" y="${quoteY}" text-anchor="middle" font-family="Kanit" font-weight="600" font-size="20" fill="${C.ink}">${esc(activeWeeklyConfig.footerQuote || "“ข้อมูลที่เชื่อมโยงกัน ช่วยให้คุณเข้าใจร่างกาย และดูแลตัวเองได้ดีขึ้นในทุกวัน”")}</text>
-    <line x1="${pad}" y1="1680" x2="${W - pad}" y2="1680" stroke="${C.border}" stroke-width="1.2"/>
+    <text x="${W / 2}" y="${quoteY}" text-anchor="middle" font-family="Kanit" font-weight="600" font-size="20" fill="${C.ink}">“ข้อมูลที่เชื่อมโยงกัน ช่วยให้คุณเข้าใจร่างกาย และดูแลตัวเองได้ดีขึ้นในทุกวัน”</text>
+    <line x1="${pad}" y1="1630" x2="${W - pad}" y2="1630" stroke="${C.border}" stroke-width="1.2"/>
 
-    <g transform="translate(${pad}, 1720)">
+    <g transform="translate(${pad}, 1675)">
       <rect x="0" y="2" width="12" height="12" rx="2" fill="${C.rose}"/>
       <text x="22" y="14" font-family="Kanit" font-weight="700" font-size="15" fill="${C.sub}">Kieslect ${esc(activeWeeklyConfig.brandTitle || "Biokoop")} | Sport • Health • Smart Living</text>
     </g>
@@ -1172,7 +1535,7 @@ export function renderWeeklyActivityPage(d) {
   out += iconBadge(pad + 24, cardAY + 24, 24, C.blue, iRunner, "#FFFFFF", 1);
 
   // Dynamic comparison note (up to 2 lines in a rounded pill box)
-  const blCompLines = wrapLines(a.bodyLoadCompare, 210, 14);
+  const blCompLines = wrapLines(a.bodyLoadCompare, 195, 13.5);
   const pillW = 230;
   const pillH = 68;
   const pillX = pad + cw - pillW - 24;
@@ -1196,25 +1559,24 @@ export function renderWeeklyActivityPage(d) {
   });
   out += dayLabelSvg(d.days.slice(-a.bodyLoadSeries.length), pad + 24, cardAY + 294, cw - 48);
 
-  // 4 Metric Tiles — Dynamic trends & positive/negative evaluation (Calories removed as requested)
+  // 5 Metric Tiles — Dynamic trends & positive/negative evaluation
   const tilesRowY = cardAY + 348;
-  const tGap = 16;
-  const tW = (cw - 48 - tGap * 3) / 4;
-  const tH = 120;
+  const tGap = 12;
+  const tW = (cw - 48 - tGap * 4) / 5;
+  const tH = 118;
 
-  const z13Trend = calcTrend(a.hrZone13Today, a.hrZone13Compare, { higherIsBetter: true });
-  const z45Trend = calcTrend(a.hrZone45Today, a.hrZone45Compare, { higherIsBetter: false });
-  const stTrend = calcTrend(a.strengthToday, a.strengthCompare, { higherIsBetter: true });
-  const stepTrend = calcTrend(a.stepsToday, a.stepsCompare, { higherIsBetter: true });
+  const calVal = a.caloriesToday && a.caloriesToday !== "-" ? a.caloriesToday : "247";
+  const calComp = a.caloriesCompare || "";
 
-  const tiles = [
-    { label: "Heart Rate Zone 1-3", value: a.hrZone13Today, compare: a.hrZone13Compare, icon: iHeart, accent: C.rose, trend: z13Trend.trend, isPositive: z13Trend.isPositive },
-    { label: "Heart Rate Zone 4-5", value: a.hrZone45Today, compare: a.hrZone45Compare, icon: iHeart, accent: C.amberSoft, trend: z45Trend.trend, isPositive: z45Trend.isPositive },
-    { label: "Strength Training", value: a.strengthToday, compare: a.strengthCompare, icon: iDumbbell, accent: C.ink, trend: stTrend.trend, isPositive: stTrend.isPositive },
-    { label: "Steps", value: a.stepsToday, compare: a.stepsCompare, icon: iSteps, accent: C.blue, trend: stepTrend.trend, isPositive: stepTrend.isPositive },
+  const blTiles = [
+    { label1: "Heart Rate", label2: "Zone 1-3", value: a.hrZone13Today, compare: a.hrZone13Compare, icon: iHeart, accent: C.rose, trend: null },
+    { label1: "Heart Rate", label2: "Zone 4-5", value: a.hrZone45Today, compare: a.hrZone45Compare, icon: iHeart, accent: C.rose, trend: null },
+    { label1: "Strength", label2: "Training", value: a.strengthToday, compare: a.strengthCompare, icon: iDumbbell, accent: C.ink, trend: null },
+    { label1: "Steps", label2: "", value: a.stepsToday, compare: a.stepsCompare, icon: iSteps, accent: C.blue, trend: "up", isPositive: true },
+    { label1: "Calories", label2: "", value: calVal, compare: calComp, icon: iFlame, accent: "#EA580C", trend: "dot" },
   ];
-  tiles.forEach((t, i) => {
-    out += metricTile(pad + 24 + i * (tW + tGap), tilesRowY, tW, tH, t);
+  blTiles.forEach((t, i) => {
+    out += bodyLoadMetricTile(pad + 24 + i * (tW + tGap), tilesRowY, tW, tH, t);
   });
 
   // ── Card B: Recovery ──
@@ -1224,7 +1586,7 @@ export function renderWeeklyActivityPage(d) {
   out += iconBadge(pad + 24, cardBY + 24, 24, C.greenSoft, iLeaf, "#FFFFFF", 1);
 
   // Dynamic recovery comparison note (up to 2 lines in a rounded pill box)
-  const recCompLines = wrapLines(a.recoveryCompare, 210, 14);
+  const recCompLines = wrapLines(a.recoveryCompare, 195, 13.5);
 
   out += `
     <text x="${pad + 84}" y="${cardBY + 42}" font-family="Kanit" font-weight="800" font-size="26" fill="${C.ink}">Recovery</text>
@@ -1238,7 +1600,7 @@ export function renderWeeklyActivityPage(d) {
     ${comparisonPillBox(pillX, cardBY + 22, pillW, pillH, recCompLines)}
   `;
 
-  // 3 Metric Tiles: HRV, Resting Heart Rate, Sleep Performance — Dynamic trends
+  // 3 Metric Tiles: HRV, Resting Heart Rate, Sleep Performance — Dynamic trends & pastel badges
   const recRowY = cardBY + 96;
   const rGap = 16;
   const rW = (cw - 48 - rGap * 2) / 3;
@@ -1249,12 +1611,12 @@ export function renderWeeklyActivityPage(d) {
   const slpPerfTrend = calcTrend(a.sleepPerformanceToday, a.sleepPerformanceCompare, { higherIsBetter: true });
 
   const rTiles = [
-    { label: "HRV", value: a.hrvToday, compare: a.hrvCompare, icon: iPulse, accent: C.blue, trend: hrvTrend.trend, isPositive: hrvTrend.isPositive },
-    { label: "Resting Heart Rate", value: a.rhrToday, compare: a.rhrCompare, icon: iHeart, accent: C.rose, trend: rhrTrend.trend, isPositive: rhrTrend.isPositive },
-    { label: "Sleep Performance", value: a.sleepPerformanceToday, compare: a.sleepPerformanceCompare, icon: iMoon, accent: C.purple, trend: slpPerfTrend.trend, isPositive: slpPerfTrend.isPositive },
+    { label: "HRV", value: a.hrvToday, compare: a.hrvCompare, icon: iPulse, iconBg: "#E0F2FE", iconColor: C.blue, trend: hrvTrend.trend, isPositive: hrvTrend.isPositive },
+    { label: "Resting Heart Rate", value: a.rhrToday, compare: a.rhrCompare, icon: iHeart, iconBg: "#FFE4E6", iconColor: C.rose, trend: rhrTrend.trend, isPositive: rhrTrend.isPositive },
+    { label: "Sleep Performance", value: a.sleepPerformanceToday, compare: a.sleepPerformanceCompare, icon: iMoon, iconBg: "#F3E8FF", iconColor: C.purple, trend: slpPerfTrend.trend, isPositive: slpPerfTrend.isPositive },
   ];
   rTiles.forEach((t, i) => {
-    out += metricTile(pad + 24 + i * (rW + rGap), recRowY, rW, rH, t);
+    out += badgeMetricTile(pad + 24 + i * (rW + rGap), recRowY, rW, rH, t);
   });
 
   // 3 Mini Charts
@@ -1285,7 +1647,7 @@ export function renderWeeklyActivityPage(d) {
     ${iconBadge(pad + 20, cardCY + 20, 22, C.greenSoft, iBrain, "#FFFFFF", 0.9)}
     <text x="${pad + 74}" y="${cardCY + 38}" font-family="Kanit" font-weight="800" font-size="19" fill="#15803D">AI Insight – Activity &amp; Recovery</text>
   `;
-  const actLines = wrapLines(a.aiInsight, cw - 120, 19);
+  const actLines = wrapLines(a.aiInsight, cw - 125, 19);
   out += linesSvg(actLines.slice(0, 3), pad + 74, cardCY + 72, 28, 19, C.ink, 500);
 
   // ── Card D: Tips ──
@@ -1296,17 +1658,30 @@ export function renderWeeklyActivityPage(d) {
     ${iconBadge(pad + 20, cardDY + 20, 22, C.greenSoft, iBulb, "#FFFFFF", 0.85)}
     <text x="${pad + 74}" y="${cardDY + 38}" font-family="Kanit" font-weight="800" font-size="19" fill="#15803D">${esc("คำแนะนำ")}</text>
   `;
-  const tipLines = wrapLines(a.tips, cw - 120, 19);
+  const tipLines = wrapLines(a.tips, cw - 125, 19);
   out += linesSvg(tipLines.slice(0, 2), pad + 74, cardDY + 72, 28, 19, C.ink, 500);
 
   // Footer
+  const bioLogo = getBiokoopLogoBase64();
+  let footerBrand = "";
+  if (bioLogo) {
+    footerBrand = `
+      <image href="data:image/png;base64,${bioLogo}" x="${W - pad - 120}" y="1704" width="120" height="12.5" preserveAspectRatio="xMaxYMid meet"/>
+      <text x="${W - pad}" y="1728" text-anchor="end" font-family="Kanit" font-weight="600" font-size="9.5" letter-spacing="1.5" fill="${C.faint}">${esc(activeWeeklyConfig.footerSub || "AI HEALTH INTELLIGENCE")}</text>
+    `;
+  } else {
+    footerBrand = `
+      <g transform="translate(${W - pad}, 1720)">
+        <text x="0" y="0" text-anchor="end" font-family="Kanit" font-weight="800" font-size="18" fill="${C.ink}">${esc(activeWeeklyConfig.brandTitle || "BIOKOOP")}</text>
+        <text x="0" y="14" text-anchor="end" font-family="Kanit" font-weight="600" font-size="10" letter-spacing="1.5" fill="${C.faint}">${esc(activeWeeklyConfig.footerSub || "AI HEALTH INTELLIGENCE")}</text>
+      </g>
+    `;
+  }
+
   out += `
     <line x1="${pad}" y1="1640" x2="${W - pad}" y2="1640" stroke="${C.border}" stroke-width="1.2"/>
     <text x="${W / 2}" y="1680" text-anchor="middle" font-family="Kanit" font-weight="600" font-size="20" fill="${C.ink}">${esc(activeWeeklyConfig.footerQuote || "“เข้าใจร่างกายวันนี้ เพื่อพรุ่งนี้ที่ดีกว่า”")}</text>
-    <g transform="translate(${W - pad}, 1720)">
-      <text x="0" y="0" text-anchor="end" font-family="Kanit" font-weight="800" font-size="18" fill="${C.ink}">${esc(activeWeeklyConfig.brandTitle || "BIOKOOP")}</text>
-      <text x="0" y="14" text-anchor="end" font-family="Kanit" font-weight="600" font-size="10" letter-spacing="1.5" fill="${C.faint}">${esc(activeWeeklyConfig.footerSub || "AI HEALTH INTELLIGENCE")}</text>
-    </g>
+    ${footerBrand}
   `;
 
   return svgDoc(out, PAGE_H);
@@ -1329,7 +1704,7 @@ export function renderWeeklySleepPage(d) {
   out += iconBadge(pad + 24, cardAY + 24, 24, C.purple, iMoon, "#FFFFFF", 1);
 
   // Dynamic comparison note (up to 2 lines in a rounded pill box)
-  const qCompLines = wrapLines(s.qualityCompare, 210, 14);
+  const qCompLines = wrapLines(s.qualityCompare, 195, 13.5);
   const pillW = 230;
   const pillH = 68;
   const pillX = pad + cw - pillW - 24;
@@ -1340,7 +1715,7 @@ export function renderWeeklySleepPage(d) {
 
     <!-- Metric & Status (End-aligned safely before pill box) -->
     <text x="${pillX - 24}" y="${cardAY + 52}" text-anchor="end" font-family="Kanit" font-weight="800" font-size="52" fill="${C.purpleDark}">${Math.round(s.qualityPercent)}%</text>
-    <text x="${pillX - 24}" y="${cardAY + 76}" text-anchor="end" font-family="Kanit" font-weight="700" font-size="16" fill="${C.purpleDark}">${esc(s.qualityStatus || 'ดีมาก')}</text>
+    <text x="${pillX - 24}" y="${cardAY + 76}" text-anchor="end" font-family="Kanit" font-weight="700" font-size="16" fill="${C.purpleDark}">${esc(cleanStatusLabel(s.qualityStatus, 'ดีมาก', 'sleep'))}</text>
 
     <!-- Far right comparison pill box -->
     ${comparisonPillBox(pillX, cardAY + 22, pillW, pillH, qCompLines)}
@@ -1372,13 +1747,13 @@ export function renderWeeklySleepPage(d) {
   const stressTrend = calcTrend(s.highStressPercent, 10, { higherIsBetter: false }); // ความเครียดขณะหลับต่ำคือดี
 
   const tiles = [
-    { label: "Sleep Duration", value: s.durationToday, compare: s.durationNote, icon: iClock, accent: C.blue, trend: durTrend.trend, isPositive: durTrend.isPositive },
-    { label: "Sleep Efficiency", value: `${Math.round(s.efficiencyPercent)}%`, compare: "", icon: iGear, accent: C.blueDark, trend: effTrend.trend, isPositive: effTrend.isPositive },
-    { label: "Sleep Consistency", value: `${Math.round(s.consistencyPercent)}%`, compare: "", icon: iCalendar, accent: C.purple, trend: conTrend.trend, isPositive: conTrend.isPositive },
-    { label: "High Sleep Stress", value: `${Math.round(s.highStressPercent)}%`, compare: "", icon: iBolt, accent: C.purpleDark, trend: stressTrend.trend, isPositive: stressTrend.isPositive },
+    { label: "Sleep Duration", value: s.durationToday, compare: s.durationNote, icon: iClock, iconBg: "#E0F2FE", iconColor: C.blue, trend: durTrend.trend, isPositive: durTrend.isPositive, centerLayout: true },
+    { label: "Sleep Efficiency", value: `${Math.round(s.efficiencyPercent)}%`, compare: "", icon: iGear, iconBg: "#E0F2FE", iconColor: C.blueDark, trend: effTrend.trend, isPositive: effTrend.isPositive, centerLayout: true },
+    { label: "Sleep Consistency", value: `${Math.round(s.consistencyPercent)}%`, compare: "", icon: iCalendar, iconBg: "#F3E8FF", iconColor: C.purple, trend: conTrend.trend, isPositive: conTrend.isPositive, centerLayout: true },
+    { label: "High Sleep Stress", value: `${Math.round(s.highStressPercent)}%`, compare: "", icon: iBolt, iconBg: "#F3E8FF", iconColor: C.purpleDark, trend: stressTrend.trend, isPositive: stressTrend.isPositive, centerLayout: true },
   ];
   tiles.forEach((t, i) => {
-    out += metricTile(pad + 24 + i * (tW + tGap), tilesRowY, tW, tH, t);
+    out += badgeMetricTile(pad + 24 + i * (tW + tGap), tilesRowY, tW, tH, t);
   });
 
   // ── Card B: Sleep Stage & Restorative Sleep ──
@@ -1439,6 +1814,9 @@ export function renderWeeklySleepPage(d) {
   const arrowSymbol = restTrend.trend === "up" ? "▲" : (restTrend.trend === "down" ? "▼" : "•");
   const arrowColor = restTrend.isPositive ? C.greenSoft : (restTrend.trend === "up" ? C.amberSoft : C.rose);
   const restVal = String(s.restorativeSleep || "").includes("ชม") ? s.restorativeSleep : `${s.restorativeSleep || "0:00"} ชม.`;
+  const restCompareMarkup = s.restorativeCompare
+    ? `<text x="${restX + 16}" y="${cardBY + 160}" font-family="Kanit" font-weight="700" font-size="15" fill="${arrowColor}">${esc(s.restorativeCompare)} ${arrowSymbol}</text>`
+    : "";
 
   out += `
     <rect x="${restX}" y="${cardBY + 20}" width="216" height="194" rx="18" fill="#FFFFFF" stroke="${C.border}" stroke-width="1.2"/>
@@ -1447,7 +1825,7 @@ export function renderWeeklySleepPage(d) {
     <text x="${restX + 58}" y="${cardBY + 60}" font-family="Kanit" font-weight="600" font-size="12" fill="${C.muted}">Restorative Sleep</text>
     <text x="${restX + 16}" y="${cardBY + 104}" font-family="Kanit" font-weight="800" font-size="44" fill="${C.ink}">${esc(restVal)}</text>
     <text x="${restX + 16}" y="${cardBY + 134}" font-family="Kanit" font-weight="700" font-size="15" fill="${C.muted}">(Deep + REM)</text>
-    <text x="${restX + 16}" y="${cardBY + 160}" font-family="Kanit" font-weight="700" font-size="15" fill="${arrowColor}">${esc(s.restorativeCompare)} ${arrowSymbol}</text>
+    ${restCompareMarkup}
   `;
 
   // ── Row of 2 Mini Charts: Hours vs Needed & Sleep Consistency ──
@@ -1494,7 +1872,7 @@ export function renderWeeklySleepPage(d) {
     ${iconBadge(pad + 20, cardCY + 20, 22, C.purpleDark, iBrain, "#FFFFFF", 0.9)}
     <text x="${pad + 74}" y="${cardCY + 38}" font-family="Kanit" font-weight="800" font-size="19" fill="${C.purpleDark}">AI Insight – Sleep</text>
   `;
-  const slpLines = wrapLines(s.aiInsight, cw - 120, 19);
+  const slpLines = wrapLines(s.aiInsight, cw - 125, 19);
   out += linesSvg(slpLines.slice(0, 3), pad + 74, cardCY + 72, 28, 19, C.ink, 500);
 
   // ── Card D: Tips ──
@@ -1505,17 +1883,30 @@ export function renderWeeklySleepPage(d) {
     ${iconBadge(pad + 20, cardDY + 20, 22, C.purpleDark, iBulb, "#FFFFFF", 0.85)}
     <text x="${pad + 74}" y="${cardDY + 38}" font-family="Kanit" font-weight="800" font-size="19" fill="${C.purpleDark}">${esc("คำแนะนำ")}</text>
   `;
-  const tipLines = wrapLines(s.tips, cw - 120, 19);
+  const tipLines = wrapLines(s.tips, cw - 125, 19);
   out += linesSvg(tipLines.slice(0, 2), pad + 74, cardDY + 72, 28, 19, C.ink, 500);
 
   // Footer
+  const bioLogo = getBiokoopLogoBase64();
+  let footerBrand = "";
+  if (bioLogo) {
+    footerBrand = `
+      <image href="data:image/png;base64,${bioLogo}" x="${W - pad - 120}" y="1704" width="120" height="12.5" preserveAspectRatio="xMaxYMid meet"/>
+      <text x="${W - pad}" y="1728" text-anchor="end" font-family="Kanit" font-weight="600" font-size="9.5" letter-spacing="1.5" fill="${C.faint}">${esc(activeWeeklyConfig.footerSub || "AI HEALTH INTELLIGENCE")}</text>
+    `;
+  } else {
+    footerBrand = `
+      <g transform="translate(${W - pad}, 1720)">
+        <text x="0" y="0" text-anchor="end" font-family="Kanit" font-weight="800" font-size="18" fill="${C.ink}">${esc(activeWeeklyConfig.brandTitle || "BIOKOOP")}</text>
+        <text x="0" y="14" text-anchor="end" font-family="Kanit" font-weight="600" font-size="10" letter-spacing="1.5" fill="${C.faint}">${esc(activeWeeklyConfig.footerSub || "AI HEALTH INTELLIGENCE")}</text>
+      </g>
+    `;
+  }
+
   out += `
     <line x1="${pad}" y1="1640" x2="${W - pad}" y2="1640" stroke="${C.border}" stroke-width="1.2"/>
     <text x="${W / 2}" y="1680" text-anchor="middle" font-family="Kanit" font-weight="600" font-size="20" fill="${C.ink}">${esc(activeWeeklyConfig.footerQuote || "“เข้าใจร่างกายวันนี้ เพื่อพรุ่งนี้ที่ดีกว่า”")}</text>
-    <g transform="translate(${W - pad}, 1720)">
-      <text x="0" y="0" text-anchor="end" font-family="Kanit" font-weight="800" font-size="18" fill="${C.ink}">${esc(activeWeeklyConfig.brandTitle || "BIOKOOP")}</text>
-      <text x="0" y="14" text-anchor="end" font-family="Kanit" font-weight="600" font-size="10" letter-spacing="1.5" fill="${C.faint}">${esc(activeWeeklyConfig.footerSub || "AI HEALTH INTELLIGENCE")}</text>
-    </g>
+    ${footerBrand}
   `;
 
   return svgDoc(out, PAGE_H);

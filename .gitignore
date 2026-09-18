@@ -7,3 +7,4 @@ server.log
 !public/
 !public/**
 !richmenu-preview.png
+.agents/skills/

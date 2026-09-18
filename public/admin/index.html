@@ -89,8 +89,38 @@
     }
 
     button, input, select, textarea { font: inherit; }
-    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-      outline: 2px solid var(--text-main); outline-offset: 2px;
+    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .nav-item:focus-visible, .sub-tab-btn:focus-visible, .fs-btn:focus-visible {
+      outline: 2px solid var(--text-main) !important; outline-offset: 2px !important;
+    }
+
+    /* Skip Link for Accessibility */
+    .skip-link {
+      position: absolute;
+      top: -100px;
+      left: 16px;
+      background: var(--text-main);
+      color: #ffffff !important;
+      padding: 8px 16px;
+      border-radius: var(--radius-pill);
+      z-index: 10000;
+      font-weight: 500;
+      font-size: 13px;
+      text-decoration: none;
+      transition: top 0.15s ease;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+    .skip-link:focus-visible {
+      top: 10px;
+      outline: 2px solid var(--primary) !important;
+      outline-offset: 2px;
+    }
+
+    /* Tabular numbers & Text-wrap balance for optimal Web typography */
+    table, th, td, .stat-value, .stat-card, .metric-value, .badge, .version-badge, .kpi-number, .tabular-nums, .count-badge, .quota-header-pill {
+      font-variant-numeric: tabular-nums;
+    }
+    h1, h2, h3, .section-title, .page-title, .brand-title {
+      text-wrap: balance;
     }
 
     /* ─── Header — flat white top bar, subtle shadow only once scrolled ─── */
@@ -291,6 +321,13 @@
     .sub-tab-content, .settings-sub-tab-content { display: none; }
     .sub-tab-content.active, .settings-sub-tab-content.active { display: block; }
 
+    .monthly-scenario-card {
+      background: #F8FAFC; border: 1.5px solid #E2E8F0; border-radius: 12px;
+      padding: 12px 14px; cursor: pointer; transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+    }
+    .monthly-scenario-card:hover { border-color: #10B981; background: #F0FDF4; }
+    .monthly-scenario-card.active { border-color: #10B981; background: #ECFDF5; box-shadow: 0 0 0 1px #10B981; }
+
     /* ─── Stats Grid — flat, borderless, red used only for the live/progress accent ─── */
     .stats-grid {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-bottom: 40px;
@@ -379,6 +416,7 @@
       display: flex; flex-direction: column; align-items: center; justify-content: flex-start; border: 1px solid var(--border-color);
     }
     #cardPreviewContainer svg { width: 100% !important; height: auto !important; max-width: 100% !important; display: block !important; }
+    #weeklyCardPreviewSvgBox svg { width: 100% !important; height: auto !important; max-width: 100% !important; display: block !important; }
 
     .preset-theme-btn {
       padding: 8px 14px; border-radius: var(--radius-pill); border: 1px solid var(--border-color); background: #ffffff;
@@ -626,15 +664,63 @@
       .sidebar { width: 230px; }
       .main-content { padding: 20px 22px; }
     }
+
+    /* ── AI Quality & Discrepancy Inspector styles ── */
+    .ai-quality-banner {
+      border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .ai-quality-banner.passed {
+      background: #F0FDF4; border: 1px solid #86EFAC; color: #166534;
+    }
+    .ai-quality-banner.warning {
+      background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E;
+    }
+    .ai-quality-banner.error {
+      background: #FEF2F2; border: 1px solid #FECACA; color: #991B1B;
+    }
+    .anomaly-badge {
+      display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px;
+      border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    }
+    .anomaly-badge.error { background: #FEE2E2; color: #DC2626; border: 1px solid #FCA5A5; }
+    .anomaly-badge.warning { background: #FEF3C7; color: #D97706; border: 1px solid #FCD34D; }
+    .anomaly-badge.passed { background: #DCFCE7; color: #16A34A; border: 1px solid #86EFAC; }
+    .anomaly-row-highlight {
+      background: #FEF2F2 !important;
+    }
+    .anomaly-row-warning {
+      background: #FFFBEB !important;
+    }
+    .btn-flag-field {
+      border: 1px solid #CBD5E1; background: #FFFFFF; color: #64748B;
+      padding: 1px 6px; font-size: 10.5px; border-radius: 5px; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 3px; font-weight: 600;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease; vertical-align: middle; margin-left: 6px;
+    }
+    .btn-flag-field:hover {
+      background: #FEF2F2; border-color: #EF4444; color: #EF4444;
+    }
+    .btn-flag-field.flagged {
+      background: #EEF2FF; border-color: #6366F1; color: #4F46E5; font-weight: 700;
+    }
+    .star-rating-btn {
+      font-size: 24px; cursor: pointer; color: #CBD5E1; transition: color 0.15s ease;
+      background: none; border: none; padding: 0 3px; line-height: 1;
+    }
+    .star-rating-btn.active {
+      color: #F59E0B;
+    }
   </style>
 </head>
 <body>
+  <a href="#mainContent" class="skip-link">ข้ามไปยังเนื้อหาหลัก</a>
 
   <!-- Header -->
   <header class="header">
     <button id="navToggle" class="nav-toggle" aria-label="เปิด/ปิดเมนูหลัก" aria-expanded="false" aria-controls="adminSidebar"><i class="mi" aria-hidden="true">menu</i></button>
     <div class="brand">
-      <div class="brand-logo"><img src="/assets/logo/kie-logo-wh.png" alt="Kieslect" width="34" height="34"></div>
+      <div class="brand-logo"><img src="/assets/logo/BIOKOOP_500.png" alt="Biokoop" width="34" height="34"></div>
       <div class="brand-title-group">
         <div class="brand-title">biokoop <span>Admin</span> <span class="version-badge" style="background: #FEF2F2; color: #DC2626; border: 1px solid #FECDD3; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 6px; letter-spacing: 0.5px; vertical-align: middle;">v1.1.2</span></div>
         <div class="brand-subtitle">kieselect</div>
@@ -666,7 +752,7 @@
   <!-- Login Modal Overlay -->
   <div id="loginOverlay" class="modal-overlay active">
     <div class="login-box">
-      <div class="brand-logo" style="margin: 0 auto 16px auto; width: 56px; height: 56px;"><img src="/assets/logo/kie-logo-wh.png" alt="Kieslect" width="56" height="56"></div>
+      <div class="brand-logo" style="margin: 0 auto 16px auto; width: 56px; height: 56px;"><img src="/assets/logo/BIOKOOP_500.png" alt="Biokoop" width="56" height="56"></div>
       <h2 style="margin-bottom: 8px; font-weight: 800; color: #0F172A;">เข้าสู่ระบบ Admin</h2>
       <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">เข้าสู่ระบบผ่าน ITSR (ระบบ 81) เพื่อใช้งานหลังบ้าน biokoop</p>
       <button type="button" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px;" onclick="handleLogin()">
@@ -717,11 +803,18 @@
       </div>
 
       <div class="nav-section-label"><i class="mi" aria-hidden="true">science</i> เครื่องมือ & ระบบ</div>
-      <div class="nav-item" onclick="switchTab('ai-test-studio', this)">
-        <span><i class="mi" aria-hidden="true">science</i></span> AI Test Studio
-      </div>
       <div class="nav-item" onclick="switchTab('system-health', this)">
         <span><i class="mi" aria-hidden="true">stethoscope</i></span> สุขภาพระบบ
+      </div>
+
+      <!-- เครื่องมือทดสอบ/ทดลองภายใน — Superadmin Lv.2 เท่านั้น ซ่อนจากหน้า demo ทั่วไป -->
+      <div id="devToolsNavSection" style="display:none;">
+        <div class="nav-item" onclick="switchTab('ai-test-studio', this)">
+          <span><i class="mi" aria-hidden="true">science</i></span> AI Test Studio
+        </div>
+        <div class="nav-item" onclick="switchTab('monthly-lab', this)">
+          <span><i class="mi" aria-hidden="true">date_range</i></span> วิเคราะห์รายเดือน (Lab)
+        </div>
       </div>
 
       <!-- Superadmin Lv.2 เท่านั้น — ซ่อนจาก Admin Lv.1 -->
@@ -741,7 +834,7 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="main-content">
+    <main class="main-content" id="mainContent" tabindex="-1">
       <!-- Dynamic Breadcrumb Navigation Bar -->
       <div class="breadcrumb-container" id="adminBreadcrumb">
         <span class="breadcrumb-home" onclick="switchTab('dashboard', document.querySelector('.sidebar .nav-item'))">
@@ -756,10 +849,10 @@
       <!-- SECTION 1: DASHBOARD & API USAGE (รวมสถิติ + การใช้งาน API/ยอดเงิน) -->
       <section id="tab-dashboard" class="tab-content active">
         <!-- Live System Health Header Banner -->
-        <div id="systemStatusBanner" class="status-banner" style="background: #ffffff; border: 1px solid var(--border-color); border-left: 3px solid var(--success); border-radius: var(--radius); padding: 16px 20px; color: var(--text-main); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; box-shadow: none;">
+        <div id="systemStatusBanner" class="status-banner" role="status" aria-live="polite" style="background: #ffffff; border: 1px solid var(--border-color); border-left: 3px solid var(--success); border-radius: var(--radius); padding: 16px 20px; color: var(--text-main); margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; box-shadow: none;">
           <div style="display: flex; align-items: center; gap: 14px;">
             <div id="systemStatusIcon" style="width: 40px; height: 40px; border-radius: 50%; background: var(--bg-dark); display: grid; place-items: center; font-size: 20px;">
-              <i class="mi mi-green">circle</i>
+              <i class="mi mi-green" aria-hidden="true">circle</i>
             </div>
             <div>
               <div style="display: flex; align-items: center; gap: 10px;">
@@ -767,7 +860,7 @@
                 <span id="healthStatusBadge" class="badge" style="background:#eafbee; color:#1f7a30; border:1px solid #2ba640; font-size:11px; padding:3px 10px; font-weight:700;">ONLINE</span>
               </div>
               <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px;" id="healthSummaryText">
-                กำลังตรวจสอบสถานะเซิร์ฟเวอร์...
+                กำลังตรวจสอบสถานะเซิร์ฟเวอร์…
               </p>
             </div>
           </div>
@@ -1432,7 +1525,7 @@
           <!-- ============================================== -->
           <!-- WRAPPER 1: WEEKLY 3-CARD REPORT BUILDER (NEW) -->
           <!-- ============================================== -->
-          <div id="cardBuilderWeeklyWrap" style="display: grid; grid-template-columns: minmax(380px, 460px) 1fr; gap: 24px; align-items: start;">
+          <div id="cardBuilderWeeklyWrap" style="display: grid; grid-template-columns: minmax(360px, 420px) minmax(0, 1fr); gap: 24px; align-items: start;">
             
             <!-- Left Controls: Weekly Settings -->
             <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 22px; display: flex; flex-direction: column; gap: 20px; box-shadow: var(--shadow-sm);">
@@ -1578,7 +1671,7 @@
             </div>
 
             <!-- Right Controls: Live Preview (Sticky) -->
-            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; align-items: center; position: sticky; top: 85px; box-shadow: var(--shadow-sm);">
+            <div style="width: 100%; box-sizing: border-box; background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; align-items: center; position: sticky; top: 85px; box-shadow: var(--shadow-sm);">
               <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
                 <div>
                   <h4 id="wkPreviewTitle" style="font-size: 15px; font-weight: 700; color: var(--text-main); margin: 0;">
@@ -1595,7 +1688,7 @@
               </div>
 
               <!-- Preview Display Area -->
-              <div id="weeklyCardPreviewSvgBox" style="width: 100%; max-height: 75vh; overflow-y: auto; background: #f8fafc; border: 1px solid var(--border-color); border-radius: 12px; padding: 10px; display: flex; justify-content: center; box-shadow: inset 0 2px 6px rgba(0,0,0,0.05);">
+              <div id="weeklyCardPreviewSvgBox" style="width: 100%; max-height: 90vh; overflow-y: auto; background: #f8fafc; border: 1px solid var(--border-color); border-radius: 12px; padding: 10px; display: flex; justify-content: center; box-shadow: inset 0 2px 6px rgba(0,0,0,0.05);">
                 <span style="color: var(--text-muted); font-size: 14px; padding: 40px;">กำลังโหลดตัวอย่างการ์ด...</span>
               </div>
 
@@ -1971,7 +2064,7 @@
             <!-- STEP 1: VISUAL PRESET MODE CARDS -->
             <div style="margin-bottom: 24px;">
               <label style="display: block; font-weight: 700; font-size: 14px; color: #0F172A; margin-bottom: 10px;">
-                1️⃣ เลือกรูปแบบการลงทะเบียนที่ต้องการเปิดใช้งาน:
+                <i class="mi" aria-hidden="true" style="font-size: 18px; vertical-align: middle;">looks_one</i> เลือกรูปแบบการลงทะเบียนที่ต้องการเปิดใช้งาน:
               </label>
 
               <!-- Hidden select for compatibility -->
@@ -1982,6 +2075,7 @@
                 <option value="order_sn">order_sn</option>
                 <option value="any">any</option>
                 <option value="both_imei_and_order">both_imei_and_order</option>
+                <option value="no_registration">no_registration</option>
               </select>
 
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;" id="modePresetCardsContainer">
@@ -2036,6 +2130,16 @@
                   <span style="font-size: 12px; color: #64748b; line-height: 1.3; display: block;">บังคับลูกค้าระบุทั้งเลข IMEI และ Order ID พร้อมกัน (2 ช่องกรอก)</span>
                 </div>
 
+                <!-- Preset Card 6: No Registration (skip entirely) -->
+                <div class="reg-mode-card" data-mode="no_registration" data-badge-default="ไม่ต้องลงทะเบียน" onclick="selectRegModePreset('no_registration')" style="border: 2px solid var(--border-color); border-radius: 12px; padding: 14px; cursor: pointer; transition: all 0.2s ease; background: #fafafa; position: relative;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-size: 20px;"><i class="mi" aria-hidden="true">bolt</i></span>
+                    <span class="mode-badge" style="font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #e2e8f0; color: #475569; font-weight: 600;">ไม่ต้องลงทะเบียน</span>
+                  </div>
+                  <strong style="display: block; font-size: 13.5px; color: #1e293b; margin-bottom: 4px;">ปิดระบบลงทะเบียนทั้งหมด</strong>
+                  <span style="font-size: 12px; color: #64748b; line-height: 1.3; display: block;">ลูกค้าส่งรูปให้ AI วิเคราะห์ได้ทันทีผ่าน LINE โดยไม่ต้องลงทะเบียนหรือกรอกข้อมูลใดๆ ก่อนเลย</span>
+                </div>
+
               </div>
             </div>
 
@@ -2047,7 +2151,7 @@
                 
                 <!-- Group 1: Rules & Verification Sources -->
                 <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
-                  <h4 style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 12px;">2️⃣ กฎเงื่อนไขและการตรวจสอบรหัส:</h4>
+                  <h4 style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 12px;"><i class="mi" aria-hidden="true" style="font-size: 18px; vertical-align: middle;">looks_two</i> กฎเงื่อนไขและการตรวจสอบรหัส:</h4>
                   
                   <div style="display: flex; flex-direction: column; gap: 10px;">
                     <!-- Toggle 1: Required -->
@@ -2090,7 +2194,7 @@
 
                 <!-- Group 2: Help Text & Preset Buttons -->
                 <div style="background: #f8fafc; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;">
-                  <h4 style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 8px;">3️⃣ ข้อความคำแนะนำ (Help Text บนหน้าฟอร์ม):</h4>
+                  <h4 style="font-size: 13.5px; font-weight: 700; color: #1e293b; margin-bottom: 8px;"><i class="mi" aria-hidden="true" style="font-size: 18px; vertical-align: middle;">looks_3</i> ข้อความคำแนะนำ (Help Text บนหน้าฟอร์ม):</h4>
                   <input type="text" id="regHelpText" class="form-control" style="width: 100%; font-size: 13px; margin-bottom: 8px;" oninput="updateFormLivePreview()" placeholder="เช่น กรุณาระบุเลข IMEI 15 หลักใต้กล่องสินค้า">
                   
                   <div style="display: flex; gap: 6px; flex-wrap: wrap;">
@@ -2396,7 +2500,8 @@
               </p>
             </div>
           </div>
-          <div style="display: flex; gap: 10px;">
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn btn-outline" style="border-color: rgba(255, 255, 255, 0.4); color: #ffffff; background: rgba(255, 255, 255, 0.12); font-weight: 600;" onclick="openAiErrorStatsModal()"><i class="mi" aria-hidden="true">analytics</i> สถิติจุดที่ AI อ่านเพี้ยนสะสม</button>
             <button class="btn btn-outline" style="border-color: rgba(255, 255, 255, 0.3); color: #ffffff;" onclick="loadTestStudioSamples()"><i class="mi" aria-hidden="true">refresh</i> โหลดรูปตัวอย่างใหม่</button>
           </div>
         </div>
@@ -2516,10 +2621,14 @@
                     <span id="wPageBadgeSleep" class="badge" style="font-size: 11.5px; padding: 4px 8px; background: #f3e8ff; color: #7e22ce;">Sleep Quality</span>
                   </div>
                   <div style="display: flex; gap: 14px; font-size: 12.5px; color: #64748B;">
+                    <span><i class="mi" aria-hidden="true">smart_toy</i> โมเดล: <b id="wModelText" style="color: #0F172A;">-</b></span>
                     <span><i class="mi" aria-hidden="true">track_changes</i> Confidence: <b id="wConfidenceText" style="color: #0F172A;">100%</b></span>
-                    <span>⏱️ เวลา: <b id="wDurationText" style="color: #0F172A;">-</b></span>
+                    <span><i class="mi" aria-hidden="true">schedule</i> เวลา: <b id="wDurationText" style="color: #0F172A;">-</b></span>
                   </div>
                 </div>
+
+                <!-- AI Quality & Discrepancy Banner -->
+                <div id="wQualityBanner" class="ai-quality-banner passed" style="display: none;"></div>
 
                 <!-- 4 Weekly Key Metrics -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;">
@@ -2539,7 +2648,7 @@
                     <div id="wSleepQualityStatus" style="font-size: 11.5px; color: #475569; font-weight: 700;">-</div>
                   </div>
                   <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-top: 3px solid #0F172A; border-radius: 12px; padding: 14px; text-align: center; box-shadow: var(--shadow-sm);">
-                    <div style="font-size: 11.5px; color: #64748B; font-weight: 600;">⏰ เวลานอน &amp; ฟื้นฟู</div>
+                    <div style="font-size: 11.5px; color: #64748B; font-weight: 600;"><i class="mi" aria-hidden="true">alarm</i> เวลานอน &amp; ฟื้นฟู</div>
                     <div id="wSleepDuration" style="font-size: 18px; font-weight: 800; color: #0F172A; margin-top: 6px;">-</div>
                     <div id="wRestorativeSleep" style="font-size: 11.5px; color: #16A34A; font-weight: 700;">-</div>
                   </div>
@@ -2553,11 +2662,11 @@
                   </div>
                   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                     <div>
-                      <div style="font-size: 11.5px; font-weight: 700; color: #16A34A; margin-bottom: 4px;">🏃 กิจกรรม &amp; การฟื้นตัว</div>
+                      <div style="font-size: 11.5px; font-weight: 700; color: #16A34A; margin-bottom: 4px;"><i class="mi" aria-hidden="true">directions_run</i> กิจกรรม &amp; การฟื้นตัว</div>
                       <div id="wActivityInsight" style="font-size: 12.5px; color: #14532D; line-height: 1.5; background: #F0FDF4; padding: 10px; border-radius: 8px; border: 1px solid #BBF7D0;">-</div>
                     </div>
                     <div>
-                      <div style="font-size: 11.5px; font-weight: 700; color: #9333EA; margin-bottom: 4px;">🌙 การนอนหลับ</div>
+                      <div style="font-size: 11.5px; font-weight: 700; color: #9333EA; margin-bottom: 4px;"><i class="mi" aria-hidden="true">bedtime</i> การนอนหลับ</div>
                       <div id="wSleepInsight" style="font-size: 12.5px; color: #581C87; line-height: 1.5; background: #FAF5FF; padding: 10px; border-radius: 8px; border: 1px solid #E9D5FF;">-</div>
                     </div>
                   </div>
@@ -2566,10 +2675,13 @@
                 <!-- ===== WEEKLY EXTRACTED DATA TABLE ===== -->
                 <div id="wDataTableWrap" style="display:none;"></div>
 
+                <!-- Ground Truth & AI Error Audit Feedback Card (Weekly) -->
+                <div id="wAuditFeedbackCard" style="display:none;"></div>
+
 
                 <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm);">
                   <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px; flex-wrap: wrap;">
-                    <button class="btn btn-sm btn-outline active-filter-pill" id="wTabBtnComb" style="padding: 6px 14px; font-weight: 700;" onclick="switchWeeklyViewTab('comb')"><i class="mi" aria-hidden="true">view_column</i> 🖼️ ภาพรวม 3 หน้าในแผ่นเดียว</button>
+                    <button class="btn btn-sm btn-outline active-filter-pill" id="wTabBtnComb" style="padding: 6px 14px; font-weight: 700;" onclick="switchWeeklyViewTab('comb')"><i class="mi" aria-hidden="true">view_column</i> ภาพรวม 3 หน้าในแผ่นเดียว</button>
                     <button class="btn btn-sm btn-outline" id="wTabBtnP1" style="padding: 6px 14px;" onclick="switchWeeklyViewTab(1)"><i class="mi" aria-hidden="true">looks_one</i> หน้า 1: ภาพรวม</button>
                     <button class="btn btn-sm btn-outline" id="wTabBtnP2" style="padding: 6px 14px;" onclick="switchWeeklyViewTab(2)"><i class="mi" aria-hidden="true">looks_two</i> หน้า 2: กิจกรรม/ฟื้นตัว</button>
                     <button class="btn btn-sm btn-outline" id="wTabBtnP3" style="padding: 6px 14px;" onclick="switchWeeklyViewTab(3)"><i class="mi" aria-hidden="true">looks_3</i> หน้า 3: การนอน</button>
@@ -2603,10 +2715,14 @@
                     <span id="studioDetectedAppBadge" style="font-size: 13.5px; font-weight: 700; color: #0284C7;">แอป: -</span>
                   </div>
                   <div style="display: flex; gap: 14px; font-size: 12.5px; color: #64748B;">
+                    <span><i class="mi" aria-hidden="true">smart_toy</i> โมเดล: <b id="studioModelText" style="color: #0F172A;">-</b></span>
                     <span><i class="mi" aria-hidden="true">track_changes</i> Confidence: <b id="studioConfidenceText" style="color: #0F172A;">100%</b></span>
-                    <span>⏱️ เวลา: <b id="studioDurationText" style="color: #0F172A;">-</b></span>
+                    <span><i class="mi" aria-hidden="true">schedule</i> เวลา: <b id="studioDurationText" style="color: #0F172A;">-</b></span>
                   </div>
                 </div>
+
+                <!-- AI Quality & Discrepancy Banner (Daily) -->
+                <div id="dailyQualityBanner" class="ai-quality-banner passed" style="display: none;"></div>
 
                 <!-- Metrics Summary Row -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px;">
@@ -2616,7 +2732,7 @@
                     <div id="mGrade" style="font-size: 11.5px; color: #D97706; font-weight: 700;">เกรด -</div>
                   </div>
                   <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-top: 3px solid #0F172A; border-radius: 12px; padding: 14px; text-align: center; box-shadow: var(--shadow-sm);">
-                    <div style="font-size: 11.5px; color: #64748B; font-weight: 600;">⏰ เวลานอนรวม</div>
+                    <div style="font-size: 11.5px; color: #64748B; font-weight: 600;"><i class="mi" aria-hidden="true">alarm</i> เวลานอนรวม</div>
                     <div id="mSleepTime" style="font-size: 18px; font-weight: 700; color: #0F172A; margin-top: 6px;">-</div>
                     <div id="mSleepRange" style="font-size: 11px; color: #64748B;">-</div>
                   </div>
@@ -2689,6 +2805,8 @@
                   </div>
 
                 </div>
+                <!-- Ground Truth & AI Error Audit Feedback Card (Daily) -->
+                <div id="dailyAuditFeedbackCard" style="display:none;"></div>
               </div>
 
             </div>
@@ -2697,14 +2815,372 @@
 
           </div>
 
+      </section>
+
+      <!-- ===== SECTION: MONTHLY HEALTH LAB & 30-DAY MACRO INTELLIGENCE ===== -->
+      <section id="tab-monthly-lab" class="tab-content">
+        <!-- Hero Banner -->
+        <div style="background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%); border-radius: var(--radius); padding: 22px 26px; color: #FFFFFF; margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; box-shadow: var(--shadow-md); border: 1px solid rgba(255, 255, 255, 0.12);">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="width: 54px; height: 54px; border-radius: 14px; background: linear-gradient(135deg, #10B981, #059669); color: #ffffff; display: grid; place-items: center; font-size: 28px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);">
+              <i class="mi" aria-hidden="true">date_range</i>
+            </div>
+            <div>
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <h3 style="font-size: 20px; font-weight: 700; color: #ffffff; margin: 0;">Monthly Health Lab (ห้องวิจัยวิเคราะห์แนวโน้มสุขภาพรายเดือน)</h3>
+                <span class="badge" style="background: #10B981; color: #ffffff; font-size: 11px; padding: 4px 10px; font-weight: 700; border-radius: 12px; letter-spacing: 0.5px;">30-DAY MACRO AI</span>
+              </div>
+              <p style="font-size: 13px; color: #94A3B8; margin-top: 5px; margin-bottom: 0;">
+                รวบรวมข้อมูลสุขภาพ 4 สัปดาห์ (30 วัน) วิเคราะห์พัฒนาการระยะยาว ประเมินความเสี่ยงล้าสะสม และบันทึก Ground Truth เพื่อเทรน AI
+              </p>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button class="btn" style="background: rgba(255, 255, 255, 0.12); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.25); font-weight: 600;" onclick="openMonthlyClientPreviewModal()">
+              <i class="mi" aria-hidden="true">visibility</i> พรีวิวหน้าตารายงานลูกค้า (Client View)
+            </button>
+            <button class="btn" style="background: rgba(255, 255, 255, 0.12); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.25); font-weight: 600;" onclick="openMonthlyAuditModal()">
+              <i class="mi" aria-hidden="true">history</i> ประวัติการประเมิน AI (<span id="monthlyAuditCountBadge">0</span>)
+            </button>
+          </div>
+        </div>
+
+        <!-- Mode Selector: Real Users vs Mock Scenarios -->
+        <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 18px 22px; margin-bottom: 24px; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-weight: 700; font-size: 14px; color: #0F172A;"><i class="mi" aria-hidden="true">tune</i> แหล่งข้อมูลสุขภาพ:</span>
+              <div style="display: flex; background: #F1F5F9; padding: 3px; border-radius: 10px; gap: 4px;">
+                <button id="monthlyModeMockBtn" class="btn btn-sm" style="background: #FFFFFF; color: #0F172A; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,0.08);" onclick="switchMonthlySourceMode('mock')">
+                  <i class="mi" aria-hidden="true">science</i> 1. จำลองสถานการณ์ 4 สัปดาห์ (Mock Scenarios)
+                </button>
+                <button id="monthlyModeRealBtn" class="btn btn-sm" style="background: transparent; color: #64748B; font-weight: 600;" onclick="switchMonthlySourceMode('real')">
+                  <i class="mi" aria-hidden="true">person</i> 2. ดึงข้อมูลลูกค้าจริงจากระบบ (Real User Data)
+                </button>
+              </div>
+            </div>
+            <div id="monthlyDatasetIndicator" style="font-size: 12.5px; color: #64748B; font-weight: 600;">
+              ชุดข้อมูลปัจจุบัน: <span id="currentDatasetTitle" style="color: #10B981; font-weight: 700;">เคสที่ 1: สุขภาพสมดุลดีเยี่ยม</span>
+            </div>
+          </div>
+
+          <!-- Mock Scenarios Buttons -->
+          <div id="monthlyMockControls" style="display: block;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px;">
+              <div class="monthly-scenario-card active" id="scenarioCard-balanced" onclick="selectMockScenario('balanced')">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                  <strong style="color: #0F172A; font-size: 13.5px;"><i class="mi mi-green" style="font-size: 16px; vertical-align: middle;">spa</i> 1. สมดุลดีเยี่ยม</strong>
+                  <span class="badge" style="background: #ECFDF5; color: #059669; font-size: 10px;">BALANCED</span>
+                </div>
+                <div style="font-size: 12px; color: #64748B; line-height: 1.4;">ออกกำลังและพักผ่อนสมดุล HRV เสถียร การนอนดีต่อเนื่อง</div>
+              </div>
+
+              <div class="monthly-scenario-card" id="scenarioCard-overreaching" onclick="selectMockScenario('overreaching')">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                  <strong style="color: #0F172A; font-size: 13.5px;"><i class="mi mi-yellow" style="font-size: 16px; vertical-align: middle;">warning</i> 2. ภาวะล้าสะสม</strong>
+                  <span class="badge" style="background: #FEF2F2; color: #DC2626; font-size: 10px;">STRAIN</span>
+                </div>
+                <div style="font-size: 12px; color: #64748B; line-height: 1.4;">Body Load พุ่งสูงสัปดาห์ 3-4 แต่ Recovery และ HRV ดิ่งลง</div>
+              </div>
+
+              <div class="monthly-scenario-card" id="scenarioCard-recovery_journey" onclick="selectMockScenario('recovery_journey')">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                  <strong style="color: #0F172A; font-size: 13.5px;"><i class="mi mi-blue" style="font-size: 16px; vertical-align: middle;">trending_up</i> 3. เส้นทางฟื้นฟู</strong>
+                  <span class="badge" style="background: #EFF6FF; color: #2563EB; font-size: 10px;">RECOVERY</span>
+                </div>
+                <div style="font-size: 12px; color: #64748B; line-height: 1.4;">สัปดาห์แรกนอนน้อย/เครียด แล้วฟื้นตัวดีขึ้นเรื่อยๆ</div>
+              </div>
+
+              <div class="monthly-scenario-card" id="scenarioCard-sleep_inconsistent" onclick="selectMockScenario('sleep_inconsistent')">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                  <strong style="color: #0F172A; font-size: 13.5px;"><i class="mi" style="color: #7c3aed; font-size: 16px; vertical-align: middle;">bedtime</i> 4. นอนไม่สม่ำเสมอ</strong>
+                  <span class="badge" style="background: #FAF5FF; color: #7C3AED; font-size: 10px;">JETLAG</span>
+                </div>
+                <div style="font-size: 12px; color: #64748B; line-height: 1.4;">เวลานอนเหวี่ยงไปมา Sleep Consistency ต่ำ ล้าสะสม</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Real User Selector -->
+          <div id="monthlyRealControls" style="display: none;">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <select id="monthlyUserSelect" class="form-control" style="max-width: 380px;">
+                <option value="">-- กำลังโหลดรายชื่อลูกค้า... --</option>
+              </select>
+              <button class="btn btn-primary" onclick="loadSelectedUserData()">
+                <i class="mi" aria-hidden="true">sync</i> โหลดข้อมูลสุขภาพลูกค้า
+              </button>
+              <span id="monthlyUserStatusMsg" style="font-size: 12px; color: #64748B;"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 30-Day Macro KPIs Overview -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 24px;">
+          <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 16px; text-align: center; box-shadow: var(--shadow-sm); border-top: 3px solid #6366F1;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;"><i class="mi" aria-hidden="true">fitness_center</i> Body Load เฉลี่ย (30 วัน)</div>
+            <div id="mKpiBodyLoad" style="font-size: 26px; font-weight: 800; color: #0F172A; margin-top: 6px;">-</div>
+            <div style="font-size: 11px; color: #94A3B8;">ช่วงเป้าหมาย 6.0 - 8.5</div>
+          </div>
+          <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 16px; text-align: center; box-shadow: var(--shadow-sm); border-top: 3px solid #10B981;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;"><i class="mi" aria-hidden="true">favorite</i> Recovery เฉลี่ย (30 วัน)</div>
+            <div id="mKpiRecovery" style="font-size: 26px; font-weight: 800; color: #059669; margin-top: 6px;">-%</div>
+            <div style="font-size: 11px; color: #059669;">เกณฑ์ฟื้นตัวดี ≥ 70%</div>
+          </div>
+          <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 16px; text-align: center; box-shadow: var(--shadow-sm); border-top: 3px solid #8B5CF6;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;"><i class="mi" aria-hidden="true">bedtime</i> Sleep Quality เฉลี่ย (30 วัน)</div>
+            <div id="mKpiSleep" style="font-size: 26px; font-weight: 800; color: #7C3AED; margin-top: 6px;">-%</div>
+            <div style="font-size: 11px; color: #7C3AED;">เกณฑ์คุณภาพสูง ≥ 85%</div>
+          </div>
+          <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 16px; text-align: center; box-shadow: var(--shadow-sm); border-top: 3px solid #0EA5E9;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;"><i class="mi" aria-hidden="true">timeline</i> HRV เฉลี่ย (30 วัน)</div>
+            <div id="mKpiHrv" style="font-size: 26px; font-weight: 800; color: #0284C7; margin-top: 6px;">- ms</div>
+            <div style="font-size: 11px; color: #64748B;">ความยืดหยุ่นระบบประสาท</div>
+          </div>
+          <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 16px; text-align: center; box-shadow: var(--shadow-sm); border-top: 3px solid #F59E0B;">
+            <div style="font-size: 12px; color: #64748B; font-weight: 600;"><i class="mi" aria-hidden="true">monitor_heart</i> Resting Heart Rate</div>
+            <div id="mKpiRhr" style="font-size: 26px; font-weight: 800; color: #D97706; margin-top: 6px;">- bpm</div>
+            <div style="font-size: 11px; color: #64748B;">ชีพจรขณะพักเฉลี่ย</div>
+          </div>
+        </div>
+
+        <!-- 4-Week Progression Table -->
+        <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <h4 style="font-size: 15px; font-weight: 700; color: #0F172A; margin: 0;">
+              <i class="mi" aria-hidden="true">view_week</i> ตารางเปรียบเทียบสถิติสุขภาพรายสัปดาห์ (4-Week Progression Table)
+            </h4>
+            <span style="font-size: 12px; color: #64748B;">ข้อมูลอ้างอิงจาก 4 สัปดาห์ย้อนหลัง</span>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background: #F8FAFC; text-align: left; font-size: 12px; color: #475569;">
+                  <th style="padding: 10px 14px;">สัปดาห์</th>
+                  <th style="padding: 10px 14px;">Body Load</th>
+                  <th style="padding: 10px 14px;">Recovery %</th>
+                  <th style="padding: 10px 14px;">Sleep Quality %</th>
+                  <th style="padding: 10px 14px;">HRV (ms)</th>
+                  <th style="padding: 10px 14px;">Resting HR</th>
+                  <th style="padding: 10px 14px;">หลับลึก (Deep)</th>
+                  <th style="padding: 10px 14px;">ความสม่ำเสมอ</th>
+                  <th style="padding: 10px 14px;">เวลานอนเฉลี่ย</th>
+                  <th style="padding: 10px 14px;">หมายเหตุสัปดาห์</th>
+                </tr>
+              </thead>
+              <tbody id="monthlyWeeksTableBody">
+                <!-- Injected via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- AI Monthly Intelligence Control & Run -->
+        <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 22px; margin-bottom: 24px; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+            <div>
+              <h4 style="font-size: 16px; font-weight: 700; color: #0F172A; margin: 0; display: flex; align-items: center; gap: 8px;">
+                <span style="color: #6366F1;"><i class="mi" aria-hidden="true">psychology</i></span> สั่ง AI วิเคราะห์แนวโน้มสุขภาพประจำเดือน (AI Monthly Intelligence)
+              </h4>
+              <p style="font-size: 12.5px; color: var(--text-muted); margin-top: 4px; margin-bottom: 0;">
+                โมเดลจะประมวลผลข้อมูลทั้ง 4 สัปดาห์ ประเมินความเสี่ยง และสังเคราะห์ Action Plan สำหรับเดือนถัดไป
+              </p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <select id="monthlyModelSelect" class="form-control" style="font-size: 13px; min-width: 250px; max-width: 320px;">
+                <optgroup label="[แนะนำ] โมเดลแนะนำ (ฉลาดลึก & คุ้มค่า)">
+                  <option value="google/gemini-3.8-flash" selected>Gemini 3.8 Flash (ฉลาด เร็ว ประหยัด)</option>
+                  <option value="google/gemini-2.5-flash">Gemini 2.5 Flash (เสถียร ยอดนิยม)</option>
+                  <option value="google/gemini-2.5-flash-lite">Gemini 2.5 Flash Lite (ประหยัดสุดขีด)</option>
+                </optgroup>
+                <optgroup label="[OpenRouter] Multi-Provider">
+                  <option value="openai/gpt-4o-mini">GPT-4o mini (OpenAI มาตรฐาน)</option>
+                  <option value="deepseek/deepseek-chat">DeepSeek V3 (ฉลาดรอบด้าน ประหยัด)</option>
+                  <option value="anthropic/claude-3-haiku">Claude 3 Haiku (ภาษาเป็นธรรมชาติ)</option>
+                </optgroup>
+                <optgroup label="[Google Direct] Direct API">
+                  <option value="gemini-direct:gemini-3.8-flash">Google Gemini 3.8 Flash (Direct API)</option>
+                  <option value="gemini-direct:gemini-2.5-flash">Google Gemini 2.5 Flash (Direct API)</option>
+                </optgroup>
+              </select>
+              <button id="runMonthlyAiBtn" class="btn btn-primary" style="background: linear-gradient(135deg, #4F46E5, #6366F1); font-weight: 700; padding: 9px 20px;" onclick="runMonthlyAnalysis()">
+                <i class="mi" aria-hidden="true">auto_awesome</i> รัน AI วิเคราะห์ผลรายเดือน
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Result Presentation Container -->
+        <div id="monthlyAiResultContainer" style="display: none; margin-bottom: 24px;">
+          <!-- Score & Executive Summary Card -->
+          <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow-sm);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 18px; border-bottom: 1px solid #F1F5F9; padding-bottom: 16px;">
+              <div style="display: flex; align-items: center; gap: 18px;">
+                <div id="monthlyScoreBadge" style="width: 72px; height: 72px; border-radius: 50%; background: #10B981; color: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);">
+                  <span id="monthlyScoreVal" style="font-size: 26px; font-weight: 800; line-height: 1;">85</span>
+                  <span style="font-size: 10px; font-weight: 600; opacity: 0.9;">คะแนน</span>
+                </div>
+                <div>
+                  <div style="font-size: 12px; color: #64748B; font-weight: 600;">ผลประเมินสุขภาพประจำเดือน</div>
+                  <h3 id="monthlyStatusText" style="font-size: 20px; font-weight: 800; color: #0F172A; margin: 4px 0 0 0;">ยอดเยี่ยมและสมดุลดี</h3>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <span id="monthlyMetaModel" class="badge" style="background: #F1F5F9; color: #475569; font-size: 11px;">openai/gpt-4o-mini</span>
+                <div id="monthlyMetaDuration" style="font-size: 11px; color: #94A3B8; margin-top: 4px;">ประมวลผลใน 1.2 วินาที</div>
+              </div>
+            </div>
+
+            <div>
+              <h5 style="font-size: 13px; font-weight: 700; color: #0284C7; text-transform: uppercase; margin-bottom: 6px;">
+                <i class="mi" aria-hidden="true">article</i> สรุปภาพรวมสุขภาพประจำเดือน (Executive Summary)
+              </h5>
+              <div id="monthlyExecSummaryText" style="font-size: 14.5px; color: #1E293B; line-height: 1.7; background: #F8FAFC; padding: 16px 18px; border-radius: 12px; border: 1px solid #E2E8F0;">
+                -
+              </div>
+            </div>
+          </div>
+
+          <!-- Weekly Progression Cards -->
+          <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 22px; margin-bottom: 20px; box-shadow: var(--shadow-sm);">
+            <h5 style="font-size: 14px; font-weight: 700; color: #0F172A; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+              <i class="mi" aria-hidden="true">timeline</i> สรุปพัฒนาการ 4 สัปดาห์ (Weekly Progression)
+            </h5>
+            <div id="monthlyProgressionGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+              <!-- Injected via JS -->
+            </div>
+          </div>
+
+          <!-- 3 Macro Pillars -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px;">
+            <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow-sm); border-top: 3px solid #6366F1;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 700; font-size: 14px; color: #4338CA;"><i class="mi" aria-hidden="true">fitness_center</i> ภาระร่างกาย & กิจกรรม</span>
+                <span id="pillarLoadScore" class="badge" style="background: #EEF2FF; color: #4338CA;">80/100</span>
+              </div>
+              <div id="pillarLoadDesc" style="font-size: 13px; color: #334155; line-height: 1.6;">-</div>
+            </div>
+
+            <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow-sm); border-top: 3px solid #10B981;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 700; font-size: 14px; color: #065F46;"><i class="mi" aria-hidden="true">favorite</i> การฟื้นตัว & ระบบประสาท (HRV)</span>
+                <span id="pillarRecScore" class="badge" style="background: #ECFDF5; color: #065F46;">75/100</span>
+              </div>
+              <div id="pillarRecDesc" style="font-size: 13px; color: #334155; line-height: 1.6;">-</div>
+            </div>
+
+            <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow-sm); border-top: 3px solid #8B5CF6;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 700; font-size: 14px; color: #5B21B6;"><i class="mi" aria-hidden="true">bedtime</i> คุณภาพการนอน & หลับลึก</span>
+                <span id="pillarSleepScore" class="badge" style="background: #F5F3FF; color: #5B21B6;">88/100</span>
+              </div>
+              <div id="pillarSleepDesc" style="font-size: 13px; color: #334155; line-height: 1.6;">-</div>
+            </div>
+          </div>
+
+          <!-- Achievements & Action Plan -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 20px;">
+            <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm);">
+              <h5 style="font-size: 14px; font-weight: 700; color: #059669; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                <i class="mi" aria-hidden="true">emoji_events</i> จุดเด่นและความสำเร็จประจำเดือน (Key Achievements)
+              </h5>
+              <div id="monthlyAchievementsList" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+
+            <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm);">
+              <h5 style="font-size: 14px; font-weight: 700; color: #D97706; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                <i class="mi" aria-hidden="true">flag</i> แผนปฏิบัติการพัฒนาตนเองเดือนถัดไป (Action Plan)
+              </h5>
+              <div id="monthlyActionPlanList" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Injected via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Ground Truth & AI Evaluation Card -->
+          <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm);">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+              <span style="color: #D97706; font-size: 20px;"><i class="mi" aria-hidden="true">rate_review</i></span>
+              <h4 style="font-size: 15px; font-weight: 700; color: #92400E; margin: 0;">
+                การประเมินผลและบันทึก Ground Truth (เพื่อพัฒนาให้ AI ฉลาดขึ้น)
+              </h4>
+            </div>
+            <p style="font-size: 12.5px; color: #78350F; margin-bottom: 14px;">
+              หากพบว่า AI วิเคราะห์ตรงใจหรือมีจุดไหนที่ควรปรับปรุง แอดมินสามารถให้คะแนนและบันทึกข้อเสนอแนะเพื่อเก็บเป็นประวัติเทรนโมเดลได้ค่ะ
+            </p>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <div>
+                <label style="font-size: 12.5px; font-weight: 600; color: #78350F; display: block; margin-bottom: 4px;">คะแนนความแม่นยำ / ความพึงพอใจ:</label>
+                <select id="monthlyAuditRating" class="form-control" style="max-width: 220px; background: #FFFFFF;">
+                  <option value="5">⭐⭐⭐⭐⭐ ยอดเยี่ยม (5/5)</option>
+                  <option value="4">⭐⭐⭐⭐ ดีมาก (4/5)</option>
+                  <option value="3">⭐⭐⭐ พอใช้ (3/5)</option>
+                  <option value="2">⭐⭐ ต้องปรับปรุง (2/5)</option>
+                  <option value="1">⭐ ไม่ตรงเป้าหมาย (1/5)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style="font-size: 12.5px; font-weight: 600; color: #78350F; display: block; margin-bottom: 4px;">ข้อเสนอแนะ / จุดที่ควรปรับแก้สำหรับ AI:</label>
+                <textarea id="monthlyAuditComment" class="form-control" rows="2" style="background: #FFFFFF;" placeholder="เช่น คำแนะนำด้านการนอนควรเน้นเรื่อง Sleep Consistency มากขึ้น..."></textarea>
+              </div>
+
+              <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn btn-primary" style="background: #D97706; border-color: #D97706;" onclick="saveMonthlyAudit()">
+                  <i class="mi" aria-hidden="true">save</i> บันทึก Ground Truth Feedback
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
+      <!-- Monthly Client View Portal Modal -->
+      <div id="monthlyClientPreviewModal" class="modal-overlay">
+        <div class="modal" style="max-width: 440px; width: 95%; max-height: 90vh; overflow-y: auto; background: #0B0F19; color: #FFFFFF; border: 1px solid rgba(255,255,255,0.14); border-radius: 24px; padding: 0; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+          <!-- Mobile Mock Header -->
+          <div style="background: linear-gradient(180deg, #1E293B 0%, #0B0F19 100%); padding: 22px 20px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 36px; height: 36px; border-radius: 10px; background: linear-gradient(135deg, #10B981, #059669); display: grid; place-items: center; font-size: 18px;">
+                <i class="mi" style="color: #ffffff;">spa</i>
+              </div>
+              <div>
+                <div style="font-size: 10.5px; color: #10B981; font-weight: 700; letter-spacing: 0.8px;">KIESLECT × BIOKOOP</div>
+                <div style="font-size: 15px; font-weight: 800; color: #FFFFFF;">Monthly Health Portal</div>
+              </div>
+            </div>
+            <button class="modal-close" style="color: #94A3B8;" onclick="closeMonthlyClientPreviewModal()">&times;</button>
+          </div>
+
+          <!-- Portal Body -->
+          <div style="padding: 20px; display: flex; flex-direction: column; gap: 16px;" id="monthlyClientPortalBody">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Monthly Audit History Modal -->
+      <div id="monthlyAuditHistoryModal" class="modal-overlay">
+        <div class="modal" style="max-width: 800px; width: 95%; max-height: 85vh; overflow-y: auto;">
+          <div class="modal-header">
+            <h3 style="color: #0F172A; font-weight: 700; margin: 0;"><i class="mi" aria-hidden="true">history</i> ประวัติการประเมิน Ground Truth (AI Monthly Lab)</h3>
+            <button class="modal-close" onclick="closeMonthlyAuditModal()">&times;</button>
+          </div>
+          <div style="padding: 16px 0;">
+            <div id="monthlyAuditHistoryList">
+              <!-- Injected via JS -->
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 
   <!-- Detail Modal -->
-  <div id="detailModal" class="modal-overlay">
+  <div id="detailModal" class="modal-overlay" style="z-index: 200;">
     <div class="modal">
       <div class="modal-header">
         <h3 id="modalTitle" style="color: #0F172A; font-weight: 700;">รายละเอียดคำขอ</h3>
@@ -2746,6 +3222,145 @@
     </div>
   </div>
 
+  <!-- Flag Inaccurate Field Modal -->
+  <div id="flagFieldModal" class="modal-overlay">
+    <div class="modal" style="max-width: 520px; width: 95%;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+        <h3 style="color: #0F172A; font-weight: 700; font-size: 17px; display: flex; align-items: center; gap: 8px;">
+          <span style="color: #EF4444;"><i class="mi" aria-hidden="true">report_problem</i></span> แจ้งข้อมูลที่ AI อ่านเพี้ยน / ไม่ถูกต้อง
+        </h3>
+        <button class="modal-close" onclick="closeFlagFieldModal()">&times;</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px 14px;">
+          <div style="font-size: 12px; color: #64748B;">ฟิลด์ที่ตรวจสอบ:</div>
+          <div id="flagModalFieldLabel" style="font-size: 14px; font-weight: 700; color: #0F172A; margin-top: 2px;">-</div>
+          <div id="flagModalFieldKey" style="font-size: 11px; color: #94A3B8; font-family: monospace;"></div>
+        </div>
+        <div>
+          <label style="font-size: 12.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">ค่าที่ AI อ่านได้ในปัจจุบัน:</label>
+          <input type="text" id="flagModalReadValue" class="form-control" readonly style="background: #FFF1F2; color: #BE123C; font-weight: 600;">
+        </div>
+        <div>
+          <label style="font-size: 12.5px; font-weight: 600; color: #0F172A; display: block; margin-bottom: 4px;">ค่าที่ถูกต้องจริง (Ground Truth Value): <span style="color: #EF4444;">*</span></label>
+          <input type="text" id="flagModalCorrectValue" class="form-control" placeholder="เช่น 56 bpm หรือ 1:15 หรือ 68%">
+        </div>
+        <div>
+          <label style="font-size: 12.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">สาเหตุที่อ่านเพี้ยน:</label>
+          <select id="flagModalReasonSelect" class="form-control" onchange="toggleFlagReasonCustom(this.value)">
+            <option value="ตัวเลขผิด/อ่านเพี้ยน">ตัวเลขผิด/อ่านเพี้ยน (เช่น อ่าน 8 เป็น 3 หรือฟอนต์กลืน)</option>
+            <option value="ตำแหน่งวันเลื่อน/สลับวัน">ตำแหน่งวันเลื่อน / สลับวัน / กราฟไม่มีตัวเลขกำกับ</option>
+            <option value="หน่วยผิดหรือติดสัญลักษณ์">หน่วยผิด หรืออ่านตัวหนังสือภาษาไทย/สัญลักษณ์ผิด</option>
+            <option value="ภาพเบลอแต่ AI มโนเดาค่า">ภาพเบลอแต่ AI มโนเดาค่า</option>
+            <option value="สัดส่วนเปอร์เซ็นต์คำนวณไม่ตรง 100%">สัดส่วนเปอร์เซ็นต์คำนวณไม่ตรง 100%</option>
+            <option value="custom">ระบุเหตุผลอื่นๆ...</option>
+          </select>
+        </div>
+        <div id="flagModalCustomReasonBox" style="display: none;">
+          <input type="text" id="flagModalCustomReason" class="form-control" placeholder="พิมพ์รายละเอียดสาเหตุที่พบ...">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+          <button type="button" class="btn btn-outline" onclick="closeFlagFieldModal()">ยกเลิก</button>
+          <button type="button" class="btn btn-primary" style="background: #EF4444; border-color: #EF4444;" onclick="saveFieldFlag()">
+            <i class="mi" aria-hidden="true">check</i> ยืนยันการแจ้งเพี้ยน
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Error Statistics & Analytics Modal -->
+  <div id="aiErrorStatsModal" class="modal-overlay">
+    <div class="modal" style="max-width: 920px; width: 95%; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 38px; height: 38px; border-radius: 10px; background: #FEF2F2; color: #EF4444; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+            <i class="mi" aria-hidden="true">query_stats</i>
+          </div>
+          <div>
+            <h3 style="color: #0F172A; font-weight: 700; margin: 0; font-size: 18px;">สถิติจุดที่ AI อ่านเพี้ยนและความแม่นยำ (AI Error Analytics)</h3>
+            <span style="font-size: 12px; color: var(--text-muted);">ข้อมูลสะสมจากการทดสอบใน AI Test Studio เพื่อนำไปพัฒนา System Prompt และ Fine-Tuning</span>
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeAiErrorStatsModal()">&times;</button>
+      </div>
+
+      <!-- Quick KPI Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px; text-align: center;">
+          <div style="font-size: 12px; color: #64748B;">จำนวนครั้งที่ประเมิน</div>
+          <div id="statTotalTests" style="font-size: 28px; font-weight: 800; color: #0F172A; margin-top: 4px;">0</div>
+        </div>
+        <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 12px; padding: 14px; text-align: center;">
+          <div style="font-size: 12px; color: #166534;">อัตราความถูกต้องสมบูรณ์</div>
+          <div id="statAccuracyRate" style="font-size: 28px; font-weight: 800; color: #16A34A; margin-top: 4px;">-%</div>
+        </div>
+        <div style="background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 12px; padding: 14px; text-align: center;">
+          <div style="font-size: 12px; color: #1E40AF;">ความมั่นใจเฉลี่ย (Confidence)</div>
+          <div id="statAvgConfidence" style="font-size: 28px; font-weight: 800; color: #2563EB; margin-top: 4px;">-%</div>
+        </div>
+        <div style="background: #FAF5FF; border: 1px solid #E9D5FF; border-radius: 12px; padding: 14px; text-align: center;">
+          <div style="font-size: 12px; color: #6B21A8;">คะแนนประเมินเฉลี่ย</div>
+          <div id="statAvgRating" style="font-size: 28px; font-weight: 800; color: #9333EA; margin-top: 4px;">- / 5</div>
+        </div>
+      </div>
+
+      <!-- Top Inaccurate Fields Table -->
+      <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 18px; margin-bottom: 20px;">
+        <div style="font-size: 14px; font-weight: 700; color: #0F172A; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <i class="mi" aria-hidden="true" style="color: #EF4444;">warning</i> ฟิลด์ที่พบปัญหาหรืออ่านเพี้ยนบ่อยที่สุด (Top Inaccurate Fields)
+          </span>
+          <span style="font-size: 12px; color: #64748B; font-weight: 400;">เรียงตามความถี่ที่พบ</span>
+        </div>
+        <div class="table-container" style="max-height: 260px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 50px; text-align: center;">อันดับ</th>
+                <th>ฟิลด์ข้อมูล</th>
+                <th>หน้าจอ</th>
+                <th style="text-align: center;">ความถี่ที่พบ</th>
+                <th>สาเหตุหลัก</th>
+              </tr>
+            </thead>
+            <tbody id="topInaccurateFieldsBody">
+              <tr><td colspan="5" style="text-align: center; color: #94A3B8;">ยังไม่มีข้อมูลสถิติจุดเพี้ยนสะสมค่ะ</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Recent Audits List -->
+      <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 18px;">
+        <div style="font-size: 14px; font-weight: 700; color: #0F172A; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <i class="mi" aria-hidden="true" style="color: #0284C7;">history</i> ประวัติการประเมินและทดสอบล่าสุด (Recent Audits)
+          </span>
+          <button class="btn btn-sm btn-outline" onclick="loadAiErrorStats()"><i class="mi" aria-hidden="true">refresh</i> โหลดใหม่</button>
+        </div>
+        <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>วัน-เวลา</th>
+                <th>ประเภท</th>
+                <th>โมเดลที่ใช้</th>
+                <th>สถานะการประเมิน</th>
+                <th>ความมั่นใจ</th>
+                <th>จุดที่แจ้งเพี้ยน</th>
+                <th>ผู้ประเมิน</th>
+              </tr>
+            </thead>
+            <tbody id="recentAuditsBody">
+              <tr><td colspan="7" style="text-align: center; color: #94A3B8;">ยังไม่มีประวัติการประเมินค่ะ</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Card Zoom Modal -->
   <div id="cardZoomModal" class="modal-overlay">
     <div class="modal" style="max-width: 580px; text-align: center;">
@@ -2762,7 +3377,7 @@
     <div class="modal" style="max-width: 960px; width: 95%;">
       <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: center; gap: 12px;">
-          <img id="uumUserAvatar" src="https://via.placeholder.com/40" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);" alt="">
+          <img id="uumUserAvatar" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20fill%3D%22%23cbd5e1%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2218%22%20r%3D%229%22%20fill%3D%22%23ffffff%22%2F%3E%3Cpath%20d%3D%22M6%2044c0-11%208-18%2018-18s18%207%2018%2018%22%20fill%3D%22%23ffffff%22%2F%3E%3C%2Fsvg%3E" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);" alt="">
           <div>
             <h3 id="uumUserName" style="color: #0F172A; font-weight: 700; margin: 0; font-size: 17px;">ประวัติรายการใช้งาน Token</h3>
             <span id="uumUserId" style="font-size: 12px; color: var(--text-muted);"></span>
@@ -2812,12 +3427,12 @@
 
   <!-- MODAL: LINE CHAT SIMULATOR (จำลองหน้าแชท LINE รายบุคคล) -->
   <div id="userChatModal" class="modal-overlay">
-    <div class="modal" style="max-width: 540px; width: 95%; height: 88vh; max-height: 740px; display: flex; flex-direction: column; padding: 0; overflow: hidden; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); border: 1px solid var(--border-color);">
+    <div class="modal" style="max-width: 540px; width: 95%; height: 94vh; max-height: 920px; display: flex; flex-direction: column; padding: 0; overflow: hidden; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); border: 1px solid var(--border-color);">
       
       <!-- LINE Chat Header Bar -->
       <div style="background: #0f172a; color: #ffffff; padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1e293b; flex-shrink: 0;">
         <div style="display: flex; align-items: center; gap: 12px;">
-          <img id="chatUserAvatar" src="https://via.placeholder.com/40" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #06c755;" alt="">
+          <img id="chatUserAvatar" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2048%2048%22%3E%3Crect%20width%3D%2248%22%20height%3D%2248%22%20fill%3D%22%23cbd5e1%22%2F%3E%3Ccircle%20cx%3D%2224%22%20cy%3D%2218%22%20r%3D%229%22%20fill%3D%22%23ffffff%22%2F%3E%3Cpath%20d%3D%22M6%2044c0-11%208-18%2018-18s18%207%2018%2018%22%20fill%3D%22%23ffffff%22%2F%3E%3C%2Fsvg%3E" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #06c755;" alt="">
           <div>
             <div id="chatUserName" style="font-weight: 700; font-size: 15px; color: #ffffff; display: flex; align-items: center; gap: 6px;">
               ผู้ใช้ LINE <span style="font-size: 10px; background: #06c755; color: #fff; padding: 2px 6px; border-radius: 10px; font-weight: 600;">LINE Chat Simulator</span>
@@ -2846,11 +3461,26 @@
       </div>
 
       <!-- Chat Input Area (Simulate Send Message to LINE User) -->
-      <div style="background: #ffffff; padding: 12px 16px; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
-        <input type="text" id="chatSimulateInput" class="form-control" style="flex: 1; font-size: 13.5px; border-radius: 20px; padding: 8px 16px; background: #f8fafc; border: 1px solid #cbd5e1;" placeholder="พิมพ์ข้อความตอบกลับเพื่อทดสอบส่งหาผู้ใช้..." onkeyup="if(event.key==='Enter') sendSimulatedChatMessage()">
-        <button class="btn btn-primary" style="background: #06c755; border: none; border-radius: 20px; padding: 8px 18px; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px;" onclick="sendSimulatedChatMessage()">
-          <span>ส่ง</span> <i class="mi" aria-hidden="true">rocket_launch</i>
-        </button>
+      <div style="background: #ffffff; border-top: 1px solid #e2e8f0; flex-shrink: 0;">
+        <div id="chatImagePreviewBar" style="display: none; align-items: center; gap: 10px; padding: 10px 16px 0 16px;">
+          <div style="position: relative; display: inline-block;">
+            <img id="chatImagePreviewThumb" src="" style="width: 56px; height: 56px; object-fit: cover; border-radius: 10px; border: 1px solid #cbd5e1;" alt="">
+            <button type="button" onclick="clearChatImageAttachment()" style="position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; background: #dc2626; color: #fff; border: 2px solid #fff; font-size: 12px; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;">
+              <i class="mi" aria-hidden="true" style="font-size: 13px;">close</i>
+            </button>
+          </div>
+          <span style="font-size: 12px; color: #64748b;">แนบรูปภาพแล้ว — กด "ส่ง" เพื่อส่งรูปนี้</span>
+        </div>
+        <div style="padding: 12px 16px; display: flex; gap: 8px; align-items: flex-end;">
+          <input type="file" id="chatImageFileInput" accept="image/*" style="display: none;" onchange="handleChatImageSelected(event)">
+          <button type="button" class="btn btn-sm btn-outline" style="border-radius: 50%; width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; flex-shrink: 0;" title="แนบรูปภาพ" onclick="document.getElementById('chatImageFileInput').click()">
+            <i class="mi" aria-hidden="true">image</i>
+          </button>
+          <textarea id="chatSimulateInput" class="form-control" rows="1" style="flex: 1; font-size: 13.5px; border-radius: 18px; padding: 8px 16px; background: #f8fafc; border: 1px solid #cbd5e1; resize: none; max-height: 120px; overflow-y: auto; line-height: 1.4; font-family: inherit;" placeholder="พิมพ์ข้อความตอบกลับเพื่อทดสอบส่งหาผู้ใช้... (Shift+Enter ขึ้นบรรทัดใหม่)" oninput="this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,120)+'px';" onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); sendSimulatedChatMessage(); }"></textarea>
+          <button class="btn btn-primary" style="background: #06c755; border: none; border-radius: 20px; padding: 8px 18px; font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 6px; flex-shrink: 0;" onclick="sendSimulatedChatMessage()">
+            <span>ส่ง</span> <i class="mi" aria-hidden="true">rocket_launch</i>
+          </button>
+        </div>
       </div>
 
     </div>
@@ -2890,9 +3520,11 @@
         <div style="margin-bottom: 16px; background: #f8fafc; border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;">
           <div style="font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 8px;"><i class="mi" aria-hidden="true">bolt</i> โหลดราคามาตรฐาน Google / OpenRouter (Presets):</div>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="applyPricingPreset('gemini-3.8-flash', 0.15, 0.60)">Google Gemini 3.8 Flash ($0.15 / $0.60)</button>
             <button type="button" class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="applyPricingPreset('gemini-2.5-flash', 0.075, 0.30)">Google Gemini 2.5 Flash ($0.075 / $0.30)</button>
             <button type="button" class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="applyPricingPreset('gemini-3.5-flash-lite', 0.075, 0.30)">Google Gemini 3.5 Flash Lite ($0.075 / $0.30)</button>
             <button type="button" class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="applyPricingPreset('gemini-3.6-flash', 0.15, 0.60)">Google Gemini 3.6 Flash ($0.15 / $0.60)</button>
+            <button type="button" class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="applyPricingPreset('openrouter/google/gemini-3.8-flash', 0.15, 0.60)">OpenRouter Gemini 3.8 Flash ($0.15 / $0.60)</button>
             <button type="button" class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="applyPricingPreset('openrouter/google/gemini-2.5-flash', 0.075, 0.30)">OpenRouter Gemini 2.5 Flash ($0.075 / $0.30)</button>
             <button type="button" class="btn btn-outline" style="padding: 4px 10px; font-size: 12px;" onclick="applyPricingPreset('openrouter/openai/gpt-4o-mini', 0.15, 0.60)">OpenRouter GPT-4o mini ($0.15 / $0.60)</button>
           </div>
@@ -2927,6 +3559,22 @@
   </div>
 
   <script>
+    // รูป Avatar สำรองเมื่อผู้ใช้ไม่มี pictureUrl — ใช้ SVG ฝังในตัว (ไม่พึ่งบริการภายนอกอย่าง placeholder.com)
+    const DEFAULT_AVATAR = 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" fill="#cbd5e1"/><circle cx="24" cy="18" r="9" fill="#ffffff"/><path d="M6 44c0-11 8-18 18-18s18 7 18 18" fill="#ffffff"/></svg>'
+    );
+
+    // คำนวณอายุ (ปีเต็ม) จากวันเกิด
+    function calcAge(birthDate) {
+      const b = new Date(birthDate);
+      if (isNaN(b.getTime())) return null;
+      const today = new Date();
+      let age = today.getFullYear() - b.getFullYear();
+      const monthDiff = today.getMonth() - b.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < b.getDate())) age--;
+      return age >= 0 ? age : null;
+    }
+
     // ระบบ login ใช้ session cookie ผ่าน system81 SSO (ITSR) — ไม่มี token ใน localStorage แล้ว
     let currentAdmin = null; // { _id, system81_username, email, name, role, lastLoginAt }
     let currentPage = 1;
@@ -3015,6 +3663,7 @@
         'bot-messages': '<i class="mi" aria-hidden="true">chat_bubble</i> ข้อความบอท',
         'registration': '<i class="mi" aria-hidden="true">sell</i> สิทธิ์ & Whitelist',
         'ai-test-studio': '<i class="mi" aria-hidden="true">science</i> AI Test Studio',
+        'monthly-lab': '<i class="mi" aria-hidden="true">date_range</i> วิเคราะห์รายเดือน (Lab)',
         'admin-management': '<i class="mi" aria-hidden="true">shield</i> จัดการแอดมิน',
         'admin-audit': '<i class="mi" aria-hidden="true">history_edu</i> Audit Log แอดมิน'
       };
@@ -3097,6 +3746,9 @@
       } else if (tabName === 'ai-test-studio') {
         updateBreadcrumb('ai-test-studio');
         loadTestStudioSamples();
+      } else if (tabName === 'monthly-lab') {
+        updateBreadcrumb('monthly-lab');
+        initMonthlyLab();
       }
     }
 
@@ -3124,8 +3776,14 @@
     let currentStudioFiles = [];
     let currentStudioCardSvg = null;
     let currentWeeklyResultData = null;
+    let currentDailyResultData = null;
     let currentWeeklyActiveTab = 'comb';
     let studioSamplesCache = [];
+    let currentTestQualityCheck = null;
+    let currentFlaggedFields = [];
+    let currentTestRating = 5;
+    let currentAccuracyStatus = 'accurate';
+    let currentFlagFieldTarget = null;
 
     async function loadTestStudioSamples() {
       const container = document.getElementById('studioSamplesContainer');
@@ -3279,14 +3937,14 @@
       const totalKb = currentStudioFiles.reduce((sum, f) => sum + parseFloat(f.sizeKb || 0), 0).toFixed(1);
 
       if (infoEl) {
-        infoEl.textContent = `📷 เลือกแล้ว ${count} รูปภาพ (${totalKb} KB)`;
+        infoEl.innerHTML = `<i class="mi" aria-hidden="true">photo_camera</i> เลือกแล้ว ${count} รูปภาพ (${totalKb} KB)`;
       }
 
       if (modeBadge) {
         modeBadge.style.background = '#dcfce7';
         modeBadge.style.color = '#15803d';
         modeBadge.style.border = '1px solid #bbf7d0';
-        modeBadge.innerHTML = '⭐ รายงานสุขภาพรายสัปดาห์ (3 หน้าในแผ่นเดียว)';
+        modeBadge.innerHTML = '<i class="mi" aria-hidden="true" style="font-size:14px;vertical-align:middle;">star</i> รายงานสุขภาพรายสัปดาห์ (3 หน้าในแผ่นเดียว)';
       }
 
       if (btnLabel) {
@@ -3305,7 +3963,7 @@
           <div style="position: relative; width: 100%; height: 82px; background: #000000; display: flex; align-items: center; justify-content: center; overflow: hidden;">
             <img src="${file.dataUri}" style="width: 100%; height: 100%; object-fit: cover;" alt="thumb">
             <span style="position: absolute; top: 4px; left: 4px; background: rgba(15,23,42,0.75); color: #ffffff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px;">#${idx + 1}</span>
-            <button type="button" onclick="removeStudioFile(${idx})" title="ลบรูปนี้" style="position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 50%; background: rgba(239, 68, 68, 0.9); color: #ffffff; border: none; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;">✕</button>
+            <button type="button" onclick="removeStudioFile(${idx})" title="ลบรูปนี้" style="position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 50%; background: rgba(239, 68, 68, 0.9); color: #ffffff; border: none; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;"><i class="mi" style="font-size: 13px;">close</i></button>
           </div>
           <div style="padding: 4px 6px; font-size: 10.5px; color: #475569; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: #fafafa;" title="${escapeHtml(file.name)}">
             ${escapeHtml(file.name)}
@@ -3355,7 +4013,7 @@
       if (resultContainer) resultContainer.style.display = 'none';
       if (analyzeBtn) {
         analyzeBtn.disabled = true;
-        analyzeBtn.innerHTML = '<span>⏳</span> กำลังวิเคราะห์...';
+        analyzeBtn.innerHTML = '<span><i class="mi" aria-hidden="true">hourglass_top</i></span> กำลังวิเคราะห์...';
       }
 
       try {
@@ -3382,7 +4040,7 @@
         }
 
         if (!res.ok) {
-          alert('❌ เกิดข้อผิดพลาดจาก AI: ' + (res.error || 'ไม่สามารถวิเคราะห์ได้'));
+          alert('เกิดข้อผิดพลาดจาก AI: ' + (res.error || 'ไม่สามารถวิเคราะห์ได้'));
           if (emptyState) emptyState.style.display = 'block';
           return;
         }
@@ -3395,7 +4053,7 @@
           analyzeBtn.disabled = false;
           analyzeBtn.innerHTML = `<span><i class="mi" aria-hidden="true">rocket_launch</i></span> <span id="studioAnalyzeBtnLabel">วิเคราะห์รายงานสุขภาพ (3 หน้าในแผ่นเดียว)</span>`;
         }
-        alert('❌ เกิดข้อผิดพลาด: ' + err.message);
+        alert('เกิดข้อผิดพลาด: ' + err.message);
         if (emptyState) emptyState.style.display = 'block';
       }
     }
@@ -3420,6 +4078,11 @@
 
     function renderStudioWeeklyResult(data) {
       currentWeeklyResultData = data;
+      currentDailyResultData = null;
+      currentTestQualityCheck = data.qualityCheck || null;
+      currentFlaggedFields = [];
+      currentTestRating = 5;
+      currentAccuracyStatus = data.qualityCheck?.qualityStatus === 'error' ? 'major_errors' : (data.qualityCheck?.qualityStatus === 'warning' ? 'minor_errors' : 'accurate');
 
       // 1. Status Bar
       const badge = document.getElementById('wStatusBadge');
@@ -3433,11 +4096,17 @@
         }
       }
 
+      const modelEl = document.getElementById('wModelText');
+      if (modelEl) modelEl.textContent = data.aiModel || data.rawResult?.model || 'ไม่ทราบโมเดล';
+
       const confEl = document.getElementById('wConfidenceText');
       if (confEl) confEl.textContent = `${Math.round((data.confidence ?? 1) * 100)}%`;
 
       const durEl = document.getElementById('wDurationText');
       if (durEl) durEl.textContent = `${((data.durationMs || 0) / 1000).toFixed(2)} วินาที`;
+
+      // 1.1 Quality Banner
+      renderQualityBanner(data.qualityCheck, 'weekly');
 
       // Page badges highlight
       const found = data.foundPages || [];
@@ -3448,17 +4117,17 @@
       if (pBody) {
         const ok = found.includes(1) || found.includes('body_load');
         pBody.style.opacity = ok ? '1' : '0.4';
-        pBody.innerHTML = (ok ? '✓ ' : '') + 'Body Load';
+        pBody.innerHTML = (ok ? '<i class="mi" style="font-size:12px;">check</i> ' : '') + 'Body Load';
       }
       if (pRec) {
         const ok = found.includes(2) || found.includes('recovery');
         pRec.style.opacity = ok ? '1' : '0.4';
-        pRec.innerHTML = (ok ? '✓ ' : '') + 'Recovery';
+        pRec.innerHTML = (ok ? '<i class="mi" style="font-size:12px;">check</i> ' : '') + 'Recovery';
       }
       if (pSleep) {
         const ok = found.includes(3) || found.includes('sleep');
         pSleep.style.opacity = ok ? '1' : '0.4';
-        pSleep.innerHTML = (ok ? '✓ ' : '') + 'Sleep Quality';
+        pSleep.innerHTML = (ok ? '<i class="mi" style="font-size:12px;">check</i> ' : '') + 'Sleep Quality';
       }
 
       // 2. Metrics - อ่านจาก format ใหม่ (overview/activity/sleep)
@@ -3487,7 +4156,7 @@
       const elDur = document.getElementById('wSleepDuration');
       if (elDur) elDur.textContent = slp.durationToday || '-';
       const elRest = document.getElementById('wRestorativeSleep');
-      if (elRest) elRest.textContent = slp.restorativeSleep ? `✨ ${slp.restorativeSleep}` : '';
+      if (elRest) elRest.innerHTML = slp.restorativeSleep ? `<i class="mi" style="font-size: 13px;">auto_awesome</i> ${escapeHtml(slp.restorativeSleep)}` : '';
 
       // 3. AI Insights
       const elOv = document.getElementById('wOverviewSummary');
@@ -3500,6 +4169,9 @@
       // 4. ตารางข้อมูลครบ
       renderWeeklyDataTable(wd);
 
+      // 4.1 Ground Truth & Feedback Card
+      renderAuditFeedbackCard(data, 'weekly');
+
       // 5. Raw JSON
       const jsonEl = document.getElementById('wRawJsonText');
       if (jsonEl) {
@@ -3510,12 +4182,32 @@
       switchWeeklyViewTab('comb');
     }
 
-    function buildSeriesRow(label, series, days, color) {
+    function isFieldAnomaly(fieldKey) {
+      if (!currentTestQualityCheck || !Array.isArray(currentTestQualityCheck.anomalies)) return false;
+      return currentTestQualityCheck.anomalies.some(a => a.field === fieldKey || (a.field && a.field.toLowerCase().includes(fieldKey.toLowerCase())));
+    }
+
+    function renderFlagBtn(fieldKey, fieldLabel, pageName, currentValue) {
+      const isFlagged = currentFlaggedFields.find(f => f.field === fieldKey);
+      const safeVal = escapeHtml(String(currentValue ?? '')).replace(/'/g, "\\'");
+      const safeLabel = escapeHtml(String(fieldLabel ?? '')).replace(/'/g, "\\'");
+      const safePage = escapeHtml(String(pageName ?? '')).replace(/'/g, "\\'");
+      if (isFlagged) {
+        return `<button type="button" class="btn-flag-field flagged" onclick="openFlagFieldModal('${fieldKey}', '${safeLabel}', '${safePage}', '${safeVal}')" title="แก้ไขจุดที่แจ้งไว้ (ค่าจริง: ${escapeHtml(isFlagged.correctedValue)})"><i class="mi" style="font-size:12px;">push_pin</i> แก้แล้ว (${escapeHtml(isFlagged.correctedValue)})</button>`;
+      }
+      return `<button type="button" class="btn-flag-field" onclick="openFlagFieldModal('${fieldKey}', '${safeLabel}', '${safePage}', '${safeVal}')" title="แจ้ง AI อ่านเพี้ยน/ป้อนค่าจริง"><i class="mi" style="font-size:12px;">warning</i> แจ้งเพี้ยน</button>`;
+    }
+
+    function buildSeriesRow(label, series, days, color, fieldKey = '', page = '') {
       if (!series || !series.length) return '';
+      const hasAnomaly = fieldKey && isFieldAnomaly(fieldKey);
+      const rowStyle = hasAnomaly ? 'background: #FEF2F2;' : '';
+      const flagBtn = fieldKey ? renderFlagBtn(fieldKey, label, page, series.join(',')) : '';
+      const warnIcon = hasAnomaly ? '<span title="ข้อมูลชุดนี้อาจมีจุดเพี้ยน" style="color:#EF4444;margin-left:3px;"><i class="mi mi-red" style="font-size:13px;vertical-align:middle;">warning</i></span>' : '';
       const cells = series.map(v =>
         `<td style="text-align:center;padding:3px 5px;font-size:11.5px;color:${v === null || v === undefined ? '#94a3b8' : '#0F172A'};">${v !== null && v !== undefined ? v : '-'}</td>`
       ).join('');
-      return `<tr><td style="padding:3px 8px;font-size:11.5px;font-weight:600;color:${color};white-space:nowrap;">${label}</td>${cells}</tr>`;
+      return `<tr style="${rowStyle}"><td style="padding:3px 8px;font-size:11.5px;font-weight:600;color:${color};white-space:nowrap;">${label} ${warnIcon} ${flagBtn}</td>${cells}</tr>`;
     }
 
     function renderWeeklyDataTable(wd) {
@@ -3534,10 +4226,21 @@
       const tdCmp = 'style="padding:4px 8px;font-size:11px;border-bottom:1px solid #f1f5f9;color:#64748b;text-align:right;"';
       const thSt = 'style="padding:5px 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;background:#f8fafc;border-bottom:2px solid #e2e8f0;color:#475569;"';
 
-      const row3 = (label, today, cmp = '') =>
-        `<tr><td ${tdSt}>${label}</td><td ${tdNum}>${fv(today)}</td><td ${tdCmp}>${fv(cmp)}</td></tr>`;
-      const row2 = (label, val) =>
-        `<tr><td ${tdSt}>${label}</td><td ${tdNum} colspan="2">${fv(val)}</td></tr>`;
+      const row3 = (label, today, cmp = '', fieldKey = '', page = '') => {
+        const hasAnomaly = fieldKey && isFieldAnomaly(fieldKey);
+        const rowClass = hasAnomaly ? 'class="anomaly-row-highlight"' : '';
+        const flagBtn = fieldKey ? renderFlagBtn(fieldKey, label, page, today) : '';
+        const anomalyWarn = hasAnomaly ? '<span title="ตรวจพบความผิดปกติ" style="color:#EF4444;margin-left:4px;"><i class="mi mi-red" style="font-size:13px;vertical-align:middle;">warning</i></span>' : '';
+        return `<tr ${rowClass}><td ${tdSt}>${label} ${anomalyWarn} ${flagBtn}</td><td ${tdNum}>${fv(today)}</td><td ${tdCmp}>${fv(cmp)}</td></tr>`;
+      };
+
+      const row2 = (label, val, fieldKey = '', page = '') => {
+        const hasAnomaly = fieldKey && isFieldAnomaly(fieldKey);
+        const rowClass = hasAnomaly ? 'class="anomaly-row-highlight"' : '';
+        const flagBtn = fieldKey ? renderFlagBtn(fieldKey, label, page, val) : '';
+        const anomalyWarn = hasAnomaly ? '<span title="ตรวจพบความผิดปกติ" style="color:#EF4444;margin-left:4px;"><i class="mi mi-red" style="font-size:13px;vertical-align:middle;">warning</i></span>' : '';
+        return `<tr ${rowClass}><td ${tdSt}>${label} ${anomalyWarn} ${flagBtn}</td><td ${tdNum} colspan="2">${fv(val)}</td></tr>`;
+      };
 
       // Highlights & FirstSteps
       const hlHtml = (ov.highlights && ov.highlights.length)
@@ -3555,14 +4258,14 @@
           <table style="width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;min-width:520px;">
             <thead><tr><th ${thSt} style="min-width:130px;">ชุดข้อมูล</th>${dayHeaders}</tr></thead>
             <tbody>
-              ${buildSeriesRow('Body Load', act.bodyLoadSeries, days, '#0284C7')}
-              ${buildSeriesRow('Recovery %', act.recoverySeries, days, '#16A34A')}
-              ${buildSeriesRow('HRV (ms)', act.hrvSeries, days, '#0891B2')}
-              ${buildSeriesRow('Resting HR', act.rhrSeries, days, '#DC2626')}
-              ${buildSeriesRow('Sleep Quality %', slp.qualitySeries, days, '#9333EA')}
-              ${buildSeriesRow('Hours Slept', slp.hoursVsNeededSeries || act.hoursVsNeededSeries, days, '#7C3AED')}
-              ${buildSeriesRow('Hours Needed', slp.hoursNeededSeries || act.hoursNeededSeries, days, '#6B7280')}
-              ${buildSeriesRow('Consistency %', slp.consistencySeries, days, '#D97706')}
+              ${buildSeriesRow('Body Load', act.bodyLoadSeries, days, '#0284C7', 'bodyLoadSeries', 'Body Load')}
+              ${buildSeriesRow('Recovery %', act.recoverySeries, days, '#16A34A', 'recoverySeries', 'Recovery')}
+              ${buildSeriesRow('HRV (ms)', act.hrvSeries, days, '#0891B2', 'hrvSeries', 'Recovery')}
+              ${buildSeriesRow('Resting HR', act.rhrSeries, days, '#DC2626', 'rhrSeries', 'Recovery')}
+              ${buildSeriesRow('Sleep Quality %', slp.qualitySeries, days, '#9333EA', 'qualitySeries', 'Sleep Quality')}
+              ${buildSeriesRow('Hours Slept', slp.hoursVsNeededSeries || act.hoursVsNeededSeries, days, '#7C3AED', 'hoursVsNeededSeries', 'Sleep Quality')}
+              ${buildSeriesRow('Hours Needed', slp.hoursNeededSeries || act.hoursNeededSeries, days, '#6B7280', 'hoursNeededSeries', 'Sleep Quality')}
+              ${buildSeriesRow('Consistency %', slp.consistencySeries, days, '#D97706', 'consistencySeries', 'Sleep Quality')}
             </tbody>
           </table>
         </div>` : '';
@@ -3580,54 +4283,54 @@
 
             <!-- Body Load & Activity -->
             <div>
-              <div style="font-size:11.5px;font-weight:700;color:#0284C7;margin-bottom:6px;">📊 Body Load &amp; กิจกรรม</div>
+              <div style="font-size:11.5px;font-weight:700;color:#0284C7;margin-bottom:6px;"><i class="mi" style="font-size:13px;vertical-align:middle;">bar_chart</i> Body Load &amp; กิจกรรม</div>
               <table style="width:100%;border-collapse:collapse;border:1px solid #e0f2fe;border-radius:8px;overflow:hidden;">
                 <thead><tr><th ${thSt}>รายการ</th><th ${thSt}>วันนี้</th><th ${thSt}>เปรียบเทียบ</th></tr></thead>
                 <tbody>
-                  ${row3('Body Load Score', fv(act.bodyLoadToday ?? ov.bodyLoad), '-')}
-                  ${row2('สถานะ', act.bodyLoadStatus ?? ov.bodyLoadLabel)}
-                  ${row3('HR Zone 1-3', act.hrZone13Today, act.hrZone13Compare)}
-                  ${row3('HR Zone 4-5', act.hrZone45Today, act.hrZone45Compare)}
-                  ${row3('Strength Training', act.strengthToday, act.strengthCompare)}
-                  ${row3('Steps', act.stepsToday, act.stepsCompare)}
-                  ${row3('Calories', act.caloriesToday, '-')}
+                  ${row3('Body Load Score', fv(act.bodyLoadToday ?? ov.bodyLoad), '-', 'activity.bodyLoadToday', 'Body Load')}
+                  ${row2('สถานะ', act.bodyLoadStatus ?? ov.bodyLoadLabel, 'activity.bodyLoadStatus', 'Body Load')}
+                  ${row3('HR Zone 1-3', act.hrZone13Today, act.hrZone13Compare, 'activity.hrZone13Today', 'Body Load')}
+                  ${row3('HR Zone 4-5', act.hrZone45Today, act.hrZone45Compare, 'activity.hrZone45Today', 'Body Load')}
+                  ${row3('Strength Training', act.strengthToday, act.strengthCompare, 'activity.strengthToday', 'Body Load')}
+                  ${row3('Steps', act.stepsToday, act.stepsCompare, 'activity.stepsToday', 'Body Load')}
+                  ${row3('Calories', act.caloriesToday, '-', 'activity.caloriesToday', 'Body Load')}
                 </tbody>
               </table>
             </div>
 
             <!-- Recovery -->
             <div>
-              <div style="font-size:11.5px;font-weight:700;color:#16A34A;margin-bottom:6px;">💚 Recovery</div>
+              <div style="font-size:11.5px;font-weight:700;color:#16A34A;margin-bottom:6px;"><i class="mi" style="font-size:13px;vertical-align:middle;">favorite</i> Recovery</div>
               <table style="width:100%;border-collapse:collapse;border:1px solid #dcfce7;border-radius:8px;overflow:hidden;">
                 <thead><tr><th ${thSt}>รายการ</th><th ${thSt}>วันนี้</th><th ${thSt}>เปรียบเทียบ</th></tr></thead>
                 <tbody>
-                  ${row3('Recovery %', fv(act.recoveryPercent ?? ov.recoveryPercent, '%'), '-')}
-                  ${row2('สถานะ', act.recoveryStatus)}
-                  ${row3('HRV', act.hrvToday, act.hrvCompare)}
-                  ${row3('Resting Heart Rate', act.rhrToday, act.rhrCompare)}
-                  ${row3('Sleep Performance', act.sleepPerformanceToday, act.sleepPerformanceCompare)}
+                  ${row3('Recovery %', fv(act.recoveryPercent ?? ov.recoveryPercent, '%'), '-', 'activity.recoveryPercent', 'Recovery')}
+                  ${row2('สถานะ', act.recoveryStatus, 'activity.recoveryStatus', 'Recovery')}
+                  ${row3('HRV', act.hrvToday, act.hrvCompare, 'activity.hrvToday', 'Recovery')}
+                  ${row3('Resting Heart Rate', act.rhrToday, act.rhrCompare, 'activity.rhrToday', 'Recovery')}
+                  ${row3('Sleep Performance', act.sleepPerformanceToday, act.sleepPerformanceCompare, 'activity.sleepPerformanceToday', 'Recovery')}
                 </tbody>
               </table>
             </div>
 
             <!-- Sleep Quality -->
             <div>
-              <div style="font-size:11.5px;font-weight:700;color:#9333EA;margin-bottom:6px;">🌙 Sleep Quality</div>
+              <div style="font-size:11.5px;font-weight:700;color:#9333EA;margin-bottom:6px;"><i class="mi" style="font-size:13px;vertical-align:middle;">bedtime</i> Sleep Quality</div>
               <table style="width:100%;border-collapse:collapse;border:1px solid #f3e8ff;border-radius:8px;overflow:hidden;">
                 <thead><tr><th ${thSt}>รายการ</th><th ${thSt} colspan="2">ค่า</th></tr></thead>
                 <tbody>
-                  ${row2('Sleep Quality %', fv(slp.qualityPercent ?? ov.sleepQualityPercent, '%'))}
-                  ${row2('สถานะ', slp.qualityStatus)}
-                  ${row2('ระยะเวลานอน', slp.durationToday)}
-                  ${row2('หมายเหตุ', slp.durationNote)}
-                  ${row2('Sleep Efficiency', fv(slp.efficiencyPercent, '%'))}
-                  ${row2('Sleep Consistency', fv(slp.consistencyPercent, '%'))}
-                  ${row2('High Sleep Stress', fv(slp.highStressPercent, '%'))}
-                  ${row3('Light Sleep', fv(slp.stageLightPercent, '%'), slp.stageLightTime)}
-                  ${row3('Deep Sleep', fv(slp.stageDeepPercent, '%'), slp.stageDeepTime)}
-                  ${row3('REM Sleep', fv(slp.stageRemPercent, '%'), slp.stageRemTime)}
-                  ${row3('Awake', fv(slp.stageAwakePercent, '%'), slp.stageAwakeTime)}
-                  ${row3('Restorative Sleep', slp.restorativeSleep, slp.restorativeCompare)}
+                  ${row2('Sleep Quality %', fv(slp.qualityPercent ?? ov.sleepQualityPercent, '%'), 'sleep.qualityPercent', 'Sleep Quality')}
+                  ${row2('สถานะ', slp.qualityStatus, 'sleep.qualityStatus', 'Sleep Quality')}
+                  ${row2('ระยะเวลานอน', slp.durationToday, 'sleep.durationToday', 'Sleep Quality')}
+                  ${row2('หมายเหตุ', slp.durationNote, 'sleep.durationNote', 'Sleep Quality')}
+                  ${row2('Sleep Efficiency', fv(slp.efficiencyPercent, '%'), 'sleep.efficiencyPercent', 'Sleep Quality')}
+                  ${row2('Sleep Consistency', fv(slp.consistencyPercent, '%'), 'sleep.consistencyPercent', 'Sleep Quality')}
+                  ${row2('High Sleep Stress', fv(slp.highStressPercent, '%'), 'sleep.highStressPercent', 'Sleep Quality')}
+                  ${row3('Light Sleep', fv(slp.stageLightPercent, '%'), slp.stageLightTime, 'sleep.stagePercentages', 'Sleep Quality')}
+                  ${row3('Deep Sleep', fv(slp.stageDeepPercent, '%'), slp.stageDeepTime, 'sleep.stagePercentages', 'Sleep Quality')}
+                  ${row3('REM Sleep', fv(slp.stageRemPercent, '%'), slp.stageRemTime, 'sleep.stagePercentages', 'Sleep Quality')}
+                  ${row3('Awake', fv(slp.stageAwakePercent, '%'), slp.stageAwakeTime, 'sleep.stagePercentages', 'Sleep Quality')}
+                  ${row3('Restorative Sleep', slp.restorativeSleep, slp.restorativeCompare, 'sleep.restorativeSleep', 'Sleep Quality')}
                   <tr><td colspan="3" style="font-size:10.5px;color:#94a3b8;padding:3px 8px;">${fv(slp.stageNote)}</td></tr>
                 </tbody>
               </table>
@@ -3650,6 +4353,437 @@
         </div>`;
 
       wrap.style.display = 'block';
+    }
+
+    function renderQualityBanner(qc, mode = 'weekly') {
+      const bannerId = mode === 'weekly' ? 'wQualityBanner' : 'dailyQualityBanner';
+      const banner = document.getElementById(bannerId);
+      if (!banner) return;
+
+      if (!qc) {
+        banner.style.display = 'none';
+        return;
+      }
+
+      banner.className = `ai-quality-banner ${qc.qualityStatus || 'passed'}`;
+      banner.style.display = 'flex';
+
+      const statusConfig = {
+        passed: {
+          icon: 'verified',
+          title: 'ข้อมูลผ่านการตรวจสอบความสมเหตุสมผล (Passed)',
+          color: '#16A34A',
+        },
+        warning: {
+          icon: 'warning',
+          title: `มีจุดที่ AI อาจไม่มั่นใจ หรือข้อมูลน่าสงสัย (${qc.warningCount || 0} รายการ)`,
+          color: '#D97706',
+        },
+        error: {
+          icon: 'error',
+          title: `ตรวจพบข้อมูลที่อ่านเพี้ยนหรือไม่ถูกต้อง (${qc.errorCount || 0} รายการ)`,
+          color: '#DC2626',
+        },
+      };
+
+      const sc = statusConfig[qc.qualityStatus] || statusConfig.passed;
+
+      const anomalies = Array.isArray(qc.anomalies) ? qc.anomalies : [];
+      let anomalyItemsHtml = '';
+      if (anomalies.length > 0) {
+        anomalyItemsHtml = `
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+            ${anomalies.map((a, idx) => `
+              <div style="background: rgba(255,255,255,0.9); border: 1px solid rgba(0,0,0,0.08); border-radius: 8px; padding: 8px 12px; font-size: 12.5px; display: flex; justify-content: space-between; align-items: start; gap: 10px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 8px; align-items: flex-start;">
+                  <span class="anomaly-badge ${escapeHtml(a.severity || 'warning')}">${a.severity === 'error' ? '<i class="mi mi-red" style="font-size:12px;vertical-align:middle;">error</i> เพี้ยน' : '<i class="mi mi-yellow" style="font-size:12px;vertical-align:middle;">warning</i> สงสัย'}</span>
+                  <div>
+                    <span style="font-weight: 700; color: #0F172A;">${escapeHtml(a.label || a.field)}:</span>
+                    <span style="color: #475569; margin-left: 4px;">${escapeHtml(a.issue)}</span>
+                    ${a.suggestion ? `<div style="font-size: 11.5px; color: #64748B; margin-top: 2px;"><i class="mi" style="font-size:12px;vertical-align:middle;">lightbulb</i> คำแนะนำ: ${escapeHtml(a.suggestion)}</div>` : ''}
+                  </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="font-size: 11px; font-family: monospace; background: #F1F5F9; padding: 2px 6px; border-radius: 4px; color: #0F172A;">อ่านได้: ${escapeHtml(a.readValue ?? '-')}</span>
+                  <button type="button" class="btn-flag-field" data-anomaly-idx="${idx}">
+                    <i class="mi" style="font-size: 12px;">edit</i> ป้อนค่าจริง
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      banner.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="mi" aria-hidden="true" style="font-size: 22px; color: ${sc.color};">${sc.icon}</i>
+            <span style="font-size: 14px; font-weight: 700; color: ${sc.color};">${sc.title}</span>
+          </div>
+          <span style="font-size: 12px; opacity: 0.85;">${escapeHtml(qc.summary || '')}</span>
+        </div>
+        ${anomalyItemsHtml}
+      `;
+
+      // Bind flag-field buttons via closures (not string-built attributes) so AI-controlled
+      // field values can never break out into HTML or JS, regardless of their content.
+      banner.querySelectorAll('.btn-flag-field').forEach(btn => {
+        const idx = Number(btn.getAttribute('data-anomaly-idx'));
+        const a = anomalies[idx];
+        if (!a) return;
+        btn.addEventListener('click', () => {
+          openFlagFieldModal(a.field, a.label || a.field, a.page || 'General', String(a.readValue ?? ''));
+        });
+      });
+    }
+
+    function renderAuditFeedbackCard(data, mode = 'weekly') {
+      const cardId = mode === 'weekly' ? 'wAuditFeedbackCard' : 'dailyAuditFeedbackCard';
+      const card = document.getElementById(cardId);
+      if (!card) return;
+
+      card.style.display = 'block';
+
+      const flaggedHtml = currentFlaggedFields.length > 0
+        ? `
+          <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; padding: 12px; margin-top: 12px;">
+            <div style="font-size: 12.5px; font-weight: 700; color: #92400E; margin-bottom: 8px;">
+              <i class="mi" aria-hidden="true" style="vertical-align: middle;">checklist</i> รายการจุดที่แจ้งเพี้ยน (${currentFlaggedFields.length} ฟิลด์):
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              ${currentFlaggedFields.map((f, i) => `
+                <div style="background: #FFFFFF; border: 1px solid #FEF3C7; border-radius: 6px; padding: 6px 10px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                    <b style="color: #0F172A;">${escapeHtml(f.fieldLabel || f.field)}</b>
+                    <span style="color: #64748B;">(${escapeHtml(f.page)})</span>:
+                    <span style="color: #DC2626; text-decoration: line-through;">${escapeHtml(String(f.readValue))}</span>
+                    <span style="color: #16A34A; font-weight: 700;"> <i class="mi" style="font-size:12px;vertical-align:middle;">arrow_forward</i> ${escapeHtml(String(f.correctedValue))}</span>
+                    ${f.reason ? `<span style="color: #64748B; font-size: 11px;"> [${escapeHtml(f.reason)}]</span>` : ''}
+                  </div>
+                  <button type="button" style="border: none; background: none; color: #EF4444; cursor: pointer; font-size: 14px; font-weight: 700;" onclick="removeFlaggedField('${f.field}')" title="ลบรายการนี้">&times;</button>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `
+        : '<div style="font-size: 12px; color: #64748B; margin-top: 6px;">ยังไม่มีการแจ้งจุดเพี้ยน (สามารถคลิกปุ่ม <b><i class="mi" style="font-size:12px;vertical-align:middle;">warning</i> แจ้งเพี้ยน</b> ที่ตารางข้อมูลด้านบนได้ค่ะ)</div>';
+
+      card.innerHTML = `
+        <div style="background: #FFFFFF; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow-sm);">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="color: #0284C7; font-size: 20px;"><i class="mi" aria-hidden="true">fact_check</i></span>
+              <div>
+                <h4 style="font-size: 14.5px; font-weight: 700; color: #0F172A; margin: 0;">ประเมินและบันทึกสถิติความแม่นยำ AI (Ground Truth Audit)</h4>
+                <div style="font-size: 12px; color: var(--text-muted);">บันทึกจุดที่อ่านเพี้ยนเพื่อเก็บสถิติสะสมสำหรับนำไปปรับปรุงโมเดลและ Prompt</div>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span style="font-size: 12px; color: #64748B; margin-right: 4px;">ให้คะแนนความถูกต้อง:</span>
+              ${[1, 2, 3, 4, 5].map(s => `
+                <button type="button" class="star-rating-btn ${s <= currentTestRating ? 'active' : ''}" onclick="setTestRating(${s})" title="${s} ดาว"><i class="mi" style="font-size:14px;vertical-align:middle;">star</i></button>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Accuracy Status Radios -->
+          <div>
+            <label style="font-size: 12.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 8px;">สถานะผลการวิเคราะห์:</label>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; padding: 6px 12px; border-radius: 8px; border: 1px solid ${currentAccuracyStatus === 'accurate' ? '#16A34A' : '#E2E8F0'}; background: ${currentAccuracyStatus === 'accurate' ? '#F0FDF4' : '#FFFFFF'};">
+                <input type="radio" name="accStatus_${mode}" value="accurate" ${currentAccuracyStatus === 'accurate' ? 'checked' : ''} onchange="setAccuracyStatus('accurate', '${mode}')">
+                <span style="color: #16A34A; font-weight: 600;"><i class="mi mi-green" style="font-size:14px;vertical-align:middle;">check_circle</i> ถูกต้องสมบูรณ์</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; padding: 6px 12px; border-radius: 8px; border: 1px solid ${currentAccuracyStatus === 'minor_errors' ? '#D97706' : '#E2E8F0'}; background: ${currentAccuracyStatus === 'minor_errors' ? '#FFFBEB' : '#FFFFFF'};">
+                <input type="radio" name="accStatus_${mode}" value="minor_errors" ${currentAccuracyStatus === 'minor_errors' ? 'checked' : ''} onchange="setAccuracyStatus('minor_errors', '${mode}')">
+                <span style="color: #D97706; font-weight: 600;"><i class="mi mi-yellow" style="font-size:14px;vertical-align:middle;">warning</i> มีจุดผิดเล็กน้อย (1-2 จุด)</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; padding: 6px 12px; border-radius: 8px; border: 1px solid ${currentAccuracyStatus === 'major_errors' ? '#DC2626' : '#E2E8F0'}; background: ${currentAccuracyStatus === 'major_errors' ? '#FEF2F2' : '#FFFFFF'};">
+                <input type="radio" name="accStatus_${mode}" value="major_errors" ${currentAccuracyStatus === 'major_errors' ? 'checked' : ''} onchange="setAccuracyStatus('major_errors', '${mode}')">
+                <span style="color: #DC2626; font-weight: 600;"><i class="mi mi-red" style="font-size:14px;vertical-align:middle;">error</i> อ่านเพี้ยนมาก / ผิดหลายจุด</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; padding: 6px 12px; border-radius: 8px; border: 1px solid ${currentAccuracyStatus === 'unusable' ? '#64748B' : '#E2E8F0'}; background: ${currentAccuracyStatus === 'unusable' ? '#F8FAFC' : '#FFFFFF'};">
+                <input type="radio" name="accStatus_${mode}" value="unusable" ${currentAccuracyStatus === 'unusable' ? 'checked' : ''} onchange="setAccuracyStatus('unusable', '${mode}')">
+                <span style="color: #475569; font-weight: 600;"><i class="mi" style="font-size:14px;vertical-align:middle;">cancel</i> ข้อมูลใช้การไม่ได้</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Flagged Fields Section -->
+          ${flaggedHtml}
+
+          <!-- Notes -->
+          <div style="margin-top: 14px;">
+            <label style="font-size: 12.5px; font-weight: 600; color: #475569; display: block; margin-bottom: 4px;">บันทึกเพิ่มเติมสำหรับทีมพัฒนา (Optional Note):</label>
+            <textarea id="auditFeedbackNotes_${mode}" class="form-control" rows="2" placeholder="เช่น ตัวเลขในแอปแอบมีเงาจางๆ หรือกราฟนอนสเกลตัวเล็กมาก..." style="font-size: 12.5px;"></textarea>
+          </div>
+
+          <!-- Submit Button -->
+          <div style="display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 16px;">
+            <span id="auditSaveStatus_${mode}" style="font-size: 12.5px; color: #16A34A; font-weight: 600; display: none;"></span>
+            <button type="button" class="btn btn-primary" id="btnSaveAudit_${mode}" onclick="submitAiTestAudit('${mode}')" style="font-size: 13px; font-weight: 700; padding: 8px 18px;">
+              <i class="mi" aria-hidden="true">save</i> บันทึกสถิติเพื่อพัฒนา AI
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function openFlagFieldModal(fieldKey, fieldLabel, pageName, currentValue) {
+      currentFlagFieldTarget = { fieldKey, fieldLabel, pageName, currentValue };
+      document.getElementById('flagModalFieldLabel').textContent = fieldLabel;
+      document.getElementById('flagModalFieldKey').textContent = `${pageName} → ${fieldKey}`;
+      document.getElementById('flagModalReadValue').value = currentValue;
+
+      const existing = currentFlaggedFields.find(f => f.field === fieldKey);
+      if (existing) {
+        document.getElementById('flagModalCorrectValue').value = existing.correctedValue || '';
+        document.getElementById('flagModalReasonSelect').value = existing.reason || 'ตัวเลขผิด/อ่านเพี้ยน';
+      } else {
+        document.getElementById('flagModalCorrectValue').value = '';
+        document.getElementById('flagModalReasonSelect').value = 'ตัวเลขผิด/อ่านเพี้ยน';
+      }
+      toggleFlagReasonCustom(document.getElementById('flagModalReasonSelect').value);
+
+      document.getElementById('flagFieldModal').classList.add('active');
+    }
+
+    function closeFlagFieldModal() {
+      document.getElementById('flagFieldModal').classList.remove('active');
+      currentFlagFieldTarget = null;
+    }
+
+    function toggleFlagReasonCustom(val) {
+      const box = document.getElementById('flagModalCustomReasonBox');
+      if (box) box.style.display = val === 'custom' ? 'block' : 'none';
+    }
+
+    function saveFieldFlag() {
+      if (!currentFlagFieldTarget) return;
+      const correctVal = document.getElementById('flagModalCorrectValue').value.trim();
+      if (!correctVal) {
+        alert('กรุณากรอกค่าที่ถูกต้องจริงด้วยนะคะ');
+        return;
+      }
+
+      let reason = document.getElementById('flagModalReasonSelect').value;
+      if (reason === 'custom') {
+        reason = document.getElementById('flagModalCustomReason').value.trim() || 'อื่นๆ';
+      }
+
+      const { fieldKey, fieldLabel, pageName, currentValue } = currentFlagFieldTarget;
+
+      const idx = currentFlaggedFields.findIndex(f => f.field === fieldKey);
+      const newEntry = {
+        field: fieldKey,
+        fieldLabel,
+        page: pageName,
+        readValue: currentValue,
+        correctedValue: correctVal,
+        reason,
+      };
+
+      if (idx >= 0) {
+        currentFlaggedFields[idx] = newEntry;
+      } else {
+        currentFlaggedFields.push(newEntry);
+      }
+
+      if (currentAccuracyStatus === 'accurate') {
+        currentAccuracyStatus = currentFlaggedFields.length > 2 ? 'major_errors' : 'minor_errors';
+      }
+
+      closeFlagFieldModal();
+
+      if (currentWeeklyResultData) {
+        renderWeeklyDataTable(currentWeeklyResultData.data || {});
+        renderAuditFeedbackCard(currentWeeklyResultData, 'weekly');
+      } else if (currentDailyResultData) {
+        renderAuditFeedbackCard(currentDailyResultData, 'daily');
+      }
+    }
+
+    function removeFlaggedField(fieldKey) {
+      currentFlaggedFields = currentFlaggedFields.filter(f => f.field !== fieldKey);
+      if (currentWeeklyResultData) {
+        renderWeeklyDataTable(currentWeeklyResultData.data || {});
+        renderAuditFeedbackCard(currentWeeklyResultData, 'weekly');
+      } else if (currentDailyResultData) {
+        renderAuditFeedbackCard(currentDailyResultData, 'daily');
+      }
+    }
+
+    function setTestRating(rating) {
+      currentTestRating = rating;
+      const mode = currentWeeklyResultData ? 'weekly' : 'daily';
+      const container = document.getElementById(mode === 'weekly' ? 'wAuditFeedbackCard' : 'dailyAuditFeedbackCard');
+      if (container) {
+        const stars = container.querySelectorAll('.star-rating-btn');
+        stars.forEach((btn, idx) => {
+          if (idx < rating) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+      }
+    }
+
+    function setAccuracyStatus(status, mode) {
+      currentAccuracyStatus = status;
+      const data = mode === 'weekly' ? currentWeeklyResultData : currentDailyResultData;
+      if (data) renderAuditFeedbackCard(data, mode);
+    }
+
+    async function submitAiTestAudit(mode = 'weekly') {
+      const btn = document.getElementById(`btnSaveAudit_${mode}`);
+      const statusEl = document.getElementById(`auditSaveStatus_${mode}`);
+      const notesEl = document.getElementById(`auditFeedbackNotes_${mode}`);
+
+      const currentData = mode === 'weekly' ? currentWeeklyResultData : currentDailyResultData;
+      if (!currentData) {
+        alert('ไม่พบข้อมูลผลการทดสอบค่ะ');
+        return;
+      }
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span> กำลังบันทึก...';
+      }
+
+      try {
+        const payload = {
+          testType: mode,
+          modelName: currentData.aiModel || currentData.rawResult?.model || 'ไม่ทราบโมเดล',
+          confidence: currentData.confidence ?? 0,
+          durationMs: currentData.durationMs ?? 0,
+          imageCount: currentStudioFiles ? currentStudioFiles.length : 1,
+          detected: currentData.detected ?? true,
+          foundPages: currentData.foundPages || [],
+          qualityStatus: currentTestQualityCheck?.qualityStatus || 'passed',
+          autoAnomalies: currentTestQualityCheck?.anomalies || [],
+          adminFeedback: {
+            rating: currentTestRating || 5,
+            accuracyStatus: currentAccuracyStatus || 'accurate',
+            flaggedFields: currentFlaggedFields,
+            notes: notesEl?.value?.trim() || '',
+          },
+          extractedSnapshot: currentData.data || currentData.parsedData || {},
+        };
+
+        const res = await apiFetch('/admin/api/ai-test-audits', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="mi" aria-hidden="true">check</i> บันทึกแล้ว';
+        }
+
+        if (statusEl) {
+          statusEl.innerHTML = '<i class="mi mi-green" style="font-size:14px;vertical-align:middle;">check_circle</i> บันทึกสถิติความแม่นยำ AI เรียบร้อยแล้วค่ะ';
+          statusEl.style.display = 'inline';
+          setTimeout(() => { if (statusEl) statusEl.style.display = 'none'; }, 4000);
+        }
+
+        alert('บันทึกสถิติเพื่อพัฒนา AI เรียบร้อยแล้วค่ะ! ข้อมูลนี้จะถูกนำไปใช้วิเคราะห์และพัฒนาโมเดลต่อไปนะคะ');
+      } catch (err) {
+        console.error('submitAiTestAudit error:', err);
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="mi" aria-hidden="true">save</i> บันทึกสถิติเพื่อพัฒนา AI';
+        }
+        alert('เกิดข้อผิดพลาดในการบันทึก: ' + err.message);
+      }
+    }
+
+    function openAiErrorStatsModal() {
+      const modal = document.getElementById('aiErrorStatsModal');
+      if (modal) {
+        modal.classList.add('active');
+        loadAiErrorStats();
+      }
+    }
+
+    function closeAiErrorStatsModal() {
+      const modal = document.getElementById('aiErrorStatsModal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    async function loadAiErrorStats() {
+      try {
+        const res = await apiFetch('/admin/api/ai-test-audits/stats');
+        if (!res.ok) {
+          console.error('loadAiErrorStats error:', res.error);
+          return;
+        }
+
+        const s = res.stats || {};
+        const elTotal = document.getElementById('statTotalTests');
+        if (elTotal) elTotal.textContent = s.totalCount || 0;
+        const elAcc = document.getElementById('statAccuracyRate');
+        if (elAcc) elAcc.textContent = `${s.accuracyRate || 0}%`;
+        const elConf = document.getElementById('statAvgConfidence');
+        if (elConf) elConf.textContent = `${s.avgConfidence || 0}%`;
+        const elRating = document.getElementById('statAvgRating');
+        if (elRating) elRating.textContent = `${s.avgRating || 0} / 5`;
+
+        const topBody = document.getElementById('topInaccurateFieldsBody');
+        if (topBody) {
+          const topList = s.topFlaggedFields || [];
+          if (topList.length === 0) {
+            topBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #94A3B8; padding: 18px;">ยังไม่มีข้อมูลจุดเพี้ยนที่ถูกแจ้งค่ะ</td></tr>';
+          } else {
+            topBody.innerHTML = topList.map((item, idx) => `
+              <tr>
+                <td style="text-align:center; font-weight:700; color:#EF4444;">#${idx + 1}</td>
+                <td style="font-weight:600; color:#0F172A;">${escapeHtml(item.label || item.field)} <div style="font-size:11px;color:#94A3B8;font-family:monospace;">${escapeHtml(item.field)}</div></td>
+                <td><span class="badge" style="background:#E0F2FE;color:#0369A1;font-size:11px;">${escapeHtml(item.page || '-')}</span></td>
+                <td style="text-align:center;"><span class="badge" style="background:#FEE2E2;color:#DC2626;font-size:12px;font-weight:700;">${item.count} ครั้ง</span></td>
+                <td style="font-size:12px; color:#475569;">${item.reasons ? item.reasons.map(escapeHtml).join(', ') : '-'}</td>
+              </tr>
+            `).join('');
+          }
+        }
+
+        const recentBody = document.getElementById('recentAuditsBody');
+        if (recentBody) {
+          const recents = s.recentAudits || [];
+          if (recents.length === 0) {
+            recentBody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #94A3B8; padding: 18px;">ยังไม่มีประวัติการประเมินค่ะ</td></tr>';
+          } else {
+            const statusLabels = {
+              accurate: '<span class="badge" style="background:#DCFCE7;color:#15803D;">ถูกต้องสมบูรณ์</span>',
+              minor_errors: '<span class="badge" style="background:#FEF3C7;color:#B45309;">มีจุดผิดเล็กน้อย</span>',
+              major_errors: '<span class="badge" style="background:#FEE2E2;color:#B91C1C;">อ่านเพี้ยนมาก</span>',
+              unusable: '<span class="badge" style="background:#F1F5F9;color:#475569;">ใช้ไม่ได้</span>',
+            };
+            recentBody.innerHTML = recents.map(r => {
+              const d = new Date(r.createdAt);
+              const dateStr = d.toLocaleDateString('th-TH') + ' ' + d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+              const flagCount = r.adminFeedback?.flaggedFields?.length || 0;
+              const statusBadge = statusLabels[r.adminFeedback?.accuracyStatus] || statusLabels.accurate;
+              return `
+                <tr>
+                  <td style="font-size:12px; color:#475569;">${dateStr}</td>
+                  <td><span class="badge" style="font-size:11px;">${r.testType === 'weekly' ? 'Weekly 3-in-1' : 'Daily Card'}</span></td>
+                  <td style="font-size:11.5px; color:#0F172A; font-weight:600;">${escapeHtml(r.modelName || 'ไม่ทราบโมเดล')}</td>
+                  <td>${statusBadge}</td>
+                  <td style="font-size:12px; font-weight:600;">${Math.round((r.confidence || 0) * 100)}%</td>
+                  <td>
+                    ${flagCount > 0 ? `<span style="color:#DC2626;font-weight:700;">${flagCount} จุด</span>` : '<span style="color:#16A34A;">0 จุด</span>'}
+                  </td>
+                  <td style="font-size:12px; color:#64748B;">${escapeHtml(r.adminFeedback?.adminUser || 'Admin')}</td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
+      } catch (err) {
+        console.error('loadAiErrorStats error:', err);
+      }
     }
 
     function switchWeeklyViewTab(tab) {
@@ -3738,28 +4872,41 @@
     }
 
     function renderStudioDailyResult(data) {
+      currentDailyResultData = data;
+      currentWeeklyResultData = null;
+      currentTestQualityCheck = data.qualityCheck || null;
+      currentFlaggedFields = [];
+      currentTestRating = 5;
+      currentAccuracyStatus = 'accurate';
+
       // 1. Status Bar
       const badge = document.getElementById('studioStatusBadge');
       if (badge) {
         if (data.detected) {
           badge.className = 'badge';
           badge.style.background = '#22c55e';
-          badge.textContent = '✅ ตรวจพบผลการนอน (Detected)';
+          badge.innerHTML = '<i class="mi" aria-hidden="true" style="font-size:13px;vertical-align:middle;">check_circle</i> ตรวจพบผลการนอน (Detected)';
         } else {
           badge.className = 'badge';
           badge.style.background = '#ef4444';
-          badge.textContent = '⚠️ ไม่ใช่ผลการนอน (Not Detected)';
+          badge.innerHTML = '<i class="mi" aria-hidden="true" style="font-size:13px;vertical-align:middle;">warning</i> ไม่ใช่ผลการนอน (Not Detected)';
         }
       }
 
       const appBadge = document.getElementById('studioDetectedAppBadge');
       if (appBadge) appBadge.textContent = `แอป: ${data.parsedData?.appName || 'Smart Watch'}`;
 
+      const modelEl = document.getElementById('studioModelText');
+      if (modelEl) modelEl.textContent = data.aiModel || data.rawResult?.model || 'ไม่ทราบโมเดล';
+
       const confEl = document.getElementById('studioConfidenceText');
       if (confEl) confEl.textContent = `${Math.round((data.confidence ?? 1) * 100)}%`;
 
       const durEl = document.getElementById('studioDurationText');
       if (durEl) durEl.textContent = `${((data.durationMs || 0) / 1000).toFixed(2)} วินาที`;
+
+      // 1.1 Quality & Discrepancy Banner (Daily)
+      renderQualityBanner(data.qualityCheck, 'daily');
 
       // 2. Metrics
       const p = data.parsedData || {};
@@ -3780,6 +4927,9 @@
       document.getElementById('mAiSummary').textContent = p.aiSummary || '-';
       document.getElementById('mTips').textContent = p.tips || '-';
       document.getElementById('mHealthAdvice').textContent = p.healthAdvice || '-';
+
+      // 3.1 Ground Truth & Feedback Card (Daily)
+      renderAuditFeedbackCard(data, 'daily');
 
       // 4. Card Preview SVG
       currentStudioCardSvg = data.cardSvg;
@@ -4021,7 +5171,7 @@
           <!-- Uptime Card -->
           <div style="background: #ffffff; border: 1px solid var(--border-color); border-left: 5px solid #0284c7; border-radius: 12px; padding: 20px; box-shadow: var(--shadow-sm);">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
-              <div style="font-size: 28px;">⏱️</div>
+              <div style="font-size: 28px; color: #0284c7;"><i class="mi" style="font-size: 32px;">schedule</i></div>
               <span style="font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; background: #e0f2fe; color: #0369a1;">Uptime</span>
             </div>
             <div style="font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 6px;">เวลาทำงานต่อเนื่อง</div>
@@ -4510,14 +5660,14 @@
               </div>
 
               <div style="display: flex; gap: 14px; align-items: center; flex-wrap: wrap;">
-                <img src="${user.pictureUrl || 'https://via.placeholder.com/48'}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #0284c7;" alt="">
+                <img src="${user.pictureUrl || DEFAULT_AVATAR}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #0284c7;" alt="">
                 <div style="flex: 1; min-width: 200px;">
                   <strong style="font-size: 15px; color: #0f172a; display: block;">${user.fullName} (${user.displayName || 'LINE User'})</strong>
                   <div style="font-size: 12px; color: #475569; margin-top: 2px;">
                     <i class="mi" aria-hidden="true">call</i> Phone: <strong>${user.phone || 'ไม่ระบุ'}</strong> | <i class="mi" aria-hidden="true">location_on</i> จังหวัด: <strong>${user.province || 'ไม่ระบุ'}</strong>
                   </div>
                   <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">
-                    🆔 LINE User ID: <code style="background: #f1f5f9; padding: 1px 5px; border-radius: 4px;">${user.lineUserId}</code>
+                    <i class="mi" aria-hidden="true" style="font-size: 13px; vertical-align: middle;">badge</i> LINE User ID: <code style="background: #f1f5f9; padding: 1px 5px; border-radius: 4px;">${user.lineUserId}</code>
                   </div>
                 </div>
                 <div style="text-align: right; font-size: 12px; color: #64748b;">
@@ -4634,7 +5784,7 @@
             <tr>
               <td>
                 <div class="user-cell">
-                  <img src="${u.pictureUrl || 'https://via.placeholder.com/36'}" class="avatar" alt="">
+                  <img src="${u.pictureUrl || DEFAULT_AVATAR}" class="avatar" alt="">
                   <div>
                     <div style="font-weight: 600;">${u.displayName || 'ผู้ใช้ LINE'}</div>
                     <div style="font-size: 11px; color: var(--text-muted);">${u.lineUserId}</div>
@@ -4787,7 +5937,7 @@
             <td>${new Date(item.createdAt).toLocaleString('th-TH')}</td>
             <td>
               <div class="user-cell">
-                <img src="${item.user.pictureUrl || 'https://via.placeholder.com/36'}" class="avatar" alt="">
+                <img src="${item.user.pictureUrl || DEFAULT_AVATAR}" class="avatar" alt="">
                 <div>
                   <div style="font-weight: 600;">${item.user.displayName || 'ผู้ใช้ LINE'}</div>
                   <div style="font-size: 11px; color: var(--text-muted);">${item.lineUserId}</div>
@@ -4910,10 +6060,13 @@
           const phone = u.phone || u.registration?.phone || '-';
 
           let birthDateStr = '-';
+          let ageStr = '';
           const rawBirth = u.birthdate || u.registration?.birthDate;
           if (rawBirth) {
             try {
               birthDateStr = new Date(rawBirth).toISOString().split('T')[0];
+              const age = calcAge(rawBirth);
+              if (age !== null) ageStr = ` (${age} ปี)`;
             } catch {
               birthDateStr = String(rawBirth);
             }
@@ -4932,7 +6085,7 @@
             : '-';
 
           const regBadge = isReg ? `<span class="badge badge-sent">ลงทะเบียนแล้ว</span>` : `<span class="badge badge-needs_review">ยังไม่ลงทะเบียน</span>`;
-          const phoneBirth = isReg ? `${phone}<br><small style="color:var(--text-muted);">${birthDateStr}</small>` : '-';
+          const phoneBirth = isReg ? `${phone}<br><small style="color:var(--text-muted);">${birthDateStr}${ageStr}</small>` : '-';
           const provinceGender = isReg ? `${province}<br><small style="color:var(--text-muted);">${genderStr}</small>` : '-';
 
           const nicknameStr = u.nickname || u.registration?.nickname || '';
@@ -4950,7 +6103,7 @@
             <tr onclick="openUserChatModal('${u.lineUserId}')" style="cursor: pointer;" class="hover-row">
               <td>
                 <div class="user-cell">
-                  <img src="${u.pictureUrl || 'https://via.placeholder.com/36'}" class="avatar" alt="">
+                  <img src="${u.pictureUrl || DEFAULT_AVATAR}" class="avatar" alt="">
                   <div>
                     <div style="font-weight: 600;">${nameDisplay}</div>
                     <div style="font-size: 11px; color: var(--text-muted);">${u.lineUserId}</div>
@@ -5030,6 +6183,7 @@
       document.getElementById('userChatModal').classList.remove('active');
       stopChatAutoRefresh();
       currentChatLineUserId = null;
+      clearChatImageAttachment();
     }
 
     async function reloadCurrentChatModal() {
@@ -5057,9 +6211,10 @@
         const messages = res.messages || [];
         const requests = res.requests || [];
 
-        // เช็คว่ามีข้อความใหม่หรือไม่ หากไม่มีการเปลี่ยนแปลง ข้ามการวาด DOM ใหม่เพื่อความนุ่มนวล
+        // เช็คว่ามีข้อความใหม่หรือไม่ หากไม่มีการเปลี่ยนแปลงและไม่มีหน้าต่าง error ค้างอยู่ ข้ามการวาด DOM ใหม่เพื่อความนุ่มนวล
         const latestMsgId = messages.length > 0 ? messages[messages.length - 1]._id : null;
-        if (!isInitialLoad && messages.length === lastChatMessagesCount && latestMsgId === lastChatMessageId) {
+        const hasErrorShown = streamBody.innerText.includes('เกิดข้อผิดพลาด');
+        if (!isInitialLoad && !hasErrorShown && messages.length === lastChatMessagesCount && latestMsgId === lastChatMessageId) {
           return; // ไม่มีข้อความใหม่ ข้ามไป
         }
 
@@ -5067,7 +6222,7 @@
         lastChatMessageId = latestMsgId;
 
         // Header info
-        document.getElementById('chatUserAvatar').src = u.pictureUrl || 'https://via.placeholder.com/40';
+        document.getElementById('chatUserAvatar').src = u.pictureUrl || DEFAULT_AVATAR;
         const userFullName = [u.firstName, u.lastName].filter(Boolean).join(' ');
         const displayName = u.displayName || userFullName || 'ผู้ใช้ LINE';
         const nickname = u.nickname ? `(${u.nickname})` : '';
@@ -5154,7 +6309,7 @@
 
             chatHtml += `
               <div style="display: flex; gap: 8px; align-items: flex-start; max-width: 88%;">
-                <img src="${u.pictureUrl || 'https://via.placeholder.com/32'}" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 1.5px solid #ffffff; flex-shrink: 0;" alt="">
+                <img src="${u.pictureUrl || DEFAULT_AVATAR}" style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 1.5px solid #ffffff; flex-shrink: 0;" alt="">
                 <div>
                   <div style="font-size: 10.5px; color: rgba(255,255,255,0.9); margin-bottom: 3px; font-weight: 600;">${escHtml(displayName)}</div>
                   <div style="background: #ffffff; color: #0f172a; padding: 10px 14px; border-radius: 2px 16px 16px 16px; font-size: 13.5px; line-height: 1.5; box-shadow: 0 2px 6px rgba(0,0,0,0.08); word-break: break-word;">
@@ -5218,24 +6373,67 @@
         }, 100);
 
       } catch (e) {
-        streamBody.innerHTML = `<div style="text-align: center; color: #ffffff; font-size: 13px;"><i class="mi" aria-hidden="true">cancel</i> เกิดข้อผิดพลาดในการโหลดข้อมูล: ${escHtml(e.message)}</div>`;
+        if (isInitialLoad || !streamBody.children.length) {
+          streamBody.innerHTML = `<div style="text-align: center; color: #ffffff; font-size: 13px;"><i class="mi" aria-hidden="true">cancel</i> เกิดข้อผิดพลาดในการโหลดข้อมูล: ${escHtml(e.message)}</div>`;
+        } else {
+          console.warn('[chat-poll] โหลดข้อความไม่สำเร็จชั่วคราว:', e.message);
+        }
       }
+    }
+
+    let chatPendingImageBase64 = null;
+
+    function handleChatImageSelected(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      if (!file.type.startsWith('image/')) {
+        alert('กรุณาเลือกไฟล์รูปภาพเท่านั้นค่ะ');
+        event.target.value = '';
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        alert('ไฟล์รูปภาพต้องมีขนาดไม่เกิน 10MB ค่ะ');
+        event.target.value = '';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        chatPendingImageBase64 = reader.result;
+        const thumb = document.getElementById('chatImagePreviewThumb');
+        const bar = document.getElementById('chatImagePreviewBar');
+        if (thumb) thumb.src = reader.result;
+        if (bar) bar.style.display = 'flex';
+      };
+      reader.readAsDataURL(file);
+      event.target.value = ''; // เคลียร์ input ไว้เผื่อเลือกไฟล์เดิมซ้ำได้
+    }
+
+    function clearChatImageAttachment() {
+      chatPendingImageBase64 = null;
+      const bar = document.getElementById('chatImagePreviewBar');
+      if (bar) bar.style.display = 'none';
     }
 
     async function sendSimulatedChatMessage() {
       const inputEl = document.getElementById('chatSimulateInput');
       const text = inputEl.value.trim();
-      if (!text || !currentChatLineUserId) return;
+      const imageBase64 = chatPendingImageBase64;
+      if (!text && !imageBase64) return;
+      if (!currentChatLineUserId) return;
 
       inputEl.disabled = true;
       try {
         const res = await apiFetch(`/admin/api/users/${currentChatLineUserId}/send-message`, {
           method: 'POST',
-          body: JSON.stringify({ message: text })
+          body: JSON.stringify({ message: text, imageBase64 })
         });
 
         if (res.ok) {
           inputEl.value = '';
+          inputEl.style.height = 'auto';
+          clearChatImageAttachment();
           await loadUserChatHistory(currentChatLineUserId);
         } else {
           alert(`ล้มเหลว: ${res.error}`);
@@ -5329,7 +6527,7 @@
               <td><strong>${timeStr}</strong><br><small style="color:var(--text-muted);">${dateStr}</small></td>
               <td>
                 <div class="user-cell">
-                  <img src="${m.user.pictureUrl || 'https://via.placeholder.com/36'}" class="avatar" alt="">
+                  <img src="${m.user.pictureUrl || DEFAULT_AVATAR}" class="avatar" alt="">
                   <div>
                     <div style="font-weight: 600;">${escHtml(m.user.displayName || 'ผู้ใช้ LINE')}</div>
                     <div style="font-size: 11px; color: var(--text-muted);">${m.lineUserId}</div>
@@ -5433,7 +6631,7 @@
       document.getElementById('lineMsgModalBody').innerHTML = `
         <!-- Profile & Summary Card -->
         <div style="display: flex; gap: 16px; align-items: center; background: #f8fafc; padding: 14px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 16px; flex-wrap: wrap;">
-          <img src="${userObj.pictureUrl || 'https://via.placeholder.com/48'}" style="width: 48px; height: 48px; border-radius: 50%; border: 2px solid #3b82f6; object-fit: cover;" alt="">
+          <img src="${userObj.pictureUrl || DEFAULT_AVATAR}" style="width: 48px; height: 48px; border-radius: 50%; border: 2px solid #3b82f6; object-fit: cover;" alt="">
           <div style="flex: 1; min-width: 200px;">
             <div style="font-weight: 700; font-size: 15px; color: #0f172a;">${escHtml(userObj.displayName || 'ผู้ใช้ LINE')}</div>
             <div style="font-size: 12px; font-family: monospace; color: var(--text-muted);">${m.lineUserId}</div>
@@ -5475,7 +6673,7 @@
         return;
       }
       navigator.clipboard.writeText(currentViewingLineMsg.content).then(() => {
-        alert('📋 คัดลอกข้อความลง Clipboard เรียบร้อยแล้ว!');
+        alert('คัดลอกข้อความลง Clipboard เรียบร้อยแล้วค่ะ!');
       }).catch(() => {
         alert('ไม่สามารถคัดลอกข้อความได้');
       });
@@ -5894,6 +7092,7 @@
                   currentWeeklyPreviewCombPng = null;
                   container.innerHTML = res.svg;
                 }
+                container.scrollTop = 0;
               }
               if (badge) badge.innerHTML = '<i class="mi" aria-hidden="true">bolt</i> อัปเดตสด';
             } else {
@@ -6238,7 +7437,7 @@
           <tr>
             <td>
               <div class="user-cell">
-                <img src="${u.user?.pictureUrl || 'https://via.placeholder.com/36'}" class="avatar" alt="">
+                <img src="${u.user?.pictureUrl || DEFAULT_AVATAR}" class="avatar" alt="">
                 <div>
                   <div style="font-weight: 600;">${u.user?.displayName || 'ผู้ใช้ LINE'}</div>
                   <div style="font-size: 11px; color: var(--text-muted);">${u.lineUserId}</div>
@@ -6276,7 +7475,7 @@
           return;
         }
 
-        if (avatar) avatar.src = res.user?.pictureUrl || 'https://via.placeholder.com/40';
+        if (avatar) avatar.src = res.user?.pictureUrl || DEFAULT_AVATAR;
         if (nameEl) nameEl.innerText = `ประวัติ Token ของ ${res.user?.displayName || 'ผู้ใช้ LINE'}`;
         if (idEl) idEl.innerText = `Line User ID: ${lineUserId}`;
 
@@ -6487,7 +7686,7 @@
         document.getElementById('htStep2').value = 'ส่งภาพเข้ามาในระบบเพื่อรับรายงานการประเมิน';
         document.getElementById('htStep3').value = 'รอรับรายงานสรุปผลเป็นการ์ดส่วนบุคคลอัตโนมัติ';
       }
-      alert('✅ โหลดชุดข้อความแม่แบบสำเร็จ! อย่าลืมกด "บันทึกข้อความบอท" นะคะ');
+      alert('โหลดชุดข้อความแม่แบบสำเร็จแล้วค่ะ! อย่าลืมกด "บันทึกข้อความบอท" นะคะ');
     }
 
     function openPricingConfigModal() {
@@ -6717,7 +7916,7 @@
           if (badge) {
             badge.style.background = 'var(--primary)';
             badge.style.color = '#ffffff';
-            badge.textContent = '✓ เลือกใช้งาน';
+            badge.innerHTML = '<i class="mi" style="font-size:12px;vertical-align:middle;">check</i> เลือกใช้งาน';
           }
         } else {
           card.style.borderColor = 'var(--border-color)';
@@ -6727,7 +7926,7 @@
           if (badge) {
             badge.style.background = '#e2e8f0';
             badge.style.color = '#475569';
-            badge.textContent = card.getAttribute('data-mode') === 'none' ? 'ปิดรหัสยืนยัน' : card.getAttribute('data-mode').toUpperCase();
+            badge.textContent = card.getAttribute('data-badge-default') || (card.getAttribute('data-mode') === 'none' ? 'ปิดรหัสยืนยัน' : card.getAttribute('data-mode').toUpperCase());
           }
         }
       });
@@ -6761,6 +7960,17 @@
             <span style="font-size: 28px; display: block; margin-bottom: 6px;"><i class="mi mi-green">circle</i></span>
             <strong style="font-size: 13.5px; color: #1e293b;">โหมดลงทะเบียนแบบปกติ</strong>
             <p style="font-size: 12px; margin: 4px 0 0 0; color: #94a3b8;">ไม่แสดงช่องกรอกรหัสยืนยันอุปกรณ์ ลูกค้าลงทะเบียนชื่อและเบอร์โทรได้ทันที</p>
+          </div>
+        `;
+        return;
+      }
+
+      if (mode === 'no_registration') {
+        previewEl.innerHTML = `
+          <div style="text-align: center; padding: 20px 10px; color: #64748b;">
+            <span style="font-size: 28px; display: block; margin-bottom: 6px;"><i class="mi" aria-hidden="true">bolt</i></span>
+            <strong style="font-size: 13.5px; color: #1e293b;">โหมดไม่ต้องลงทะเบียน</strong>
+            <p style="font-size: 12px; margin: 4px 0 0 0; color: #94a3b8;">ระบบจะข้ามขั้นตอนลงทะเบียนทั้งหมด ลูกค้ากดเมนู "เลือกภาพเพื่อวิเคราะห์" หรือส่งรูปเข้ามาทาง LINE แล้ววิเคราะห์ได้ทันที</p>
           </div>
         `;
         return;
@@ -6853,10 +8063,10 @@
         });
 
         if (res.ok) {
-          alert('✅ บันทึกการตั้งค่าโหมดลงทะเบียนเรียบร้อยแล้ว!');
+          alert('บันทึกการตั้งค่าโหมดลงทะเบียนเรียบร้อยแล้วค่ะ!');
           updateFormLivePreview();
         } else {
-          alert(`❌ ล้มเหลว: ${res.error}`);
+          alert(`ล้มเหลว: ${res.error}`);
         }
       } catch (e) {
         alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
@@ -6962,11 +8172,11 @@
         });
 
         if (res.ok) {
-          alert(`✅ ${res.message}`);
+          alert(res.message);
           document.getElementById('bulkImportText').value = '';
           loadWhitelistCodes(1);
         } else {
-          alert(`❌ ล้มเหลว: ${res.error}`);
+          alert(`ล้มเหลว: ${res.error}`);
         }
       } catch (e) {
         alert('เกิดข้อผิดพลาดในการส่งข้อมูล');
@@ -7030,10 +8240,10 @@
         });
 
         if (res.ok) {
-          alert('✅ บันทึกการตั้งค่า Kieslect Pattern สำเร็จเรียบร้อย!');
+          alert('บันทึกการตั้งค่า Kieslect Pattern สำเร็จเรียบร้อยค่ะ!');
           previewKieslectCard();
         } else {
-          alert(`❌ เกิดข้อผิดพลาด: ${res.error}`);
+          alert(`เกิดข้อผิดพลาด: ${res.error}`);
         }
       } catch (e) {
         alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
@@ -7084,9 +8294,11 @@
 
     // แสดง/ซ่อน sidebar section "Superadmin" ตาม role ของ admin ปัจจุบัน
     function refreshSuperadminVisibility() {
+      const isSuperadmin = !!(currentAdmin && currentAdmin.role === 'superadmin');
       const section = document.getElementById('superadminNavSection');
-      if (!section) return;
-      section.style.display = (currentAdmin && currentAdmin.role === 'superadmin') ? '' : 'none';
+      if (section) section.style.display = isSuperadmin ? '' : 'none';
+      const devTools = document.getElementById('devToolsNavSection');
+      if (devTools) devTools.style.display = isSuperadmin ? '' : 'none';
     }
 
     // ต้องเรียกหลัง currentAdmin ถูก set — patch เข้าไปใน flow หลัก
@@ -7154,9 +8366,9 @@
           body: JSON.stringify({ role: newRole })
         });
         if (!res.ok) throw new Error(res.error || 'เปลี่ยน role ไม่สำเร็จ');
-        alert(`✅ ${label} เรียบร้อยแล้ว`);
+        alert(`${label} เรียบร้อยแล้วค่ะ`);
         loadAdmins();
-      } catch (err) { alert('❌ ' + err.message); }
+      } catch (err) { alert('เกิดข้อผิดพลาด: ' + err.message); }
     }
 
     async function toggleAdminStatus(id, isActive) {
@@ -7168,9 +8380,9 @@
           body: JSON.stringify({ isActive })
         });
         if (!res.ok) throw new Error(res.error || 'เปลี่ยนสถานะไม่สำเร็จ');
-        alert(`✅ ${label} เรียบร้อยแล้ว`);
+        alert(`${label} เรียบร้อยแล้วค่ะ`);
         loadAdmins();
-      } catch (err) { alert('❌ ' + err.message); }
+      } catch (err) { alert('เกิดข้อผิดพลาด: ' + err.message); }
     }
 
     async function deleteAdmin(id, username) {
@@ -7178,9 +8390,9 @@
       try {
         const res = await apiFetch(`/admin/api/admins/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error(res.error || 'ลบไม่สำเร็จ');
-        alert('✅ ลบบัญชีเรียบร้อยแล้ว');
+        alert('ลบบัญชีเรียบร้อยแล้วค่ะ');
         loadAdmins();
-      } catch (err) { alert('❌ ' + err.message); }
+      } catch (err) { alert('เกิดข้อผิดพลาด: ' + err.message); }
     }
 
     async function loadAdminAudit(page, refresh) {
@@ -7229,6 +8441,435 @@
       } catch (err) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--danger);padding:16px;">${escapeHtml(err.message)}</td></tr>`;
       }
+    }
+
+    // ==========================================
+    // MONTHLY HEALTH LAB & 30-DAY MACRO LOGIC
+    // ==========================================
+    let currentMonthlySourceMode = 'mock';
+    let currentMockScenario = 'balanced';
+    let currentMonthlyData = null;
+    let currentMonthlyAiResult = null;
+    let monthlyUsersCache = [];
+
+    async function initMonthlyLab() {
+      updateMonthlyAuditCountBadge();
+      if (currentMonthlySourceMode === 'mock') {
+        await selectMockScenario(currentMockScenario || 'balanced');
+      } else {
+        await loadMonthlyUsersList();
+      }
+    }
+
+    function switchMonthlySourceMode(mode) {
+      currentMonthlySourceMode = mode;
+      const mockBtn = document.getElementById('monthlyModeMockBtn');
+      const realBtn = document.getElementById('monthlyModeRealBtn');
+      const mockBox = document.getElementById('monthlyMockControls');
+      const realBox = document.getElementById('monthlyRealControls');
+
+      if (mode === 'mock') {
+        mockBtn.style.background = '#FFFFFF';
+        mockBtn.style.color = '#0F172A';
+        mockBtn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
+        realBtn.style.background = 'transparent';
+        realBtn.style.color = '#64748B';
+        realBtn.style.boxShadow = 'none';
+        mockBox.style.display = 'block';
+        realBox.style.display = 'none';
+        selectMockScenario(currentMockScenario);
+      } else {
+        realBtn.style.background = '#FFFFFF';
+        realBtn.style.color = '#0F172A';
+        realBtn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
+        mockBtn.style.background = 'transparent';
+        mockBtn.style.color = '#64748B';
+        mockBtn.style.boxShadow = 'none';
+        mockBox.style.display = 'none';
+        realBox.style.display = 'block';
+        loadMonthlyUsersList();
+      }
+    }
+
+    async function selectMockScenario(scenarioKey) {
+      currentMockScenario = scenarioKey;
+      document.querySelectorAll('.monthly-scenario-card').forEach(c => c.classList.remove('active'));
+      const activeCard = document.getElementById(`scenarioCard-${scenarioKey}`);
+      if (activeCard) activeCard.classList.add('active');
+
+      try {
+        const res = await apiFetch(`/admin/api/monthly-lab/mock-data?scenario=${scenarioKey}`);
+        if (res && res.ok && res.data) {
+          currentMonthlyData = res.data;
+          document.getElementById('currentDatasetTitle').textContent = res.data.name;
+          document.getElementById('currentDatasetTitle').style.color = '#10B981';
+          renderMonthlyDashboard(res.data);
+        }
+      } catch (err) {
+        console.error('[MonthlyLab] Load mock error:', err);
+        alert('โหลดข้อมูลจำลองไม่สำเร็จ: ' + err.message);
+      }
+    }
+
+    async function loadMonthlyUsersList() {
+      const select = document.getElementById('monthlyUserSelect');
+      select.innerHTML = '<option value="">-- กำลังโหลดรายชื่อลูกค้า... --</option>';
+      try {
+        const res = await apiFetch('/admin/api/monthly-lab/users');
+        if (res && res.ok && Array.isArray(res.data)) {
+          monthlyUsersCache = res.data;
+          if (res.data.length === 0) {
+            select.innerHTML = '<option value="">-- ยังไม่มีผู้ใช้ที่มีประวัติรายงาน --</option>';
+            return;
+          }
+          select.innerHTML = res.data.map(u => {
+            const name = u.nickname ? `${u.displayName} (คุณ${u.nickname})` : u.displayName;
+            return `<option value="${u.lineUserId}">${escapeHtml(name)} — มี ${u.count} รายงานสัปดาห์</option>`;
+          }).join('');
+
+          // Auto load first user
+          loadSelectedUserData();
+        }
+      } catch (err) {
+        console.error('[MonthlyLab] Load users error:', err);
+        select.innerHTML = '<option value="">โหลดรายชื่อไม่สำเร็จ</option>';
+      }
+    }
+
+    async function loadSelectedUserData() {
+      const select = document.getElementById('monthlyUserSelect');
+      const lineUserId = select.value;
+      const statusMsg = document.getElementById('monthlyUserStatusMsg');
+      if (!lineUserId) {
+        alert('กรุณาเลือกลูกค้าจากรายการ');
+        return;
+      }
+      statusMsg.innerHTML = '<i class="mi" style="font-size:13px;vertical-align:middle;">hourglass_top</i> กำลังรวมข้อมูล 4 สัปดาห์...';
+      try {
+        const res = await apiFetch(`/admin/api/monthly-lab/user-data/${lineUserId}?weeks=4`);
+        if (res && res.ok && res.data) {
+          if (!res.data.hasData) {
+            statusMsg.innerHTML = '<i class="mi mi-yellow" style="font-size:13px;vertical-align:middle;">warning</i> ' + escapeHtml(res.data.message);
+            return;
+          }
+          currentMonthlyData = res.data;
+          const u = res.data.user || {};
+          const title = `ลูกค้า: ${u.displayName} (${u.nickname ? 'คุณ' + u.nickname : u.lineUserId.slice(0, 8)}) • ${res.data.totalWeeksFound} สัปดาห์`;
+          document.getElementById('currentDatasetTitle').textContent = title;
+          document.getElementById('currentDatasetTitle').style.color = '#2563EB';
+          statusMsg.innerHTML = `<i class="mi mi-green" style="font-size:13px;vertical-align:middle;">check_circle</i> โหลดข้อมูล ${res.data.totalWeeksFound} สัปดาห์สำเร็จ`;
+          renderMonthlyDashboard(res.data);
+        }
+      } catch (err) {
+        console.error('[MonthlyLab] Load user data error:', err);
+        statusMsg.innerHTML = '<i class="mi mi-red" style="font-size:13px;vertical-align:middle;">cancel</i> ล้มเหลว: ' + escapeHtml(err.message);
+      }
+    }
+
+    function renderMonthlyDashboard(data) {
+      const avg = data.monthlyAverages || {};
+      document.getElementById('mKpiBodyLoad').textContent = avg.avgBodyLoad != null ? avg.avgBodyLoad : '-';
+      document.getElementById('mKpiRecovery').textContent = avg.avgRecovery != null ? avg.avgRecovery + '%' : '-%';
+      document.getElementById('mKpiSleep').textContent = avg.avgSleep != null ? avg.avgSleep + '%' : '-%';
+      document.getElementById('mKpiHrv').textContent = avg.avgHrv != null ? avg.avgHrv + ' ms' : '- ms';
+      document.getElementById('mKpiRhr').textContent = avg.avgRhr != null ? avg.avgRhr + ' bpm' : '- bpm';
+
+      // Weeks Table
+      const tbody = document.getElementById('monthlyWeeksTableBody');
+      if (!tbody) return;
+      const weeks = data.weeksData || [];
+      if (weeks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:16px;color:#94A3B8;">ไม่มีข้อมูลสัปดาห์</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = weeks.map(w => {
+        const recColor = w.recoveryPercent >= 70 ? '#059669' : w.recoveryPercent >= 50 ? '#D97706' : '#DC2626';
+        const slpColor = w.sleepQualityPercent >= 80 ? '#7C3AED' : w.sleepQualityPercent >= 65 ? '#2563EB' : '#DC2626';
+        return `
+          <tr style="border-bottom: 1px solid #F1F5F9; font-size: 12.5px;">
+            <td style="padding: 10px 14px; font-weight: 700; color: #0F172A;">${escapeHtml(w.label || 'W' + w.weekIndex)}</td>
+            <td style="padding: 10px 14px; font-weight: 700;">${w.bodyLoad}</td>
+            <td style="padding: 10px 14px; font-weight: 700; color: ${recColor};">${w.recoveryPercent}%</td>
+            <td style="padding: 10px 14px; font-weight: 700; color: ${slpColor};">${w.sleepQualityPercent}%</td>
+            <td style="padding: 10px 14px; color: #0284C7; font-weight: 600;">${w.hrvMs} ms</td>
+            <td style="padding: 10px 14px; color: #64748B;">${w.restingHrBpm} bpm</td>
+            <td style="padding: 10px 14px; color: #4F46E5;">${w.deepSleepPercent}%</td>
+            <td style="padding: 10px 14px; color: #64748B;">${w.sleepConsistencyPercent}%</td>
+            <td style="padding: 10px 14px; color: #0F172A;">${escapeHtml(w.sleepDuration || '-')}</td>
+            <td style="padding: 10px 14px; color: #64748B; max-width: 200px;">${escapeHtml(w.notes || '-')}</td>
+          </tr>
+        `;
+      }).join('');
+
+      // Hide previous AI result when changing dataset
+      document.getElementById('monthlyAiResultContainer').style.display = 'none';
+      currentMonthlyAiResult = null;
+    }
+
+    async function runMonthlyAnalysis() {
+      if (!currentMonthlyData || !currentMonthlyData.weeksData || currentMonthlyData.weeksData.length === 0) {
+        alert('กรุณาเลือกข้อมูลสุขภาพก่อนรัน AI');
+        return;
+      }
+
+      const btn = document.getElementById('runMonthlyAiBtn');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = '<i class="mi spin" aria-hidden="true">refresh</i> กำลังวิเคราะห์แนวโน้ม 30 วัน...';
+
+      const model = document.getElementById('monthlyModelSelect')?.value || 'google/gemini-3.8-flash';
+
+      try {
+        const res = await apiFetch('/admin/api/monthly-lab/analyze', {
+          method: 'POST',
+          body: JSON.stringify({
+            monthlyData: currentMonthlyData,
+            userProfile: currentMonthlyData.user || {},
+            preferredModel: model,
+          }),
+        });
+
+        if (res && res.ok && res.data) {
+          currentMonthlyAiResult = res.data;
+          renderMonthlyAiResult(res.data, res.meta);
+        } else {
+          alert('การวิเคราะห์ล้มเหลว: ' + (res.error || 'Unknown error'));
+        }
+      } catch (err) {
+        console.error('[MonthlyLab] Run AI error:', err);
+        alert('เกิดข้อผิดพลาดในการเรียก AI: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    function renderMonthlyAiResult(ai, meta = {}) {
+      const container = document.getElementById('monthlyAiResultContainer');
+      container.style.display = 'block';
+
+      // Score & Badge
+      const score = ai.monthlyScore || 80;
+      document.getElementById('monthlyScoreVal').textContent = score;
+      document.getElementById('monthlyStatusText').textContent = ai.monthlyStatus || 'ระดับสมดุลดี';
+      const badgeColor = ai.statusBadgeColor || (score >= 80 ? '#10B981' : score >= 65 ? '#6366F1' : '#F59E0B');
+      document.getElementById('monthlyScoreBadge').style.background = badgeColor;
+      document.getElementById('monthlyScoreBadge').style.boxShadow = `0 4px 14px ${badgeColor}55`;
+
+      // Meta
+      document.getElementById('monthlyMetaModel').textContent = meta.model || 'AI Model';
+      document.getElementById('monthlyMetaDuration').textContent = meta.durationMs ? `ประมวลผลใน ${(meta.durationMs / 1000).toFixed(1)} วินาที` : '';
+
+      // Executive Summary
+      document.getElementById('monthlyExecSummaryText').textContent = ai.executiveSummary || '-';
+
+      // 4-Week Progression
+      const progGrid = document.getElementById('monthlyProgressionGrid');
+      const weeks = Array.isArray(ai.weeklyProgression) ? ai.weeklyProgression : [];
+      progGrid.innerHTML = weeks.map(w => `
+        <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+            <strong style="color: #0F172A; font-size: 13px;">${escapeHtml(w.label || 'สัปดาห์ ' + w.weekNumber)}</strong>
+            <span class="badge" style="background:#E2E8F0; color:#475569; font-size:10px;">W${w.weekNumber}</span>
+          </div>
+          <div style="font-size: 12.5px; color: #0284C7; font-weight: 600; margin-bottom: 4px;">${escapeHtml(w.status || '-')}</div>
+          <div style="font-size: 12px; color: #64748B; line-height: 1.4;">${escapeHtml(w.highlight || '-')}</div>
+        </div>
+      `).join('');
+
+      // 3 Macro Pillars
+      const pillars = ai.macroPillars || {};
+      const load = pillars.activityLoad || {};
+      const rec = pillars.recoveryNervous || {};
+      const slp = pillars.sleepArchitecture || {};
+
+      document.getElementById('pillarLoadScore').textContent = (load.score || '-') + '/100';
+      document.getElementById('pillarLoadDesc').textContent = load.analysis || '-';
+
+      document.getElementById('pillarRecScore').textContent = (rec.score || '-') + '/100';
+      document.getElementById('pillarRecDesc').textContent = rec.analysis || '-';
+
+      document.getElementById('pillarSleepScore').textContent = (slp.score || '-') + '/100';
+      document.getElementById('pillarSleepDesc').textContent = slp.analysis || '-';
+
+      // Achievements
+      const achBox = document.getElementById('monthlyAchievementsList');
+      const achs = Array.isArray(ai.keyAchievements) ? ai.keyAchievements : [];
+      achBox.innerHTML = achs.map(a => `
+        <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #1E293B;">
+          <span style="color: #059669; font-weight: bold;"><i class="mi" style="font-size:13px;vertical-align:middle;">check</i></span>
+          <span>${escapeHtml(a)}</span>
+        </div>
+      `).join('');
+
+      // Action Plan
+      const planBox = document.getElementById('monthlyActionPlanList');
+      const plans = Array.isArray(ai.nextMonthActionPlan) ? ai.nextMonthActionPlan : [];
+      planBox.innerHTML = plans.map((p, idx) => `
+        <div style="display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: #1E293B;">
+          <span style="background: #FEF3C7; color: #D97706; border-radius: 50%; width: 20px; height: 20px; display: grid; place-items: center; font-size: 11px; font-weight: 700; flex-shrink: 0;">${idx + 1}</span>
+          <span>${escapeHtml(p)}</span>
+        </div>
+      `).join('');
+
+      // Auto-scroll to result
+      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    async function saveMonthlyAudit() {
+      if (!currentMonthlyAiResult) {
+        alert('ยังไม่มีผลการวิเคราะห์ให้บันทึก');
+        return;
+      }
+      const rating = document.getElementById('monthlyAuditRating')?.value || 5;
+      const comment = document.getElementById('monthlyAuditComment')?.value || '';
+
+      const scenarioOrUser = currentMonthlySourceMode === 'mock'
+        ? currentMonthlyData?.name || 'Mock Scenario'
+        : (currentMonthlyData?.user?.displayName || 'Real User');
+
+      try {
+        const res = await apiFetch('/admin/api/monthly-lab/feedback', {
+          method: 'POST',
+          body: JSON.stringify({
+            scenarioOrUser,
+            rating,
+            comment,
+            aiScore: currentMonthlyAiResult.monthlyScore,
+            aiStatus: currentMonthlyAiResult.monthlyStatus,
+            monthlyData: currentMonthlyData,
+            aiResult: currentMonthlyAiResult,
+          }),
+        });
+
+        if (res && res.ok) {
+          alert('บันทึกการประเมิน Ground Truth เรียบร้อยแล้วค่ะ!');
+          document.getElementById('monthlyAuditComment').value = '';
+          updateMonthlyAuditCountBadge();
+        } else {
+          alert('บันทึกล้มเหลว: ' + (res.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('เกิดข้อผิดพลาดในการบันทึก: ' + err.message);
+      }
+    }
+
+    async function updateMonthlyAuditCountBadge() {
+      try {
+        const res = await apiFetch('/admin/api/monthly-lab/feedbacks');
+        if (res && res.ok && Array.isArray(res.data)) {
+          const badge = document.getElementById('monthlyAuditCountBadge');
+          if (badge) badge.textContent = res.data.length;
+        }
+      } catch (e) {}
+    }
+
+    async function openMonthlyAuditModal() {
+      const modal = document.getElementById('monthlyAuditHistoryModal');
+      const list = document.getElementById('monthlyAuditHistoryList');
+      modal.classList.add('active');
+      list.innerHTML = '<div style="text-align:center;padding:20px;color:#94A3B8;">กำลังโหลดประวัติ...</div>';
+
+      try {
+        const res = await apiFetch('/admin/api/monthly-lab/feedbacks');
+        if (res && res.ok && Array.isArray(res.data)) {
+          if (res.data.length === 0) {
+            list.innerHTML = '<div style="text-align:center;padding:30px;color:#94A3B8;">ยังไม่มีประวัติการประเมิน</div>';
+            return;
+          }
+          list.innerHTML = res.data.map(item => `
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px; padding: 14px 16px; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <strong style="color: #0F172A; font-size: 14px;">${escapeHtml(item.scenarioOrUser)}</strong>
+                <span style="font-size: 13px; color: #f59e0b;">${'<i class="mi" style="font-size:13px;vertical-align:middle;">star</i>'.repeat(item.rating || 5)}</span>
+              </div>
+              <div style="font-size: 12px; color: #64748B; margin-bottom: 6px;">
+                คะแนน AI: <strong>${item.aiScore}/100</strong> (${escapeHtml(item.aiStatus || '-')}) • โดย: ${escapeHtml(item.reviewedBy || 'admin')} • ${new Date(item.createdAt).toLocaleString('th-TH')}
+              </div>
+              <div style="font-size: 13px; color: #1E293B; background: #FFFFFF; padding: 8px 12px; border-radius: 8px; border: 1px solid #E2E8F0;">
+                <i class="mi" style="font-size:13px;vertical-align:middle;">chat</i> ข้อเสนอแนะ: ${escapeHtml(item.comment || '(ไม่มีข้อเสนอแนะ)')}
+              </div>
+            </div>
+          `).join('');
+        }
+      } catch (err) {
+        list.innerHTML = `<div style="color:red;padding:16px;">เกิดข้อผิดพลาด: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function closeMonthlyAuditModal() {
+      document.getElementById('monthlyAuditHistoryModal').classList.remove('active');
+    }
+
+    // ── Client Preview Modal Logic ──
+    function openMonthlyClientPreviewModal() {
+      const modal = document.getElementById('monthlyClientPreviewModal');
+      const body = document.getElementById('monthlyClientPortalBody');
+      modal.classList.add('active');
+
+      const data = currentMonthlyData || {};
+      const ai = currentMonthlyAiResult || {};
+      const avg = data.monthlyAverages || {};
+      const u = data.user || {};
+      const nick = u.nickname || 'ผู้ใช้งาน';
+
+      body.innerHTML = `
+        <!-- Welcome Card -->
+        <div style="background: linear-gradient(135deg, #1E293B, #0F172A); border-radius: 18px; padding: 18px; border: 1px solid rgba(255,255,255,0.08);">
+          <div style="font-size: 12px; color: #10B981; font-weight: 700;">MONTHLY RETROSPECTIVE</div>
+          <h4 style="font-size: 17px; font-weight: 800; color: #FFFFFF; margin: 4px 0 6px 0;">สรุปแนวโน้มสุขภาพ 30 วัน ของคุณ${escapeHtml(nick)}</h4>
+          <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.5;">
+            ${ai.executiveSummary ? escapeHtml(ai.executiveSummary) : 'ระบบรวบรวมข้อมูลจากรายงานรายสัปดาห์ตลอดทั้งเดือน เพื่อให้คุณเห็นภาพรวมและทิศทางสุขภาพที่แท้จริงค่ะ'}
+          </p>
+        </div>
+
+        <!-- Score Ring -->
+        <div style="background: rgba(255,255,255,0.04); border-radius: 18px; padding: 20px; border: 1px solid rgba(255,255,255,0.08); text-align: center;">
+          <div style="width: 84px; height: 84px; border-radius: 50%; margin: 0 auto 10px auto; background: linear-gradient(135deg, #10B981, #059669); color: #FFFFFF; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 0 24px rgba(16, 185, 129, 0.4);">
+            <span style="font-size: 30px; font-weight: 800; line-height: 1;">${ai.monthlyScore || 85}</span>
+            <span style="font-size: 10px; opacity: 0.9;">/ 100</span>
+          </div>
+          <div style="font-size: 16px; font-weight: 700; color: #FFFFFF;">${escapeHtml(ai.monthlyStatus || 'ระดับสมดุลยอดเยี่ยม')}</div>
+          <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">เกณฑ์สุขภาพภาพรวม 4 สัปดาห์</div>
+        </div>
+
+        <!-- 30-Day Metric Mini Cards -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div style="background: rgba(255,255,255,0.03); border-radius: 14px; padding: 12px; border: 1px solid rgba(255,255,255,0.06);">
+            <div style="font-size: 11px; color: #94A3B8;">Body Load เฉลี่ย</div>
+            <div style="font-size: 18px; font-weight: 800; color: #FFFFFF; margin-top: 2px;">${avg.avgBodyLoad != null ? avg.avgBodyLoad : '6.9'}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.03); border-radius: 14px; padding: 12px; border: 1px solid rgba(255,255,255,0.06);">
+            <div style="font-size: 11px; color: #10B981;">Recovery เฉลี่ย</div>
+            <div style="font-size: 18px; font-weight: 800; color: #10B981; margin-top: 2px;">${avg.avgRecovery != null ? avg.avgRecovery + '%' : '76%'}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.03); border-radius: 14px; padding: 12px; border: 1px solid rgba(255,255,255,0.06);">
+            <div style="font-size: 11px; color: #A78BFA;">คุณภาพการนอน</div>
+            <div style="font-size: 18px; font-weight: 800; color: #A78BFA; margin-top: 2px;">${avg.avgSleep != null ? avg.avgSleep + '%' : '90%'}</div>
+          </div>
+          <div style="background: rgba(255,255,255,0.03); border-radius: 14px; padding: 12px; border: 1px solid rgba(255,255,255,0.06);">
+            <div style="font-size: 11px; color: #38BDF8;">HRV เฉลี่ย</div>
+            <div style="font-size: 18px; font-weight: 800; color: #38BDF8; margin-top: 2px;">${avg.avgHrv != null ? avg.avgHrv + ' ms' : '51 ms'}</div>
+          </div>
+        </div>
+
+        <!-- Next Month Goals -->
+        <div style="background: rgba(255,255,255,0.03); border-radius: 16px; padding: 16px; border: 1px solid rgba(255,255,255,0.08);">
+          <div style="font-size: 12px; color: #F59E0B; font-weight: 700; margin-bottom: 8px;"><i class="mi" style="font-size:13px;vertical-align:middle;">flag</i> เป้าหมายสุขภาพเดือนถัดไป (Action Plan)</div>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: #E2E8F0; line-height: 1.4;">
+            ${(ai.nextMonthActionPlan || [
+              'รักษาเวลาเข้านอนและตื่นนอนให้ตรงเวลาเดิมในทุกวัน',
+              'ออกกำลังกายใน Heart Rate Zone 1-2 สัปดาห์ละ 120-150 นาที',
+              'ยืดเหยียดกล้ามเนื้อและผ่อนคลายความตึงเครียดก่อนนอน'
+            ]).map((g, i) => `<div><strong style="color:#F59E0B;">${i + 1}.</strong> ${escapeHtml(g)}</div>`).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    function closeMonthlyClientPreviewModal() {
+      document.getElementById('monthlyClientPreviewModal').classList.remove('active');
     }
 
     // โหลดข้อมูลเมื่อ switch มา tab ของ superadmin

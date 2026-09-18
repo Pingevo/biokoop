@@ -576,29 +576,8 @@ export async function sendResultCardWithShare(lineUserId, imageUrl, replyToken =
   }
 }
 
-// สร้าง Flex Message Carousel สำหรับเลื่อนปัดดูรายงานสุขภาพ 3 หน้าในแนวนอน (พร้อมการ์ดภาพรวม 3-in-1 แผ่นเดียว)
+// สร้าง Flex Message (การ์ดภาพรวม 3-in-1 แผ่นเดียว) สำหรับรายงานสุขภาพรายสัปดาห์
 export function buildWeeklyReportCarouselFlex(imageUrls = [], aiData = null, combinedImageUrl = null) {
-  const pageMeta = [
-    {
-      title: "หน้าที่ 1 • ภาพรวมสุขภาพ",
-      subTitle: "Overview & Health Trend",
-      badgeColor: "#3B82F6",
-      summary: aiData?.overview?.summary || "ภาพรวมภาระร่างกาย การฟื้นตัว และการนอนหลับสัปดาห์นี้",
-    },
-    {
-      title: "หน้าที่ 2 • กิจกรรม & การฟื้นตัว",
-      subTitle: "Activity & Recovery",
-      badgeColor: "#16A34A",
-      summary: aiData?.activity?.aiInsight || "การออกกำลังกาย โซนหัวใจ และสมดุลการฟื้นฟูของร่างกาย",
-    },
-    {
-      title: "หน้าที่ 3 • คุณภาพการนอนหลับ",
-      subTitle: "Sleep Analytics",
-      badgeColor: "#8B5CF6",
-      summary: aiData?.sleep?.aiInsight || "ประสิทธิภาพการนอนหลับ และสัดส่วนระยะหลับลึก-ตื่น",
-    },
-  ];
-
   const bubbles = [];
 
   // การ์ดที่ 1: ภาพรวม 3-in-1 แผ่นเดียว (ถ้ามี)
@@ -706,125 +685,9 @@ export function buildWeeklyReportCarouselFlex(imageUrls = [], aiData = null, com
     });
   }
 
-  // การ์ดหน้าที่ 1, 2, 3
-  imageUrls.slice(0, 3).forEach((url, idx) => {
-    const meta = pageMeta[idx] || {
-      title: `หน้าที่ ${idx + 1}`,
-      subTitle: "Health Report",
-      badgeColor: "#3B82F6",
-      summary: "",
-    };
-
-    const shareText = encodeURIComponent(
-      `ดูรายงานสุขภาพ biokoop (${meta.title}) 🔴⚪⚫\n${url}`
-    );
-    const shareUrl = `https://line.me/R/msg/text/?${shareText}`;
-
-    bubbles.push({
-      type: "bubble",
-      size: "giga",
-      hero: {
-        type: "image",
-        url: url,
-        size: "full",
-        aspectRatio: "1024:1450",
-        aspectMode: "fit",
-        backgroundColor: "#FFFFFF",
-        action: {
-          type: "uri",
-          label: "ดูรูปเต็ม",
-          uri: url,
-        },
-      },
-      body: {
-        type: "box",
-        layout: "vertical",
-        paddingAll: "16px",
-        paddingTop: "12px",
-        contents: [
-          {
-            type: "box",
-            layout: "horizontal",
-            contents: [
-              {
-                type: "text",
-                text: meta.title,
-                weight: "bold",
-                size: "sm",
-                color: "#0F172A",
-                flex: 1,
-              },
-              {
-                type: "text",
-                text: `${idx + 1}/3`,
-                weight: "bold",
-                size: "xs",
-                color: "#94A3B8",
-                align: "end",
-              },
-            ],
-          },
-          {
-            type: "text",
-            text: meta.subTitle,
-            size: "xxs",
-            color: meta.badgeColor,
-            weight: "bold",
-            margin: "xs",
-          },
-          ...(meta.summary
-            ? [
-                {
-                  type: "text",
-                  text: meta.summary,
-                  size: "xs",
-                  color: "#475569",
-                  wrap: true,
-                  maxLines: 2,
-                  margin: "sm",
-                },
-              ]
-            : []),
-        ],
-      },
-      footer: {
-        type: "box",
-        layout: "horizontal",
-        spacing: "sm",
-        paddingAll: "14px",
-        paddingTop: "0px",
-        contents: [
-          {
-            type: "button",
-            style: "primary",
-            color: meta.badgeColor,
-            height: "sm",
-            action: {
-              type: "uri",
-              label: "🔍 ดูรูปเต็ม",
-              uri: url,
-            },
-            flex: 2,
-          },
-          {
-            type: "button",
-            style: "secondary",
-            height: "sm",
-            action: {
-              type: "uri",
-              label: "📲 แชร์",
-              uri: shareUrl,
-            },
-            flex: 1,
-          },
-        ],
-      },
-    });
-  });
-
   return {
     type: "flex",
-    altText: "📊 รายงานเทรนด์สุขภาพรายสัปดาห์ (เลื่อนปัดซ้าย-ขวาเพื่อดูรายงาน)",
+    altText: "📊 รายงานเทรนด์สุขภาพรายสัปดาห์ (ภาพรวม 3-in-1)",
     contents: {
       type: "carousel",
       contents: bubbles,
@@ -834,53 +697,138 @@ export function buildWeeklyReportCarouselFlex(imageUrls = [], aiData = null, com
 
 // ส่งรายงานสุขภาพรายสัปดาห์ (รองรับทั้ง Flex Carousel, ภาพรวม 3-in-1 และรูปเดี่ยว 3 หน้า) พร้อมข้อความสรุปและ Quick Reply
 export async function sendWeeklyReportImages(lineUserId, imageUrls, aiData = null, combinedImageUrl = null) {
+  // WEEKLY_REPORT_DISPLAY_MODE: "both" (ค่าเริ่มต้น) | "carousel" | "images" | "combined_only"
   const displayMode = (process.env.WEEKLY_REPORT_DISPLAY_MODE || "both").toLowerCase();
   const shareTarget = combinedImageUrl || imageUrls[0] || "";
   const shareText = encodeURIComponent(
-    `ดูรายงานสุขภาพรายสัปดาห์ biokoop ของฉัน 🔴⚪⚫\n${shareTarget}`
+    `ดูรายงานสุขภาพรายสัปดาห์ Kieslect × biokoop ของฉัน 🌿\n${shareTarget}`
   );
   const shareUrl = `https://line.me/R/msg/text/?${shareText}`;
 
   const ov = aiData?.overview || {};
-  const metricLine = [
-    ov.bodyLoad != null ? `Body Load ${ov.bodyLoad}` : null,
-    ov.recoveryPercent != null ? `Recovery ${Math.round(ov.recoveryPercent)}%` : null,
-    ov.sleepQualityPercent != null ? `Sleep ${Math.round(ov.sleepQualityPercent)}%` : null,
-  ].filter(Boolean).join(" • ");
 
-  const summaryMsg = {
-    type: "text",
-    text:
-      `📊 รายงานเทรนด์สุขภาพรายสัปดาห์ของคุณพร้อมแล้วค่ะ\n` +
-      (metricLine ? `${metricLine}\n\n` : "\n") +
-      `${ov.summary ? ov.summary : "เลื่อนดูสไลด์รายงาน หรือบันทึกภาพแผ่นเดียวด้านบนได้เลยค่ะ"}\n\n` +
-      `🖼️ แผ่นที่ 1 ภาพรวม 3-in-1 • หรือดูแยก 3 หน้าด้านล่างได้นะคะ`,
-    quickReply: {
-      items: [
-        {
-          type: "action",
-          action: { type: "uri", label: "📲 แชร์ให้เพื่อน", uri: shareUrl },
-        },
-        {
-          type: "action",
-          action: { type: "cameraRoll", label: "📸 วิเคราะห์สัปดาห์ใหม่" },
-        },
-        {
-          type: "action",
-          action: { type: "message", label: "📊 ผลลัพธ์ล่าสุด", text: "ผลลัพธ์ล่าสุด" },
-        },
-      ],
-    },
+  let cleanSummary = (ov.summary || "").trim();
+  if (cleanSummary) {
+    cleanSummary = cleanSummary
+      .replace(/คะแนนคุณภาพการนอนหลับวันนี้/g, "คุณภาพการนอนหลับสัปดาห์นี้")
+      .replace(/คุณภาพการนอนหลับวันนี้/g, "คุณภาพการนอนหลับสัปดาห์นี้")
+      .replace(/การนอนหลับวันนี้/g, "การนอนหลับสัปดาห์นี้")
+      .replace(/กิจกรรมวันนี้/g, "กิจกรรมในสัปดาห์นี้")
+      .replace(/วันนี้/g, "ในสัปดาห์นี้")
+      .replace(/เมื่อคืน/g, "ในรอบสัปดาห์นี้")
+      .replace(/ในวันถัดไป/g, "ในแต่ละวัน")
+      .replace(/วันถัดไป/g, "สัปดาห์ถัดไป")
+      .replace(/ค่ะ\s*การ/g, "ค่ะ\nการ")
+      .replace(/ค่ะ\s*ร่างกาย/g, "ค่ะ\nร่างกาย");
+  } else {
+    cleanSummary = "สัปดาห์นี้ร่างกายของคุณมีสมดุลที่ดี ทั้งกิจกรรม การฟื้นตัว และการนอนหลับอยู่ในเกณฑ์ที่น่าพอใจ รักษาระดับความสม่ำเสมอไว้นะคะ 😊";
+  }
+
+  const summaryMetrics = [
+    { icon: "⚡", label: "Body Load", value: ov.bodyLoad != null ? `${ov.bodyLoad}` : null, color: "#F59E0B" },
+    { icon: "🔋", label: "Recovery", value: ov.recoveryPercent != null ? `${Math.round(ov.recoveryPercent)}%` : null, color: "#16A34A" },
+    { icon: "🌙", label: "Sleep", value: ov.sleepQualityPercent != null ? `${Math.round(ov.sleepQualityPercent)}%` : null, color: "#8B5CF6" },
+  ].filter((m) => m.value != null);
+
+  const summaryQuickReply = {
+    items: [
+      {
+        type: "action",
+        action: { type: "uri", label: "📲 แชร์ให้เพื่อน", uri: shareUrl },
+      },
+      {
+        type: "action",
+        action: { type: "cameraRoll", label: "📸 ส่งภาพใหม่" },
+      },
+      {
+        type: "action",
+        action: { type: "message", label: "📊 ผลลัพธ์ล่าสุด", text: "ผลลัพธ์ล่าสุด" },
+      },
+    ],
   };
 
-  const carouselFlex = buildWeeklyReportCarouselFlex(imageUrls, aiData, combinedImageUrl);
-  const combinedImageMsg = combinedImageUrl
-    ? {
-        type: "image",
-        originalContentUrl: combinedImageUrl,
-        previewImageUrl: combinedImageUrl,
-      }
-    : null;
+  const summaryMsg = {
+    type: "flex",
+    altText: "📊 สรุปรายงานเทรนด์สุขภาพรายสัปดาห์",
+    contents: {
+      type: "bubble",
+      size: "mega",
+      body: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "20px",
+        contents: [
+          {
+            type: "box",
+            layout: "horizontal",
+            alignItems: "center",
+            contents: [
+              { type: "text", text: "📊", size: "xl", flex: 0 },
+              {
+                type: "box",
+                layout: "vertical",
+                margin: "md",
+                contents: [
+                  { type: "text", text: "สรุปเทรนด์สุขภาพรายสัปดาห์", weight: "bold", size: "md", color: "#0F172A", wrap: true },
+                  { type: "text", text: "Weekly Health Summary", size: "xxs", color: "#94A3B8" },
+                ],
+              },
+            ],
+          },
+          ...(summaryMetrics.length
+            ? [
+                {
+                  type: "box",
+                  layout: "horizontal",
+                  margin: "lg",
+                  backgroundColor: "#F8FAFC",
+                  cornerRadius: "10px",
+                  paddingAll: "md",
+                  contents: summaryMetrics.map((m) => ({
+                    type: "box",
+                    layout: "vertical",
+                    flex: 1,
+                    alignItems: "center",
+                    contents: [
+                      { type: "text", text: m.icon, size: "md", align: "center" },
+                      { type: "text", text: m.value, weight: "bold", size: "sm", color: m.color, align: "center", margin: "xs" },
+                      { type: "text", text: m.label, size: "xxs", color: "#94A3B8", align: "center" },
+                    ],
+                  })),
+                },
+              ]
+            : []),
+          {
+            type: "text",
+            text: cleanSummary,
+            size: "xs",
+            color: "#475569",
+            wrap: true,
+            margin: "lg",
+          },
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "16px",
+        paddingTop: "0px",
+        contents: [
+          { type: "separator" },
+          {
+            type: "text",
+            text: "💡 แตะรูปด้านบนเพื่อดูรายงานฉบับเต็ม",
+            size: "xxs",
+            color: "#94A3B8",
+            align: "center",
+            wrap: true,
+            margin: "md",
+          },
+        ],
+      },
+    },
+    quickReply: summaryQuickReply,
+  };
 
   const imageMessages = imageUrls.slice(0, 3).map((u) => ({
     type: "image",
@@ -888,18 +836,37 @@ export async function sendWeeklyReportImages(lineUserId, imageUrls, aiData = nul
     previewImageUrl: u,
   }));
 
+  const combinedImageMsg = combinedImageUrl
+    ? {
+        type: "image",
+        originalContentUrl: combinedImageUrl,
+        previewImageUrl: combinedImageUrl,
+      }
+    : null;
+  const combinedCaptionMsg = combinedImageUrl
+    ? {
+        type: "text",
+        text:
+          `🖼️ ภาพรวม 3-in-1 แผ่นเดียว\n` +
+          `ครบทั้งภาพรวม กิจกรรม และการนอนในรูปเดียว\n` +
+          `เหมาะสำหรับบันทึกลงอัลบั้มมือถือ หรือแชร์ต่อให้เพื่อนในแผ่นเดียวค่ะ`,
+      }
+    : null;
+
+  const flexResult = buildWeeklyReportCarouselFlex(imageUrls, aiData, combinedImageUrl);
+  const carouselFlex = flexResult.contents.contents.length ? flexResult : null;
+
   let allMessages = [];
   if (displayMode === "carousel") {
-    allMessages = [carouselFlex, summaryMsg];
+    allMessages = [...(carouselFlex ? [carouselFlex] : []), summaryMsg];
   } else if (displayMode === "images") {
-    allMessages = [...(combinedImageMsg ? [combinedImageMsg] : []), ...imageMessages, summaryMsg];
+    allMessages = [...(combinedImageMsg ? [combinedImageMsg] : []), ...(combinedCaptionMsg ? [combinedCaptionMsg] : []), ...imageMessages, summaryMsg];
   } else if (displayMode === "combined_only") {
     allMessages = [...(combinedImageMsg ? [combinedImageMsg] : []), summaryMsg];
   } else {
-    // "both" (ค่าเริ่มต้น): ส่งทั้งสไลด์ Carousel, ภาพรวมแผ่นเดียว (3-in-1), ภาพแยก 3 หน้า และข้อความสรุป
+    // "both" (ค่าเริ่มต้น): ส่งทั้ง Flex การ์ดภาพรวม 3-in-1, ภาพแยก 3 หน้า และข้อความสรุป
     allMessages = [
-      carouselFlex,
-      ...(combinedImageMsg ? [combinedImageMsg] : []),
+      ...(carouselFlex ? [carouselFlex] : []),
       ...imageMessages,
       summaryMsg,
     ];
@@ -959,7 +926,7 @@ export async function pushText(lineUserId, text) {
 export async function replyHelpPrompt(replyToken, lineUserId) {
   const flexMessage = {
     type: "flex",
-    altText: "คำแนะนำการใช้งานระบบ biokoop",
+    altText: "คำแนะนำการใช้งานระบบ Kieslect Biokoop",
     contents: {
       type: "bubble",
       size: "mega",
@@ -971,7 +938,7 @@ export async function replyHelpPrompt(replyToken, lineUserId) {
         contents: [
           {
             type: "text",
-            text: "biokoop 🔴⚪⚫",
+            text: "KIESLECT × BIOKOOP",
             weight: "bold",
             color: "#DC2626",
             size: "sm",
@@ -994,7 +961,7 @@ export async function replyHelpPrompt(replyToken, lineUserId) {
         contents: [
           {
             type: "text",
-            text: "ยินดีต้อนรับสู่บริการวิเคราะห์ผลตรวจ biokoop ค่ะ คุณสามารถใช้งานง่ายๆ ตามขั้นตอนดังนี้:",
+            text: "ยินดีต้อนรับสู่บริการวิเคราะห์รายงานแนวโน้มสุขภาพรายสัปดาห์ด้วย AI ค่ะ คุณสามารถใช้งานง่ายๆ ตามขั้นตอนดังนี้:",
             wrap: true,
             color: "#374151",
             size: "sm",
@@ -1002,7 +969,7 @@ export async function replyHelpPrompt(replyToken, lineUserId) {
           },
           {
             type: "text",
-            text: "1️⃣ ลงทะเบียนข้อมูลผู้ใช้งานผ่านลิงก์ลงทะเบียน\n2️⃣ แตะเมนู \"เลือกภาพเพื่อวิเคราะห์\" เพื่อเลือกรูปภาพผลการตรวจจากแกลเลอรี\n3️⃣ รอรับการ์ดสรุปผลการวิเคราะห์อัตโนมัติภายในไม่กี่วินาที!",
+            text: "1️⃣ ลงทะเบียนข้อมูลผู้ใช้งานผ่านลิงก์ลงทะเบียน\n2️⃣ ส่งภาพ Screenshot จากแอป Kieslect ให้ครบ 3 ภาพ (Body Load, Recovery, Sleep Quality ลำดับใดก็ได้ค่ะ)\n3️⃣ รอรับรายงาน Weekly Health Trend Report 3 หน้าอัตโนมัติภายในไม่กี่วินาทีค่ะ!",
             wrap: true,
             color: "#6B7280",
             size: "sm",
@@ -1142,10 +1109,10 @@ export async function replyRegistrationPrompt(replyToken, lineUserId, reasonText
 export async function replyWelcomePrompt(replyToken, lineUserId, isAlreadyRegistered = false) {
   const registerUrl = `${process.env.PUBLIC_BASE_URL}/register?userId=${lineUserId}`;
   const cfg = getBotMessagesConfig().welcomePrompt || {
-    brandLabel: "biokoop 🔴⚪⚫",
-    title: "👋 ยินดีต้อนรับสู่ biokoop!",
-    subtitle: "AI Health Assistant",
-    bodyText: "ผู้ช่วยวิเคราะห์และแปลผลตรวจสุขภาพอัตโนมัติด้วย AI 🌿\n\n✨ สรุปผลรวดเร็วและแม่นยำ\n📊 แปลงค่าซับซ้อนเป็นคะแนนและกราฟเข้าใจง่าย\n🔒 ปลอดภัย เป็นส่วนตัว",
+    brandLabel: "KIESLECT × BIOKOOP",
+    title: "👋 ยินดีต้อนรับสู่ Kieslect Biokoop!",
+    subtitle: "Weekly Health Trend Report (AI)",
+    bodyText: "ระบบวิเคราะห์แนวโน้มสุขภาพรายสัปดาห์อัจฉริยะด้วย AI 🌿\n\nเพียงส่งภาพ Screenshot จากแอป Kieslect ครบ 3 ภาพ:\n1️⃣ Body Load (ภาระร่างกาย)\n2️⃣ Recovery (การฟื้นตัว)\n3️⃣ Sleep Quality (คุณภาพการนอน)\n*(ส่งลำดับใดก็ได้ หรือส่งพร้อมกัน 3 รูปได้เลยค่ะ)*\n\n✨ AI จะสรุปรายงานเจาะลึก 3 หน้า พร้อมคำแนะนำเฉพาะบุคคลให้ทันทีค่ะ\n\n📝 เริ่มต้นง่ายๆ เพียงกดลงทะเบียนด้านล่างก่อนส่งภาพนะคะ",
     buttonLabel: "📝 ลงทะเบียนเริ่มต้นใช้งาน",
     bgColor: "#FFFFFF",
     brandColor: "#DC2626",
@@ -1185,7 +1152,7 @@ export async function replyWelcomePrompt(replyToken, lineUserId, isAlreadyRegist
   if (isAlreadyRegistered) {
     const textMsg = {
       type: "text",
-      text: `ยินดีต้อนรับกลับสู่ biokoop 🔴⚪⚫ อีกครั้งค่ะ!\n\nคุณสามารถแตะเมนู "เลือกภาพเพื่อวิเคราะห์" ด้านล่างเพื่อเริ่มส่งภาพผลตรวจสุขภาพได้ทันทีเลยนะคะ 😊`,
+      text: `ยินดีต้อนรับกลับสู่ Kieslect Biokoop อีกครั้งค่ะ! 🌿\n\nคุณสามารถส่งภาพ Screenshot จากแอป Kieslect ให้ครบทั้ง 3 ภาพ (Body Load, Recovery, Sleep Quality) เข้ามาในแชทนี้ได้ทันทีเลยนะคะ\n\nเมื่อครบ 3 ภาพแล้ว AI จะสรุปรายงานเจาะลึก 3 หน้าให้ทันทีค่ะ 😊`,
       quickReply,
     };
     try {
@@ -1203,7 +1170,7 @@ export async function replyWelcomePrompt(replyToken, lineUserId, isAlreadyRegist
 
   const flexMessage = {
     type: "flex",
-    altText: "👋 ยินดีต้อนรับสู่ biokoop 🔴⚪⚫",
+    altText: "👋 ยินดีต้อนรับสู่ Kieslect Biokoop!",
     contents: {
       type: "bubble",
       size: "mega",

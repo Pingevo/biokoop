@@ -10,6 +10,8 @@
     "worker": "node jobs/processor.js",
     "test:menu": "node scripts/test_menu.js",
     "test:image": "node test_image.js",
+    "test:quality-audit": "node scripts/test_quality_audit.js",
+    "test:weekly-report": "node scripts/test_weekly_report.js",
     "setup:richmenu": "node scripts/setupRichMenu.js"
   },
   "dependencies": {
