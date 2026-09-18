@@ -857,7 +857,7 @@
   <div id="loginOverlay" class="modal-overlay active">
     <div class="login-box">
       <div class="brand-logo" style="margin: 0 auto 16px auto; width: 48px; height: 48px; font-size: 24px;">B</div>
-      <h2 style="margin-bottom: 8px; font-weight: 700; color: #0f172a;">เข้าสู่ระบบ Admin</h2>
+      <h2 style="margin-bottom: 8px; font-weight: 700; color: var(--text-main);">เข้าสู่ระบบ Admin</h2>
       <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">เข้าสู่ระบบผ่าน ITSR (ระบบ 81) เพื่อใช้งานหลังบ้าน biokoop</p>
       <button type="button" class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="handleLogin()">
         <span style="margin-right: 8px;">🔐</span> เข้าสู่ระบบผ่าน ITSR
@@ -1022,7 +1022,7 @@
           <div class="stat-card" style="border-left-color: #18181b;">
             <div class="stat-title">ผู้ใช้ทั้งหมด / ส่ง LINE วันนี้</div>
             <div class="stat-value" id="statTotalUsers">-</div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">LINE ส่งวันนี้: <span id="statTodayLineMessages" style="font-weight: 700; color: #18181b;">-</span> ข้อความ</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">LINE ส่งวันนี้: <span id="statTodayLineMessages" style="font-weight: 700; color: var(--text-main);">-</span> ข้อความ</div>
           </div>
           <div class="stat-card" style="border-left-color: #8b5cf6;">
             <div class="stat-title">Token รวมทั้งระบบ</div>
@@ -2277,7 +2277,7 @@
   <div id="detailModal" class="modal-overlay">
     <div class="modal">
       <div class="modal-header">
-        <h3 id="modalTitle" style="color: #0f172a; font-weight: 700;">รายละเอียดคำขอ</h3>
+        <h3 id="modalTitle" style="color: var(--text-main); font-weight: 700;">รายละเอียดคำขอ</h3>
         <button class="modal-close" onclick="closeModal()">&times;</button>
       </div>
 
@@ -2320,7 +2320,7 @@
   <div id="cardZoomModal" class="modal-overlay">
     <div class="modal" style="max-width: 580px; text-align: center;">
       <div class="modal-header">
-        <h3 style="color: #0f172a; font-weight: 700;">🔍 การ์ดผลลัพธ์แบบเต็มจอ (Full View)</h3>
+        <h3 style="color: var(--text-main); font-weight: 700;">🔍 การ์ดผลลัพธ์แบบเต็มจอ (Full View)</h3>
         <button class="modal-close" onclick="closeCardZoomModal()">&times;</button>
       </div>
       <div id="zoomModalContainer" style="width: 100%; background: #ffffff; border-radius: 14px; overflow: hidden; padding: 8px; max-height: 80vh; overflow-y: auto; border: 1px solid var(--border-color);"></div>
@@ -2334,7 +2334,7 @@
         <div style="display: flex; align-items: center; gap: 12px;">
           <img id="uumUserAvatar" src="https://via.placeholder.com/40" style="width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);" alt="">
           <div>
-            <h3 id="uumUserName" style="color: #0f172a; font-weight: 700; margin: 0; font-size: 17px;">ประวัติรายการใช้งาน Token</h3>
+            <h3 id="uumUserName" style="color: var(--text-main); font-weight: 700; margin: 0; font-size: 17px;">ประวัติรายการใช้งาน Token</h3>
             <span id="uumUserId" style="font-size: 12px; color: var(--text-muted);"></span>
           </div>
         </div>
@@ -2367,7 +2367,7 @@
   <div id="lineMessageDetailModal" class="modal-overlay">
     <div class="modal" style="max-width: 760px; width: 95%;">
       <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-        <h3 id="lineMsgModalTitle" style="color: #0f172a; font-weight: 700; margin: 0; font-size: 18px;">💬 รายละเอียดข้อความ LINE</h3>
+        <h3 id="lineMsgModalTitle" style="color: var(--text-main); font-weight: 700; margin: 0; font-size: 18px;">💬 รายละเอียดข้อความ LINE</h3>
         <button class="modal-close" onclick="closeLineMessageDetailModal()">&times;</button>
       </div>
       <div id="lineMsgModalBody">
@@ -2430,7 +2430,7 @@
   <div id="pricingConfigModal" class="modal-overlay">
     <div class="modal" style="max-width: 760px; width: 95%;">
       <div class="modal-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
-        <h3 style="color: #0f172a; font-weight: 700; margin: 0; font-size: 18px;">⚙️ ตั้งค่าแพ็กเกจและอัตราค่าบริการ (API Pricing Config)</h3>
+        <h3 style="color: var(--text-main); font-weight: 700; margin: 0; font-size: 18px;">⚙️ ตั้งค่าแพ็กเกจและอัตราค่าบริการ (API Pricing Config)</h3>
         <button class="modal-close" onclick="closePricingConfigModal()">&times;</button>
       </div>
 
