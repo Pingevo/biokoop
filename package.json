@@ -1,6 +1,6 @@
 {
   "name": "biokoop",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "LINE OA -> AI image analysis -> ส่งผลลัพธ์กลับเป็นรูปภาพ",
   "type": "module",
   "main": "server.js",

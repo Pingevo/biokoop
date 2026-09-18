@@ -37,12 +37,12 @@ biokoop/
 │   ├── register.js         # หน้าลงทะเบียนผู้ใช้
 │   └── health.js           # /health - health check
 ├── public/
-│   ├── admin/index.html    # admin dashboard SPA (v1.1.2)
+│   ├── admin/index.html    # admin dashboard SPA (v1.2.0)
 │   └── register.html       # หน้าลงทะเบียน
 └── fonts/                  # Kanit + JetBrains Mono (ฝังตรงตามที่ทดสอบแล้ว)
 ```
 
-## ระบบหลังบ้าน Admin (v1.1.2)
+## ระบบหลังบ้าน Admin (v1.2.0)
 
 ระบบหลังบ้าน login ผ่าน **system81 SSO ของ ITSR** (เดียวกับ isuperFIT) — ไม่มี password login แล้ว
 
