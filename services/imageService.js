@@ -5,6 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { renderBiokoopCard, BG_IMAGE_PATH, hasBgImage, BG_CROP_TOP } from "./cardTemplate.js";
 import { renderWeeklyReportSvgs } from "./weeklyReportTemplate.js";
+import { renderFoodCardSvg } from "./foodCardTemplate.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const fontsDir = path.join(__dirname, "..", "fonts");
@@ -140,6 +141,19 @@ export function composeWeeklyReport(aiData, customConfig = null) {
     return resvg.render().asPng();
   });
   return { data, pngBuffers, svgs };
+}
+
+// การ์ดผลวิเคราะห์โภชนาการอาหาร (food mode) → PNG Buffer พื้นขาว
+export function composeFoodCard(foodData) {
+  if (!wasmReady) {
+    throw new Error("imageService ยังไม่ได้ initImageService() ก่อนใช้งาน");
+  }
+  const svg = renderFoodCardSvg(foodData);
+  const resvg = new Resvg(svg, {
+    font: { loadSystemFonts: false, fontBuffers, defaultFontFamily: "Kanit" },
+    background: "white",
+  });
+  return resvg.render().asPng();
 }
 
 // รวมภาพรายงานสุขภาพ 3 หน้า เข้าด้วยกันเป็น 1 ภาพแนวนอนแบบพาโนรามา (3 คอลัมน์)

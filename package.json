@@ -12,6 +12,9 @@
     "test:image": "node test_image.js",
     "test:quality-audit": "node scripts/test_quality_audit.js",
     "test:weekly-report": "node scripts/test_weekly_report.js",
+    "test:raw-extraction": "node scripts/test_raw_extraction.js",
+    "backfill:raw-extraction": "node scripts/backfill_raw_extraction.js",
+    "chatbot": "chatbot/.venv/bin/uvicorn chatbot.app:app --host 127.0.0.1 --port 5001",
     "setup:richmenu": "node scripts/setupRichMenu.js"
   },
   "dependencies": {

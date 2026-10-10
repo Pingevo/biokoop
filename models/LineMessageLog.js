@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { inSimContext } from "../services/simContext.js";
 
 const lineMessageLogSchema = new mongoose.Schema(
   {
@@ -23,6 +24,8 @@ const lineMessageLogSchema = new mongoose.Schema(
       index: true,
     },
     errorDetail: { type: String, default: "" },
+    // "sim" = ข้อความถูกดักโดย simulator (testline/demo) — ไม่ได้ยิงเข้า LINE จริง
+    channel: { type: String, enum: ["line", "sim"], default: "line", index: true },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
 );
@@ -49,6 +52,7 @@ export async function logLineMessage({
       content,
       status,
       errorDetail,
+      channel: inSimContext() ? "sim" : "line",
     });
   } catch (err) {
     console.error("[logLineMessage] บันทึก log ไม่สำเร็จ:", err.message);

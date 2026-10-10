@@ -8,3 +8,8 @@ server.log
 !public/**
 !richmenu-preview.png
 .agents/skills/
+
+# Python chatbot (testchatbot service)
+chatbot/.venv/
+__pycache__/
+*.pyc

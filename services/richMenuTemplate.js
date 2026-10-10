@@ -1,7 +1,7 @@
 // richMenuTemplate.js
 // สร้าง SVG ภาพพื้นหลังสำหรับ LINE Rich Menu ของ biokoop
 // ขนาดมาตรฐาน LINE (large): 2500x1686
-// เลย์เอาต์: Hero CTA "ถ่ายภาพวิเคราะห์" ใหญ่สุดด้านบน + เมนูรอง 4 ปุ่มด้านล่าง
+// เลย์เอาต์: Hero CTA "ถ่ายภาพวิเคราะห์" ใหญ่สุดด้านบน + เมนูรอง 5 ปุ่มด้านล่าง
 
 export const RICH_MENU_WIDTH = 2500;
 export const RICH_MENU_HEIGHT = 1686;
@@ -32,7 +32,8 @@ export const RICH_MENU_BUTTONS = [
   { key: "register", icon: "user", label: "ลงทะเบียน", sub: "แก้ไขข้อมูล", text: "ลงทะเบียน" },
   { key: "howto", icon: "book", label: "วิธีใช้งาน", sub: "เริ่มต้นใช้งาน", text: "วิธีใช้งาน" },
   { key: "latest", icon: "image", label: "ผลลัพธ์ล่าสุด", sub: "ดูการ์ดล่าสุด", text: "ผลลัพธ์ล่าสุด" },
-  { key: "contact", icon: "chat", label: "ติดต่อสอบถาม", sub: "แอดมิน biokoop", text: "ติดต่อสอบถาม" },
+  { key: "chatbot", icon: "chat", label: "คุยกับแชทบอท", sub: "สอบถาม AI 24 ชม.", text: "คุยกับบอท" },
+  { key: "food", icon: "food", label: "โภชนาการอาหาร", sub: "แนะนำสารอาหาร", text: "โภชนาการอาหาร" },
 ];
 
 function iUser(cx, cy, r, col) {
@@ -71,7 +72,28 @@ function iSparkle(cx, cy, r, col) {
   return `<path d="M${cx} ${cy - r}L${cx + r * 0.28} ${cy - r * 0.28}L${cx + r} ${cy}L${cx + r * 0.28} ${cy + r * 0.28}L${cx} ${cy + r}L${cx - r * 0.28} ${cy + r * 0.28}L${cx - r} ${cy}L${cx - r * 0.28} ${cy - r * 0.28}Z" fill="${col}"/>`;
 }
 
-const ICONS = { user: iUser, book: iBook, image: iImage, chat: iChat };
+function iBot(cx, cy, r, col) {
+  const sw = r * 0.14;
+  return `<rect x="${cx - r * 0.78}" y="${cy - r * 0.42}" width="${r * 1.56}" height="${r * 1.08}" rx="${r * 0.26}" fill="none" stroke="${col}" stroke-width="${sw}"/>
+<line x1="${cx}" y1="${cy - r * 0.42}" x2="${cx}" y2="${cy - r * 0.78}" stroke="${col}" stroke-width="${sw}" stroke-linecap="round"/>
+<circle cx="${cx}" cy="${cy - r * 0.9}" r="${r * 0.13}" fill="${col}"/>
+<circle cx="${cx - r * 0.3}" cy="${cy + r * 0.03}" r="${r * 0.13}" fill="${col}"/>
+<circle cx="${cx + r * 0.3}" cy="${cy + r * 0.03}" r="${r * 0.13}" fill="${col}"/>
+<path d="M${cx - r * 0.3} ${cy + r * 0.38}Q${cx} ${cy + r * 0.56} ${cx + r * 0.3} ${cy + r * 0.38}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="round"/>`;
+}
+
+function iFood(cx, cy, r, col) {
+  const sw = r * 0.13;
+  const fx = cx - r * 0.62;
+  const px = cx + r * 0.22;
+  return `<line x1="${fx}" y1="${cy - r * 0.1}" x2="${fx}" y2="${cy + r * 0.75}" stroke="${col}" stroke-width="${sw}" stroke-linecap="round"/>
+<path d="M${fx - r * 0.2} ${cy - r * 0.75}v${r * 0.42}c0 ${r * 0.18} ${r * 0.4} ${r * 0.18} ${r * 0.4} 0v-${r * 0.42}" fill="none" stroke="${col}" stroke-width="${sw}"/>
+<line x1="${fx}" y1="${cy - r * 0.75}" x2="${fx}" y2="${cy - r * 0.33}" stroke="${col}" stroke-width="${sw * 0.9}" stroke-linecap="round"/>
+<circle cx="${px}" cy="${cy}" r="${r * 0.58}" fill="none" stroke="${col}" stroke-width="${sw}"/>
+<circle cx="${px}" cy="${cy}" r="${r * 0.3}" fill="none" stroke="${col}" stroke-width="${sw * 0.8}"/>`;
+}
+
+const ICONS = { user: iUser, book: iBook, image: iImage, chat: iChat, bot: iBot, food: iFood };
 
 function esc(s = "") {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -112,7 +134,7 @@ ${iCamera(heroCx, camCy, camR * 0.5, C.white)}
   const colW = W / RICH_MENU_BUTTONS.length;
   const bottomH = H - heroH;
   const cy = heroH + bottomH * 0.4;
-  const r = 160;
+  const r = 138;
 
   let cols = "";
   RICH_MENU_BUTTONS.forEach((btn, i) => {
@@ -126,8 +148,8 @@ ${iCamera(heroCx, camCy, camR * 0.5, C.white)}
     cols += `
 <circle cx="${cx}" cy="${cy}" r="${r}" fill="${C.redLight}"/>
 ${iconFn(cx, cy, r * 0.52, C.red)}
-<text x="${cx}" y="${cy + r + 84}" text-anchor="middle" font-family="Kanit" font-weight="700" font-size="68" fill="${C.black}">${esc(btn.label)}</text>
-<text x="${cx}" y="${cy + r + 140}" text-anchor="middle" font-family="Kanit" font-weight="400" font-size="42" fill="${C.grayText}">${esc(btn.sub)}</text>`;
+<text x="${cx}" y="${cy + r + 72}" text-anchor="middle" font-family="Kanit" font-weight="700" font-size="56" fill="${C.black}">${esc(btn.label)}</text>
+<text x="${cx}" y="${cy + r + 124}" text-anchor="middle" font-family="Kanit" font-weight="400" font-size="36" fill="${C.grayText}">${esc(btn.sub)}</text>`;
   });
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">

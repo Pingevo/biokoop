@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#ff0000">
+  <title>biokoop — LLM Keys (Raw Extraction)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&display=swap" rel="stylesheet">
+  <script>if (new URLSearchParams(location.search).has('bare')) document.documentElement.classList.add('bare');</script>
+  <style>
+    /* biokoop "Red Broadcast" design system — ชุดเดียวกับหน้า Admin */
+    :root {
+      --bg-dark: #f2f2f2;
+      --bg-surface: #ffffff;
+      --bg-card: #ffffff;
+      --bg-card-hover: #f2f2f2;
+      --border-color: #e5e5e5;
+      --border-soft: #ececec;
+      --border-strong: #c7c7c7;
+      --text-main: #0f0f0f;
+      --text-sub: #383838;
+      --text-muted: #606060;
+      --primary: #ff0000;
+      --primary-hover: #cc0000;
+      --primary-light: #ffecec;
+      --secondary: #0f0f0f;
+      --link: #065fd4;
+      --success: #2ba640;
+      --warning: #fb8c00;
+      --danger: #ff0000;
+      --info: #065fd4;
+      --radius: 12px;
+      --radius-tight: 4px;
+      --radius-pill: 9999px;
+      --shadow-md: 0 4px 32px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.2);
+      --font-display: 'Roboto', 'Kanit', 'Sarabun', Arial, sans-serif;
+      --font-mono: 'Roboto Mono', 'JetBrains Mono', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-display); -webkit-font-smoothing: antialiased; }
+    body { background: var(--bg-surface); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; font-size: 14px; line-height: 1.43; }
+    button, input, select, textarea { font: inherit; }
+    table, th, td, .stat-value, .badge, .tabular-nums { font-variant-numeric: tabular-nums; }
+
+    .mi { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; font-size: 1.15em; line-height: 1; display: inline-flex; align-items: center; justify-content: center; vertical-align: -0.2em; color: inherit; -webkit-font-smoothing: antialiased; user-select: none; }
+    .mi-green { color: #2ba640; } .mi-red { color: #ff0000; } .mi-yellow { color: #fb8c00; } .mi-blue { color: #065fd4; }
+
+    button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .nav-item:focus-visible, .fs-btn:focus-visible {
+      outline: 2px solid var(--text-main) !important; outline-offset: 2px !important;
+    }
+
+    /* Skip Link for Accessibility */
+    .skip-link {
+      position: absolute; top: -100px; left: 16px; background: var(--text-main); color: #ffffff !important;
+      padding: 8px 16px; border-radius: var(--radius-pill); z-index: 10000; font-weight: 500; font-size: 13px;
+      text-decoration: none; transition: top 0.15s ease; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+    .skip-link:focus-visible { top: 10px; outline: 2px solid var(--primary) !important; outline-offset: 2px; }
+
+    .header { height: 56px; background: #ffffff; border-bottom: 1px solid var(--border-color); box-shadow: 0 1px 2px rgba(0,0,0,0.1); padding: 0 16px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-logo { width: 34px; height: 34px; display: grid; place-items: center; flex-shrink: 0; }
+    .brand-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .brand-title-group { display: flex; flex-direction: column; line-height: 1.2; }
+    .brand-title { font-size: 18px; font-weight: 500; color: var(--text-main); }
+    .brand-title span:not(.version-badge) { font-weight: 700; }
+    .brand-subtitle { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+    .version-badge { background: var(--bg-dark); color: var(--text-muted); border: 1px solid var(--border-color); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 6px; letter-spacing: 0.5px; vertical-align: middle; }
+    .user-actions { display: flex; align-items: center; gap: 8px; }
+
+    .btn { min-height: 36px; padding: 8px 16px; border-radius: var(--radius-pill); border: 1px solid transparent; font-weight: 500; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background 150ms ease, border-color 150ms ease, opacity 120ms ease; }
+    .btn:active { opacity: 0.85; }
+    .btn-primary { background: var(--text-main); border: 1px solid var(--text-main); color: #ffffff; }
+    .btn-primary:hover { background: #272727; border-color: #272727; }
+    .btn-outline { background: #ffffff; border: 1px solid var(--border-color); color: var(--text-main); }
+    .btn-outline:hover { background: var(--bg-dark); border-color: var(--border-strong); }
+    .btn-danger { background: var(--danger); border: 1px solid var(--danger); color: #fff; }
+    .btn-danger:hover { background: var(--primary-hover); }
+    .btn-sm { min-height: 30px; padding: 5px 12px; font-size: 13px; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-icon { display: inline-flex; align-items: center; }
+
+    /* ─── Layout เดียวกับหน้า Admin ─── */
+    .app-container { display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+
+    .sidebar {
+      width: 240px; min-width: 240px; flex-shrink: 0;
+      background: #ffffff !important; border-right: 1px solid var(--border-color) !important;
+      padding: 12px 8px; display: flex; flex-direction: column; gap: 1px;
+      position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto;
+    }
+
+    .nav-item {
+      padding: 10px 12px; border-radius: var(--radius-tight); color: var(--text-main);
+      cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 400;
+      font-size: 14px; transition: background 150ms ease; border: 1px solid transparent;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .nav-item:hover { background: var(--bg-dark); color: var(--text-main); transform: none; }
+    .nav-item.active { background: var(--bg-dark); color: var(--text-main); font-weight: 700; border-color: transparent; box-shadow: none; }
+
+    .nav-section-label {
+      padding: 16px 12px 4px; font-size: 12px; font-weight: 500;
+      letter-spacing: 0.02em; color: var(--text-muted); text-transform: uppercase;
+    }
+
+    .main-content {
+      flex: 1; min-width: 0; overflow-x: hidden; overflow-y: auto;
+      padding: 24px 32px; height: calc(100vh - 56px);
+    }
+
+    .breadcrumb-container { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+    .breadcrumb-home { color: var(--link); font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+    .breadcrumb-home:hover { color: #0449a8; text-decoration: underline; }
+    .breadcrumb-separator { color: var(--border-strong); }
+    .breadcrumb-current { color: var(--text-main); font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+
+    .card { background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; }
+    .card-title { font-size: 16px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .card-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+    .form-control, input, select, textarea {
+      background: var(--bg-dark); border: 1px solid transparent; color: var(--text-main);
+      padding: 10px 16px; border-radius: var(--radius-tight); font-size: 14px; outline: none;
+      transition: background 150ms ease, box-shadow 150ms ease;
+    }
+    .form-control:focus, input:focus, select:focus, textarea:focus { background: #ffffff; border: 1px solid var(--text-main); }
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 12px; font-weight: 500; color: var(--text-muted); }
+    .form-group input, .form-group select { min-width: 260px; }
+
+    .table-container { background: #ffffff; border: 1px solid var(--border-color); border-radius: var(--radius); overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+    th { background: var(--bg-dark); color: var(--text-muted); font-weight: 500; padding: 12px 16px; border-bottom: 1px solid var(--border-color); font-size: 12px; letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border-soft); color: var(--text-main); vertical-align: middle; }
+    tr:hover { background: var(--bg-dark); }
+    .mono { font-family: var(--font-mono); font-size: 12.5px; }
+
+    .badge { padding: 4px 10px; border-radius: var(--radius-tight); font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+    .badge-sent { background: #eafbee; color: var(--success); border: 1px solid var(--success); }
+    .badge-failed { background: var(--primary-light); color: var(--primary); border: 1px solid var(--primary); }
+    .badge-analyzing { background: #eaf1fc; color: var(--link); border: 1px solid var(--link); }
+    .badge-off { background: var(--bg-dark); color: var(--text-muted); border: 1px solid var(--border-strong); }
+
+    .alert-box { background: var(--primary-light); color: var(--primary-hover); border-left: 4px solid var(--primary); border-radius: var(--radius-tight); padding: 14px 18px; font-size: 13.5px; margin-bottom: 16px; }
+    .info-box { background: #eaf1fc; color: #0449a8; border-left: 4px solid var(--link); border-radius: var(--radius-tight); padding: 14px 18px; font-size: 13.5px; margin-bottom: 16px; }
+
+    /* toggle switch */
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; inset: 0; background: #c7c7c7; border-radius: 24px; transition: background 150ms ease; }
+    .slider:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #ffffff; border-radius: 50%; transition: transform 150ms ease; }
+    .switch input:checked + .slider { background: var(--success); }
+    .switch input:checked + .slider:before { transform: translateX(20px); }
+    .switch input:disabled + .slider { opacity: 0.5; cursor: not-allowed; }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 100; opacity: 0; pointer-events: none; transition: opacity 200ms ease; }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    .modal { background: #ffffff; border-radius: 8px; width: 92%; max-width: 720px; max-height: 88vh; overflow-y: auto; padding: 24px; box-shadow: var(--shadow-lg); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; }
+    .modal-close { background: none; border: none; color: var(--text-muted); font-size: 26px; cursor: pointer; }
+    .modal-close:hover { color: var(--text-main); }
+    pre.json-box { background: var(--text-main); padding: 18px; border-radius: 8px; font-family: var(--font-mono); font-size: 12px; color: #9ad0ff; overflow: auto; max-height: 55vh; }
+
+    .login-box { background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; padding: 44px; width: 100%; max-width: 440px; text-align: center; box-shadow: var(--shadow-lg); }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text-main); color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13.5px; box-shadow: var(--shadow-md); z-index: 300; opacity: 0; pointer-events: none; transition: opacity 200ms ease; max-width: 90vw; }
+    .toast.show { opacity: 1; }
+
+    .pagination { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; align-items: center; font-size: 13px; color: var(--text-muted); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .dot-green { background: var(--success); } .dot-red { background: var(--danger); } .dot-grey { background: var(--border-strong); }
+
+    /* ═══ Admin UX Pack: drawer nav (mobile/tablet) + font-scale modes — ชุดเดียวกับหน้า Admin ═══ */
+    .nav-toggle {
+      display: none; align-items: center; justify-content: center; width: 40px; height: 40px; margin-right: 8px;
+      border-radius: var(--radius-pill); border: none; background: transparent; color: var(--text-main);
+      font-size: 22px; line-height: 1; cursor: pointer; flex-shrink: 0; transition: background 150ms ease;
+    }
+    .nav-toggle:hover { background: var(--bg-dark); }
+    .nav-backdrop, .drawer-head, .scroll-top-btn { display: none; }
+
+    .fs-switch { display: inline-flex; border: 1px solid var(--border-color); border-radius: var(--radius-pill); overflow: hidden; background: #ffffff; flex-shrink: 0; }
+    .fs-btn { border: none; background: transparent; padding: 0 10px; min-height: 36px; font-size: 12px; font-weight: 500; color: var(--text-muted); cursor: pointer; }
+    .fs-btn + .fs-btn { border-left: 1px solid var(--border-color); }
+    .fs-btn:hover { background: var(--bg-dark); }
+    .fs-btn.active { background: var(--text-main); color: #ffffff; }
+
+    .header-divider { width: 1px; height: 22px; background: var(--border-color); flex-shrink: 0; }
+
+    .admin-user-badge {
+      display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px;
+      color: var(--text-muted); white-space: nowrap; flex-shrink: 0;
+    }
+    .admin-user-badge .admin-name { color: var(--text-main); font-weight: 500; }
+    .admin-user-badge .role-tag { padding: 3px 9px; border-radius: var(--radius-pill); font-weight: 700; font-size: 11px; letter-spacing: 0.02em; }
+    .role-tag.superadmin { background: var(--primary-light); color: var(--primary-hover); }
+    .role-tag.admin { background: #eaf1fc; color: var(--link); }
+
+    @media (max-width: 900px) { .header-divider { display: none; } }
+
+    button, .btn, .nav-item { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    .nav-item:focus-visible { outline: 2px solid var(--text-main); outline-offset: 2px; }
+    @media (pointer: coarse) {
+      .btn { min-height: 44px !important; }
+      .form-control, input:not([type="checkbox"]):not([type="radio"]), select { min-height: 44px; }
+      input[type="checkbox"], input[type="radio"] { width: 18px !important; height: 18px !important; accent-color: var(--link); }
+      .modal-close { min-width: 44px; min-height: 44px; }
+      .fs-btn { min-height: 44px; padding: 0 12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+    }
+
+    .sidebar { height: calc(100vh - 56px); height: calc(100dvh - 56px); }
+    .main-content { height: calc(100vh - 56px); height: calc(100dvh - 56px); }
+    .modal { max-height: 90vh; max-height: 90dvh; }
+
+    /* ── Drawer nav (tablet & mobile ≤1100px) ── */
+    @media (max-width: 1100px) {
+      .nav-toggle { display: inline-flex; }
+      .sidebar {
+        position: fixed !important; top: 56px; left: 0; bottom: 0; width: 280px !important; min-width: 0 !important;
+        max-width: min(84vw, 300px); height: auto !important; padding: 14px 10px calc(20px + env(safe-area-inset-bottom)) !important;
+        background: #ffffff !important; border-right: 1px solid var(--border-color) !important;
+        box-shadow: var(--shadow-lg) !important; transform: translateX(-105%);
+        transition: transform 250ms cubic-bezier(.32, .72, .24, 1); z-index: 60; overflow-y: auto !important; overscroll-behavior-y: contain;
+      }
+      body.nav-open .sidebar { transform: translateX(0); }
+      .nav-backdrop {
+        display: block; position: fixed; top: 56px; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4);
+        z-index: 55; opacity: 0; pointer-events: none; transition: opacity 250ms ease;
+      }
+      body.nav-open .nav-backdrop { opacity: 1; pointer-events: auto; }
+      .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 12px; margin-bottom: 10px; border-bottom: 1px solid var(--border-soft); }
+      .drawer-head .drawer-title { font-size: 15px; font-weight: 700; color: var(--text-main); }
+      .drawer-close { width: 40px; height: 40px; border-radius: var(--radius-pill); border: none; background: var(--bg-dark); color: var(--text-sub); font-size: 17px; cursor: pointer; }
+      .sidebar .nav-item { min-height: 48px; font-size: 15px !important; }
+      .sidebar .nav-section-label { font-size: 11px !important; }
+      .main-content { padding: 18px 16px 32px !important; }
+      .header { padding: 0 12px; }
+    }
+
+    @media (max-width: 768px) {
+      #adminUserBadge { display: none; }
+      .breadcrumb-container { flex-wrap: wrap; row-gap: 4px; }
+      th, td { padding: 10px 12px !important; }
+      .table-container {
+        -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; border-radius: var(--radius) !important;
+        background-image:
+          linear-gradient(to right, #ffffff 30%, rgba(255,255,255,0)),
+          linear-gradient(to left, #ffffff 30%, rgba(255,255,255,0)),
+          radial-gradient(farthest-side at 0% 50%, rgba(0,0,0,.12), rgba(0,0,0,0)),
+          radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.12), rgba(0,0,0,0)) !important;
+        background-position: 0 0, 100% 0, 0 0, 100% 0 !important;
+        background-repeat: no-repeat !important;
+        background-size: 40px 100%, 40px 100%, 12px 100%, 12px 100% !important;
+        background-attachment: local, local, scroll, scroll !important;
+      }
+      .pagination { justify-content: center; flex-wrap: wrap; }
+      .pagination .btn { min-height: 44px; min-width: 104px; }
+      .modal { width: calc(100% - 16px) !important; padding: 18px 14px !important; max-height: calc(100dvh - 32px); border-radius: 8px !important; }
+      pre.json-box { font-size: 11.5px; }
+      .fs-btn { padding: 0 7px; font-size: 11px; min-height: 40px; }
+    }
+
+    @media (max-width: 560px) {
+      .brand-title { font-size: 15px !important; }
+      .main-content { padding: 16px 12px !important; }
+      .login-box { padding: 28px 22px !important; }
+      .version-badge { display: none !important; }
+      .user-actions .btn { min-width: 44px; justify-content: center; padding: 8px 10px !important; }
+      .user-actions .btn .btn-icon { font-size: 17px; line-height: 1; }
+      .user-actions .btn .btn-label { display: none; }
+    }
+
+    /* ── Large-text modes (accessibility) — key เดียวกับหน้า Admin ── */
+    html[data-ui-scale="lg"] body { font-size: 16px !important; }
+    html[data-ui-scale="lg"] .nav-item { font-size: 16px !important; }
+    html[data-ui-scale="lg"] .nav-section-label { font-size: 12px !important; }
+    html[data-ui-scale="lg"] .btn { font-size: 15px !important; min-height: 42px; }
+    html[data-ui-scale="lg"] .form-control, html[data-ui-scale="lg"] input, html[data-ui-scale="lg"] select, html[data-ui-scale="lg"] textarea { font-size: 16px !important; }
+    html[data-ui-scale="lg"] td { font-size: 15px !important; }
+    html[data-ui-scale="lg"] th { font-size: 12.5px !important; }
+    html[data-ui-scale="lg"] .badge { font-size: 13px !important; }
+    html[data-ui-scale="lg"] .breadcrumb-container { font-size: 14px !important; }
+
+    html[data-ui-scale="xl"] body { font-size: 18px !important; }
+    html[data-ui-scale="xl"] .nav-item { font-size: 17.5px !important; min-height: 52px; }
+    html[data-ui-scale="xl"] .nav-section-label { font-size: 13px !important; }
+    html[data-ui-scale="xl"] .btn { font-size: 16.5px !important; min-height: 48px; }
+    html[data-ui-scale="xl"] .form-control, html[data-ui-scale="xl"] input, html[data-ui-scale="xl"] select, html[data-ui-scale="xl"] textarea { font-size: 17.5px !important; }
+    html[data-ui-scale="xl"] td { font-size: 16.5px !important; }
+    html[data-ui-scale="xl"] th { font-size: 14px !important; }
+    html[data-ui-scale="xl"] .badge { font-size: 14.5px !important; }
+    html[data-ui-scale="xl"] .breadcrumb-container { font-size: 15.5px !important; }
+
+    .scroll-top-btn {
+      display: none; position: fixed; right: 16px; bottom: calc(20px + env(safe-area-inset-bottom));
+      width: 48px; height: 48px; border-radius: var(--radius-pill); border: none; background: var(--text-main); color: #ffffff;
+      font-size: 21px; font-weight: 700; cursor: pointer; z-index: 70; box-shadow: var(--shadow-md);
+      align-items: center; justify-content: center;
+    }
+    .scroll-top-btn.show { display: flex; }
+    .scroll-top-btn:hover { background: #272727; }
+
+    @media (max-width: 1366px) {
+      .sidebar { width: 230px; }
+      .main-content { padding: 20px 22px; }
+    }
+    /* bare mode — ฝังใน admin iframe: ซ่อน header/sidebar ของตัวเอง */
+    html.bare .header, html.bare .sidebar, html.bare .skip-link, html.bare .breadcrumb-container { display: none !important; }
+    html.bare .main-content { height: 100vh; height: 100dvh; }
+    html.bare body { height: 100vh; height: 100dvh; overflow: hidden; overscroll-behavior: none; }
+  </style>
+</head>
+<body>
+  <a href="#mainContent" class="skip-link">ข้ามไปยังเนื้อหาหลัก</a>
+
+  <!-- Header — ชุดเดียวกับหน้า Admin -->
+  <header class="header">
+    <button id="navToggle" class="nav-toggle" aria-label="เปิด/ปิดเมนูหลัก" aria-expanded="false" aria-controls="adminSidebar"><i class="mi" aria-hidden="true">menu</i></button>
+    <div class="brand">
+      <div class="brand-logo"><img src="/assets/logo/BIOKOOP_500.png" alt="Biokoop" width="34" height="34"></div>
+      <div class="brand-title-group">
+        <div class="brand-title">biokoop <span>Admin</span> <span class="version-badge" style="background: #FEF2F2; color: #DC2626; border: 1px solid #FECDD3;">v1.1.2</span></div>
+        <div class="brand-subtitle">kieselect</div>
+      </div>
+    </div>
+    <div class="user-actions">
+      <div class="fs-switch" role="group" aria-label="ปรับขนาดตัวอักษร" title="ปรับขนาดตัวอักษร">
+        <button type="button" class="fs-btn" data-scale="" title="ขนาดปกติ">A</button>
+        <button type="button" class="fs-btn" data-scale="lg" title="ตัวอักษรใหญ่">A+</button>
+        <button type="button" class="fs-btn" data-scale="xl" title="ตัวอักษรใหญ่มาก">A++</button>
+      </div>
+      <span class="header-divider" aria-hidden="true"></span>
+      <span id="adminUserBadge" class="admin-user-badge"></span>
+      <button class="btn btn-outline" onclick="loadAll()" aria-label="รีเฟรชข้อมูล"><span class="btn-icon" aria-hidden="true"><i class="mi" aria-hidden="true">refresh</i></span><span class="btn-label"> รีเฟรช</span></button>
+      <button class="btn btn-outline" onclick="logout()" aria-label="ออกจากระบบ"><span class="btn-icon" aria-hidden="true"><i class="mi" aria-hidden="true">logout</i></span><span class="btn-label"> ออกจากระบบ</span></button>
+    </div>
+  </header>
+
+  <!-- Login Overlay (session หมดตอนใช้งานอยู่) -->
+  <div id="loginOverlay" class="modal-overlay">
+    <div class="login-box">
+      <div class="brand-logo" style="margin: 0 auto 16px auto; width: 56px; height: 56px;"><img src="/assets/logo/BIOKOOP_500.png" alt="Biokoop" width="56" height="56"></div>
+      <h2 style="margin-bottom: 8px; font-weight: 800; color: #0F172A;">เข้าสู่ระบบ Admin</h2>
+      <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">เข้าสู่ระบบผ่าน ITSR (ระบบ 81) เพื่อจัดการ LLM Keys</p>
+      <button type="button" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px;" onclick="handleLogin()">
+        <i class="mi" aria-hidden="true">lock</i> เข้าสู่ระบบผ่าน ITSR
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Container — โครงเดียวกับหน้า Admin -->
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="adminSidebar" role="navigation" aria-label="เมนูหลักหลังบ้าน">
+      <div class="drawer-head">
+        <span class="drawer-title">เมนูจัดการระบบ</span>
+        <button type="button" class="drawer-close" id="navClose" aria-label="ปิดเมนู"><i class="mi" aria-hidden="true">close</i></button>
+      </div>
+      <div class="nav-section-label"><i class="mi" aria-hidden="true">bar_chart</i> ภาพรวม & บริการ</div>
+      <div class="nav-item" onclick="window.location.href='/admin#dashboard'">
+        <span><i class="mi" aria-hidden="true">bar_chart</i></span> สถิติภาพรวม
+      </div>
+      <div class="nav-item" onclick="window.location.href='/admin#requests-logs'">
+        <span><i class="mi" aria-hidden="true">content_paste</i></span> คำขอ & ประวัติส่ง
+      </div>
+      <div class="nav-item" onclick="window.location.href='/admin#users'">
+        <span><i class="mi" aria-hidden="true">group</i></span> สมาชิกผู้ใช้งาน
+      </div>
+
+      <div class="nav-section-label"><i class="mi" aria-hidden="true">settings</i> ตั้งค่า AI & บอท</div>
+      <div class="nav-item" onclick="window.location.href='/admin#card-builder'">
+        <span><i class="mi" aria-hidden="true">palette</i></span> การ์ดผลลัพธ์ SVG
+      </div>
+      <div class="nav-item" onclick="window.location.href='/admin#grade-config'">
+        <span><i class="mi" aria-hidden="true">emoji_events</i></span> เกณฑ์คะแนน & AI
+      </div>
+      <div class="nav-item" onclick="window.location.href='/admin#kieslect-config'">
+        <span>⌚</span> Kieslect Watch
+      </div>
+      <div class="nav-item" onclick="window.location.href='/admin#bot-messages'">
+        <span><i class="mi" aria-hidden="true">chat_bubble</i></span> ข้อความบอท
+      </div>
+      <div class="nav-item" onclick="window.location.href='/admin#registration'">
+        <span><i class="mi" aria-hidden="true">sell</i></span> สิทธิ์ & Whitelist
+      </div>
+      <div class="nav-item active" aria-current="page" onclick="window.location.href='/llmkey2'">
+        <span><i class="mi" aria-hidden="true">key</i></span> LLM Keys
+      </div>
+      <div class="nav-item" onclick="window.location.href='/llmkey2/extractions'">
+        <span><i class="mi" aria-hidden="true">database</i></span> Raw Extractions
+      </div>
+      <div class="nav-item" onclick="window.location.href='/testchatbot'">
+        <span><i class="mi" aria-hidden="true">smart_toy</i></span> Test Chatbot
+      </div>
+      <div class="nav-item" onclick="window.location.href='/chatpersona'">
+        <span><i class="mi" aria-hidden="true">face</i></span> Chat Persona
+      </div>
+      <div class="nav-item" onclick="window.location.href='/healthcalendar'">
+        <span><i class="mi" aria-hidden="true">calendar_month</i></span> Health Calendar
+      </div>
+
+      <div class="nav-section-label"><i class="mi" aria-hidden="true">science</i> เครื่องมือ & ระบบ</div>
+      <div class="nav-item" onclick="window.location.href='/admin#system-health'">
+        <span><i class="mi" aria-hidden="true">stethoscope</i></span> สุขภาพระบบ
+      </div>
+
+      <!-- เครื่องมือทดสอบ/ทดลองภายใน — Superadmin Lv.2 เท่านั้น -->
+      <div id="devToolsNavSection" style="display:none;">
+        <div class="nav-item" onclick="window.location.href='/admin#ai-test-studio'">
+          <span><i class="mi" aria-hidden="true">science</i></span> AI Test Studio
+        </div>
+        <div class="nav-item" onclick="window.location.href='/admin#monthly-lab'">
+          <span><i class="mi" aria-hidden="true">date_range</i></span> วิเคราะห์รายเดือน (Lab)
+        </div>
+      </div>
+
+      <!-- Superadmin Lv.2 เท่านั้น — ซ่อนจาก Admin Lv.1 -->
+      <div id="superadminNavSection" style="display:none;">
+        <div class="nav-section-label" style="color:#D97706;"><i class="mi" aria-hidden="true">star</i> Superadmin (Lv.2)</div>
+        <div class="nav-item" onclick="window.location.href='/admin#admin-management'">
+          <span><i class="mi" aria-hidden="true">shield</i></span> จัดการแอดมิน
+        </div>
+        <div class="nav-item" onclick="window.location.href='/admin#admin-audit'">
+          <span><i class="mi" aria-hidden="true">history_edu</i></span> Audit Log แอดมิน
+        </div>
+      </div>
+
+      <div style="margin-top: auto; padding: 14px 10px 6px; text-align: center;">
+        <span style="font-size: 11px; font-weight: 700; color: #64748B; background: #F1F5F9; border: 1px solid #E2E8F0; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px;">biokoop v1.1.2</span>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent" tabindex="-1">
+      <div class="breadcrumb-container">
+        <a class="breadcrumb-home" href="/admin"><i class="mi" aria-hidden="true">home</i> หน้าแรก</a>
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-current"><i class="mi" aria-hidden="true">key</i> LLM Keys — Raw Extraction</span>
+      </div>
+
+      <div id="readonlyBanner" class="info-box" style="display:none;">
+        <i class="mi" aria-hidden="true">visibility</i> คุณเข้าถึงในสิทธิ์ <b>Admin Lv.1 (ดูอย่างเดียว)</b> — การเพิ่ม/แก้/ลบ key และเปลี่ยนโมเดลทำได้เฉพาะ <b>Superadmin Lv.2</b>
+      </div>
+
+      <!-- ═══ Card 1: Extraction Config ═══ -->
+      <div class="card">
+        <div class="card-title"><i class="mi" aria-hidden="true">tune</i> ตั้งค่า Flow สกัดข้อมูลดิบ (Raw Extraction)</div>
+        <div class="card-desc">flow แยกที่ส่งภาพ 3 รูปไปสกัดทุกค่าควบคู่กับ pipeline หลัก — ใช้โมเดลเดียวตายตัว + key pool ด้านล่าง ไม่กระทบการวิเคราะห์หลัก</div>
+
+        <div class="form-row" style="margin-bottom: 16px;">
+          <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px;">
+            <label class="switch"><input type="checkbox" id="cfgEnabled"><span class="slider"></span></label>
+            <span style="font-weight: 500;">เปิดใช้งาน flow สกัดข้อมูล</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label>โมเดล Gemini ที่ใช้สกัด (ตัวเดียว — ไม่วนโมเดล)</label>
+            <select id="cfgModel" class="form-control" style="min-width: 300px;"></select>
+          </div>
+          <div class="form-group">
+            <label>หรือพิมพ์ชื่อโมเดลเอง</label>
+            <input id="cfgModelCustom" class="form-control" placeholder="เช่น gemini-3.9-flash" style="min-width: 220px;">
+          </div>
+          <div class="form-group">
+            <label>maxOutputTokens</label>
+            <input id="cfgMaxTokens" type="number" class="form-control" min="1000" max="65000" step="1000" style="min-width: 140px;">
+          </div>
+          <button class="btn btn-outline" onclick="fetchLiveModels()" title="ดึงรายการโมเดลที่ key ใช้ได้จริงจาก Gemini API"><i class="mi" aria-hidden="true">cloud_download</i> โหลดโมเดลจาก API</button>
+          <button class="btn btn-primary write-only" onclick="saveConfig()"><i class="mi" aria-hidden="true">save</i> บันทึกค่า</button>
+        </div>
+        <div id="liveModelsStatus" style="font-size: 12.5px; color: var(--text-muted); margin-top: 10px;"></div>
+      </div>
+
+      <!-- ═══ Card 2: Key Pool ═══ -->
+      <div class="card">
+        <div class="card-title"><i class="mi" aria-hidden="true">key</i> Gemini Key Pool <span id="keyCountBadge" class="badge badge-analyzing" style="margin-left:6px;"></span></div>
+        <div class="card-desc">key หมุนเวียนอัตโนมัติแบบ <b>round-robin</b> — request ใหม่ได้ใบถัดไปในคิวเสมอ (key1 → key2 → key3 → วนกลับ) ใบที่ปิดจะถูกข้าม · ใบที่พังจะ failover ไปใบถัดไป · key จริงถูก encrypt ไม่มีทางดูย้อน</div>
+
+        <div class="table-container" style="margin-bottom: 20px;">
+          <table>
+            <thead>
+              <tr>
+                <th>คิว</th><th>Label</th><th>Key</th><th>สถานะ</th><th>ใช้แล้ว</th><th>พัง</th><th>ใช้ล่าสุด</th><th>จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="keysTableBody">
+              <tr><td colspan="8" style="text-align:center; color: var(--text-muted);">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="form-row write-only" style="background: var(--bg-dark); border-radius: var(--radius); padding: 16px;">
+          <div class="form-group">
+            <label>Label (ชื่อเรียก key เช่น key-1, project-B)</label>
+            <input id="newKeyLabel" class="form-control" placeholder="key-1" style="min-width: 200px;">
+          </div>
+          <div class="form-group" style="flex: 1; min-width: 280px;">
+            <label>Gemini API Key (จะถูก encrypt ทันที ไม่มีทางดูย้อน)</label>
+            <input id="newKeyValue" class="form-control mono" type="password" placeholder="AIza..." autocomplete="off">
+          </div>
+          <button class="btn btn-primary" onclick="addKey()"><i class="mi" aria-hidden="true">add</i> เพิ่ม Key</button>
+        </div>
+      </div>
+
+      <!-- ═══ Card 3: Admin Audit — superadmin เท่านั้น (ซ่อนจาก Lv.1) ═══ -->
+      <div class="card" id="auditCard" style="display:none;">
+        <div class="card-title"><i class="mi" aria-hidden="true">history_edu</i> ประวัติการจัดการ <span class="badge badge-analyzing" style="margin-left:6px;">Superadmin</span></div>
+        <div class="card-desc">log ทุก action ของหน้านี้ — เพิ่ม/แก้ไข/ลบ/เปิด-ปิด key, ทดสอบ key, เปลี่ยน config: ใครทำ เมื่อไหร่ ผลอย่างไร</div>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr><th>เวลา</th><th>Admin</th><th>Action</th><th>เป้าหมาย</th><th>รายละเอียด</th></tr>
+            </thead>
+            <tbody id="auditTableBody">
+              <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">กำลังโหลด...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <button class="btn btn-outline btn-sm" id="auditPrevBtn" onclick="loadAudit(auditPage - 1)"><i class="mi" aria-hidden="true">chevron_left</i></button>
+          <span id="auditPageInfo">1/1</span>
+          <button class="btn btn-outline btn-sm" id="auditNextBtn" onclick="loadAudit(auditPage + 1)"><i class="mi" aria-hidden="true">chevron_right</i></button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Modal: แก้ไข key -->
+  <div id="editModal" class="modal-overlay">
+    <div class="modal" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 style="font-weight: 700;">แก้ไข Key</h3>
+        <button class="modal-close" onclick="closeEditModal()">×</button>
+      </div>
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label>Label</label>
+        <input id="editLabel" class="form-control">
+      </div>
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label>API Key ใหม่ <span style="font-weight:400;">(เว้นว่าง = ใช้ของเดิม — ไม่มีทางดู key เดิมย้อนหลัง)</span></label>
+        <input id="editKeyValue" class="form-control mono" type="password" placeholder="ใส่ key ใหม่ หรือเว้นว่าง" autocomplete="off">
+      </div>
+      <div class="form-row" style="justify-content: flex-end;">
+        <button class="btn btn-outline" onclick="closeEditModal()">ยกเลิก</button>
+        <button class="btn btn-primary" onclick="saveEditKey()"><i class="mi" aria-hidden="true">save</i> บันทึก</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    let currentAdmin = null;
+    let isSuperadmin = false;
+    let editingKeyId = null;
+    let auditPage = 1;
+    let liveModelNames = [];
+
+    async function apiFetch(url, options = {}) {
+      options.headers = options.headers || {};
+      if (!options.headers['Content-Type']) options.headers['Content-Type'] = 'application/json';
+      if (!options.headers['Accept']) options.headers['Accept'] = 'application/json';
+      options.headers['X-Requested-With'] = 'XMLHttpRequest'; // ajax → server ตอบ 401 แทน redirect
+      options.credentials = 'same-origin';
+      const res = await fetch(url, options);
+      if (res.status === 401) {
+        document.getElementById('loginOverlay').classList.add('active');
+        throw new Error('Unauthorized — กรุณาเข้าสู่ระบบใหม่');
+      }
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) throw new Error(`Server returned status ${res.status}`);
+      return res.json();
+    }
+
+    function handleLogin() { window.location.href = '/admin/auth'; }
+    function logout() { window.location.href = '/admin/auth/logout'; }
+
+    function showToast(msg, isError = false) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.background = isError ? 'var(--danger)' : 'var(--text-main)';
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3200);
+    }
+
+    function fmtDate(d) {
+      if (!d) return '-';
+      return new Date(d).toLocaleString('th-TH', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+
+    // แสดง/ซ่อน sidebar section ของ superadmin ตาม role — pattern เดียวกับหน้า Admin
+    function refreshSuperadminVisibility() {
+      const section = document.getElementById('superadminNavSection');
+      if (section) section.style.display = isSuperadmin ? '' : 'none';
+      const devTools = document.getElementById('devToolsNavSection');
+      if (devTools) devTools.style.display = isSuperadmin ? '' : 'none';
+    }
+
+    // ─── โหลดทั้งหมด (loadMe ก่อนเสมอ — render อื่นต้องรู้ role ก่อน) ───
+    async function loadAll() {
+      await loadMe();
+      const jobs = [loadKeys()];
+      if (isSuperadmin) {
+        document.getElementById('auditCard').style.display = 'block';
+        jobs.push(loadAudit(1));
+      }
+      await Promise.all(jobs);
+    }
+
+    async function loadMe() {
+      try {
+        const data = await apiFetch('/admin/api/me');
+        if (data.ok && data.admin) {
+          currentAdmin = data.admin;
+          isSuperadmin = data.admin.role === 'superadmin';
+          const roleLabel = isSuperadmin
+            ? '<span class="role-tag superadmin">Superadmin Lv.2</span>'
+            : '<span class="role-tag admin">Admin Lv.1</span>';
+          document.getElementById('adminUserBadge').innerHTML =
+            `<span class="admin-name">${escapeHtml(data.admin.name || data.admin.displayName || data.admin.system81_username || 'admin')}</span>${roleLabel}`;
+          refreshSuperadminVisibility();
+          if (!isSuperadmin) {
+            document.getElementById('readonlyBanner').style.display = 'block';
+            document.querySelectorAll('.write-only').forEach(el => el.style.display = 'none');
+          }
+        }
+      } catch (e) { /* 401 overlay จะเด้งเอง */ }
+    }
+
+    // ─── Keys ───
+    async function loadKeys() {
+      try {
+        const data = await apiFetch('/admin/api/llm-keys');
+        if (!data.ok) return;
+        renderKeys(data.keys || []);
+        renderConfig(data.config || {});
+      } catch (e) { console.error('loadKeys:', e); }
+    }
+
+    function renderKeys(keys) {
+      const tbody = document.getElementById('keysTableBody');
+      document.getElementById('keyCountBadge').textContent = `${keys.filter(k => k.isActive).length}/${keys.length} active`;
+      if (!keys.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color: var(--text-muted);">ยังไม่มี key — เพิ่มใบแรกด้านล่าง</td></tr>';
+        return;
+      }
+      // เรียงคิว round-robin: active ที่ lastUsedAt เก่าสุดขึ้นก่อน (null ก่อนสุด)
+      const sorted = [...keys].sort((a, b) => {
+        if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+        const ta = a.lastUsedAt ? new Date(a.lastUsedAt).getTime() : 0;
+        const tb = b.lastUsedAt ? new Date(b.lastUsedAt).getTime() : 0;
+        return ta - tb;
+      });
+      tbody.innerHTML = sorted.map((k, i) => {
+        const isNext = k.isActive && i === 0;
+        const dot = k.isActive ? (k.lastError ? 'dot-red' : 'dot-green') : 'dot-grey';
+        return `<tr>
+          <td>${isNext ? '<span class="badge badge-analyzing">คิวถัดไป</span>' : (k.isActive ? `<span style="color: var(--text-muted);">#${i + 1}</span>` : '-')}</td>
+          <td style="font-weight: 500;">${escapeHtml(k.label)}${k.decryptError ? ' <span class="badge badge-failed" title="key นี้เข้ารหัสด้วย secret คนละตัว — ถอดรหัสไม่ได้ กรุณากดแก้ไขแล้วใส่ key ใหม่">ถอดรหัสไม่ได้</span>' : ''}</td>
+          <td class="mono">${escapeHtml(k.keyPreview)}</td>
+          <td>
+            <span class="status-dot ${dot}" title="${escapeHtml(k.lastError || 'ok')}"></span>
+            <label class="switch" style="margin-left:8px;">
+              <input type="checkbox" ${k.isActive ? 'checked' : ''} ${isSuperadmin ? '' : 'disabled'} onchange="toggleKey('${k.id}', this.checked)"><span class="slider"></span>
+            </label>
+          </td>
+          <td>${k.useCount}</td>
+          <td>${k.failCount || 0}${k.lastError ? ` <i class="mi mi-yellow" style="font-size:14px;" title="${escapeHtml(k.lastError)}">warning</i>` : ''}</td>
+          <td style="white-space: nowrap;">${k.lastUsedAt ? fmtDate(k.lastUsedAt) : '<span style="color:var(--text-muted);">ยังไม่เคยใช้</span>'}</td>
+          <td style="white-space: nowrap;">
+            <button class="btn btn-outline btn-sm" title="ทดสอบ key นี้กับ Gemini API จริง" onclick="testKey('${k.id}', '${escapeHtml(k.label)}')"><i class="mi" aria-hidden="true">network_check</i></button>
+            <button class="btn btn-outline btn-sm write-only" onclick="openEditModal('${k.id}', '${escapeHtml(k.label)}')"><i class="mi" aria-hidden="true">edit</i></button>
+            <button class="btn btn-danger btn-sm write-only" onclick="removeKey('${k.id}', '${escapeHtml(k.label)}')"><i class="mi" aria-hidden="true">delete</i></button>
+          </td>
+        </tr>`;
+      }).join('');
+      if (!isSuperadmin) document.querySelectorAll('.write-only').forEach(el => el.style.display = 'none');
+    }
+
+    function renderConfig(cfg) {
+      document.getElementById('cfgEnabled').checked = !!cfg.enabled;
+      document.getElementById('cfgMaxTokens').value = cfg.maxOutputTokens || 16000;
+      const sel = document.getElementById('cfgModel');
+      const models = [...new Set([...(cfg.availableModels || []), ...liveModelNames])];
+      sel.innerHTML = models.map(m => `<option value="${escapeHtml(m)}" ${m === cfg.model ? 'selected' : ''}>${escapeHtml(m)}</option>`).join('');
+      if (cfg.model && !models.includes(cfg.model)) {
+        sel.innerHTML = `<option value="${escapeHtml(cfg.model)}" selected>${escapeHtml(cfg.model)}</option>` + sel.innerHTML;
+      }
+    }
+
+    async function saveConfig() {
+      try {
+        const custom = document.getElementById('cfgModelCustom').value.trim();
+        const sel = document.getElementById('cfgModel').value;
+        const body = {
+          enabled: document.getElementById('cfgEnabled').checked,
+          model: custom || sel,
+          maxOutputTokens: Number(document.getElementById('cfgMaxTokens').value) || 16000,
+          availableModels: [...document.getElementById('cfgModel').options].map(o => o.value),
+        };
+        const data = await apiFetch('/admin/api/llm-keys/config', { method: 'PUT', body: JSON.stringify(body) });
+        if (data.ok) {
+          showToast(`บันทึกแล้ว — โมเดล ${data.config.model} (${data.config.enabled ? 'เปิด' : 'ปิด'})`);
+          document.getElementById('cfgModelCustom').value = '';
+          loadKeys();
+        } else showToast(data.error || 'บันทึกไม่สำเร็จ', true);
+      } catch (e) { showToast(e.message, true); }
+    }
+
+    async function fetchLiveModels() {
+      const statusEl = document.getElementById('liveModelsStatus');
+      const keys = await apiFetch('/admin/api/llm-keys').then(d => d.keys || []).catch(() => []);
+      const active = keys.find(k => k.isActive);
+      if (!active) { statusEl.textContent = 'ไม่มี key active — เพิ่ม key ก่อนจึงจะดึง list ได้'; return; }
+      statusEl.innerHTML = `<i class="mi" aria-hidden="true">hourglass_top</i> กำลังดึง list โมเดลด้วย key "${escapeHtml(active.label)}"...`;
+      try {
+        const data = await apiFetch(`/admin/api/llm-keys/live-models?keyId=${active.id}`);
+        if (!data.ok) { statusEl.textContent = 'ดึงไม่สำเร็จ: ' + (data.error || ''); return; }
+        liveModelNames = (data.models || []).map(m => m.name);
+        const sel = document.getElementById('cfgModel');
+        const cur = sel.value;
+        sel.innerHTML = liveModelNames.map(m => `<option value="${escapeHtml(m)}" ${m === cur ? 'selected' : ''}>${escapeHtml(m)}</option>`).join('');
+        statusEl.innerHTML = `<i class="mi mi-green" aria-hidden="true">check_circle</i> โหลด ${liveModelNames.length} โมเดลจาก API (key "${escapeHtml(data.keyLabel)}") — เลือกแล้วกดบันทึก`;
+      } catch (e) { statusEl.textContent = 'ดึงไม่สำเร็จ: ' + e.message; }
+    }
+
+    // ทดสอบ key รายใบ — ยิง /v1beta/models เบาๆ ไม่ใช้โควต้า generate
+    async function testKey(id, label) {
+      showToast(`กำลังทดสอบ "${label}"...`);
+      try {
+        const data = await apiFetch(`/admin/api/llm-keys/live-models?keyId=${id}`);
+        if (data.ok) showToast(`✅ "${label}" ใช้ได้ — เห็น ${data.models.length} โมเดล`);
+        else showToast(`❌ "${label}" ใช้ไม่ได้: ${(data.error || '').slice(0, 120)}`, true);
+      } catch (e) { showToast(`❌ "${label}": ${e.message}`, true); }
+    }
+
+    // ─── CRUD ───
+    async function addKey() {
+      const label = document.getElementById('newKeyLabel').value.trim();
+      const key = document.getElementById('newKeyValue').value.trim();
+      if (!label || !key) { showToast('กรุณากรอก label และ API key', true); return; }
+      try {
+        const data = await apiFetch('/admin/api/llm-keys', { method: 'POST', body: JSON.stringify({ label, key }) });
+        if (data.ok) {
+          showToast(`เพิ่ม key "${label}" แล้ว`);
+          document.getElementById('newKeyLabel').value = '';
+          document.getElementById('newKeyValue').value = '';
+          loadKeys();
+        } else showToast(data.error || 'เพิ่มไม่สำเร็จ', true);
+      } catch (e) { showToast(e.message, true); }
+    }
+
+    async function toggleKey(id, isActive) {
+      try {
+        const data = await apiFetch(`/admin/api/llm-keys/${id}`, { method: 'PATCH', body: JSON.stringify({ isActive }) });
+        if (data.ok) { showToast(`${isActive ? 'เปิด' : 'ปิด'} key "${data.key.label}" แล้ว`); loadKeys(); }
+        else { showToast(data.error || 'อัปเดตไม่สำเร็จ', true); loadKeys(); }
+      } catch (e) { showToast(e.message, true); loadKeys(); }
+    }
+
+    function openEditModal(id, label) {
+      editingKeyId = id;
+      document.getElementById('editLabel').value = label;
+      document.getElementById('editKeyValue').value = '';
+      document.getElementById('editModal').classList.add('active');
+    }
+    function closeEditModal() { document.getElementById('editModal').classList.remove('active'); editingKeyId = null; }
+
+    async function saveEditKey() {
+      const label = document.getElementById('editLabel').value.trim();
+      const key = document.getElementById('editKeyValue').value.trim();
+      try {
+        const data = await apiFetch(`/admin/api/llm-keys/${editingKeyId}`, { method: 'PATCH', body: JSON.stringify({ label, key: key || undefined }) });
+        if (data.ok) { showToast('บันทึกแล้ว'); closeEditModal(); loadKeys(); }
+        else showToast(data.error || 'บันทึกไม่สำเร็จ', true);
+      } catch (e) { showToast(e.message, true); }
+    }
+
+    async function removeKey(id, label) {
+      if (!confirm(`ลบ key "${label}" ? (กู้คืนไม่ได้)`)) return;
+      try {
+        const data = await apiFetch(`/admin/api/llm-keys/${id}`, { method: 'DELETE' });
+        if (data.ok) { showToast(`ลบ "${label}" แล้ว`); loadKeys(); }
+        else showToast(data.error || 'ลบไม่สำเร็จ', true);
+      } catch (e) { showToast(e.message, true); }
+    }
+
+    // ─── Audit (superadmin) ───
+    const AUDIT_ACTION_LABELS = {
+      llmkey_add: 'เพิ่ม key',
+      llmkey_update: 'แก้ไข/เปิด-ปิด key',
+      llmkey_delete: 'ลบ key',
+      llmkey_test: 'ทดสอบ key',
+      llm_extract_config_save: 'เปลี่ยน config สกัด',
+    };
+    function fmtAuditDetails(d) {
+      if (!d) return '-';
+      const parts = [];
+      if (d.ok === true) parts.push('สำเร็จ');
+      if (d.ok === false) parts.push('ล้มเหลว');
+      if (d.modelsCount != null) parts.push(`${d.modelsCount} โมเดล`);
+      if (d.model) parts.push(`model=${d.model}`);
+      if (d.enabled !== undefined) parts.push(d.enabled ? 'เปิด flow' : 'ปิด flow');
+      if (d.isActive !== undefined) parts.push(d.isActive ? 'เปิดใช้' : 'ปิดใช้');
+      if (d.keyReplaced) parts.push('เปลี่ยน key ใหม่');
+      if (d.error) parts.push(String(d.error).slice(0, 80));
+      return parts.join(' · ') || JSON.stringify(d).slice(0, 80);
+    }
+    async function loadAudit(page) {
+      auditPage = page || 1;
+      try {
+        const data = await apiFetch(`/admin/api/llmkey-audit?page=${auditPage}&limit=20`);
+        if (!data.ok) return;
+        auditPage = data.page;
+        document.getElementById('auditPageInfo').textContent = `${data.page}/${data.totalPages} (ทั้งหมด ${data.total})`;
+        document.getElementById('auditPrevBtn').disabled = data.page <= 1;
+        document.getElementById('auditNextBtn').disabled = data.page >= data.totalPages;
+        const tbody = document.getElementById('auditTableBody');
+        if (!data.items.length) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">ยังไม่มีประวัติการจัดการ</td></tr>';
+          return;
+        }
+        tbody.innerHTML = data.items.map(it => `<tr>
+          <td style="white-space: nowrap;">${fmtDate(it.createdAt)}</td>
+          <td>${escapeHtml(it.adminUsername || '-')} <span style="color:var(--text-muted);font-size:11px;">(${it.adminRole || ''})</span></td>
+          <td><span class="badge ${it.action === 'llmkey_delete' ? 'badge-failed' : 'badge-analyzing'}">${AUDIT_ACTION_LABELS[it.action] || escapeHtml(it.action)}</span></td>
+          <td>${escapeHtml(it.details?.label || it.target || '-')}</td>
+          <td style="font-size:12px; color:var(--text-muted);">${escapeHtml(fmtAuditDetails(it.details))}</td>
+        </tr>`).join('');
+      } catch (e) { console.error('loadAudit:', e); }
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { closeEditModal(); }
+    });
+    document.querySelectorAll('.modal-overlay').forEach(ov => {
+      ov.addEventListener('click', (e) => { if (e.target === ov && ov.id !== 'loginOverlay') ov.classList.remove('active'); });
+    });
+
+    loadAll();
+  </script>
+
+  <!-- ═══ Admin UX Pack JS: Drawer เมนู + โหมดตัวอักษร + ปุ่มกลับขึ้นบน — ชุดเดียวกับหน้า Admin ═══ -->
+  <script>
+    (function initAdminUX() {
+      const isDrawerMode = () => window.matchMedia('(max-width: 1100px)').matches;
+      const mainContent = document.querySelector('.main-content');
+
+      // ── Drawer navigation ──
+      const backdrop = document.createElement('div');
+      backdrop.className = 'nav-backdrop';
+      document.body.appendChild(backdrop);
+
+      const sidebar = document.getElementById('adminSidebar');
+      const navToggle = document.getElementById('navToggle');
+
+      const syncNavTabOrder = () => {
+        const hidden = isDrawerMode() && !document.body.classList.contains('nav-open');
+        sidebar?.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+        sidebar?.querySelectorAll('.nav-item, #navClose').forEach(el => {
+          el.setAttribute('tabindex', hidden ? '-1' : '0');
+        });
+      };
+
+      const openNav = () => {
+        document.body.classList.add('nav-open');
+        navToggle?.setAttribute('aria-expanded', 'true');
+        syncNavTabOrder();
+        const activeItem = sidebar?.querySelector('.nav-item.active');
+        activeItem?.scrollIntoView({ block: 'nearest' });
+        (activeItem || sidebar?.querySelector('#navClose'))?.focus({ preventScroll: true });
+      };
+      const closeNav = (returnFocus) => {
+        document.body.classList.remove('nav-open');
+        navToggle?.setAttribute('aria-expanded', 'false');
+        syncNavTabOrder();
+        if (returnFocus) navToggle?.focus({ preventScroll: true });
+      };
+      navToggle?.addEventListener('click', () => {
+        document.body.classList.contains('nav-open') ? closeNav() : openNav();
+      });
+      document.getElementById('navClose')?.addEventListener('click', () => closeNav(true));
+      backdrop.addEventListener('click', () => closeNav());
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && document.body.classList.contains('nav-open')) closeNav(true);
+      });
+      sidebar?.addEventListener('click', (e) => {
+        if (isDrawerMode() && e.target.closest('.nav-item')) closeNav();
+      });
+      window.addEventListener('resize', () => {
+        if (!isDrawerMode()) document.body.classList.remove('nav-open');
+        syncNavTabOrder();
+      });
+
+      // ── Keyboard access: ทำให้ทุก .nav-item (div) กดด้วย Tab/Enter/Space ได้ ──
+      sidebar?.querySelectorAll('.nav-item').forEach(item => {
+        item.setAttribute('role', 'link');
+        item.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            item.click();
+          }
+        });
+      });
+      syncNavTabOrder();
+
+      // ── โหมดตัวอักษรใหญ่ (จำค่าไว้ใน localStorage — key เดียวกับหน้า Admin) ──
+      const SCALE_KEY = 'biokoop-admin-font-scale';
+      const fsBtns = document.querySelectorAll('.fs-btn');
+      function applyScale(scale) {
+        if (scale) document.documentElement.setAttribute('data-ui-scale', scale);
+        else document.documentElement.removeAttribute('data-ui-scale');
+        fsBtns.forEach(b => b.classList.toggle('active', b.dataset.scale === scale));
+        try { localStorage.setItem(SCALE_KEY, scale); } catch (e) {}
+      }
+      fsBtns.forEach(b => b.addEventListener('click', () => applyScale(b.dataset.scale)));
+      let saved = '';
+      try { saved = localStorage.getItem(SCALE_KEY) || ''; } catch (e) {}
+      applyScale(saved);
+
+      // ── ปุ่มลอย "กลับขึ้นด้านบน" ──
+      const scrollBtn = document.createElement('button');
+      scrollBtn.type = 'button';
+      scrollBtn.className = 'scroll-top-btn';
+      scrollBtn.textContent = '↑';
+      scrollBtn.setAttribute('aria-label', 'กลับขึ้นด้านบนสุด');
+      scrollBtn.title = 'กลับขึ้นด้านบนสุด';
+      document.body.appendChild(scrollBtn);
+      scrollBtn.addEventListener('click', () => {
+        mainContent?.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      function toggleScrollBtn() {
+        const y = Math.max(mainContent?.scrollTop || 0, window.scrollY || 0);
+        scrollBtn.classList.toggle('show', y > 320);
+      }
+      mainContent?.addEventListener('scroll', toggleScrollBtn, { passive: true });
+      window.addEventListener('scroll', toggleScrollBtn, { passive: true });
+    })();
+  </script>
+  <script>
+    // bare mode (ฝังใน iframe): ลิงก์ /llmkey2* ให้ติด bare=1 ต่อ, ลิงก์ออกนอก (เช่น /admin) เปิดที่หน้าหลัก
+    if (document.documentElement.classList.contains('bare')) {
+      addEventListener('click', (e) => {
+        const a = e.target.closest('a[href]');
+        if (!a) return;
+        const u = new URL(a.href, location.origin);
+        if (u.origin !== location.origin) return;
+        e.preventDefault();
+        if (u.pathname.startsWith('/llmkey2')) { u.searchParams.set('bare', '1'); location.href = u.pathname + u.search + u.hash; }
+        else top.location.href = u.href;
+      }, true);
+    }
+  </script>
+</body>
+</html>
