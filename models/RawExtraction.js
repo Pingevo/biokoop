@@ -16,6 +16,8 @@ const rawExtractionSchema = new mongoose.Schema(
     keyLabel: { type: String, default: "" },
     imageCount: { type: Number, default: 0 },
     status: { type: String, enum: ["success", "failed"], default: "failed", index: true },
+    // "sim" = สกัดจาก simulator (/testline, /demo) — ไม่นับสถิติ LINE จริง
+    channel: { type: String, enum: ["line", "sim"], default: "line", index: true },
     rawResult: { type: mongoose.Schema.Types.Mixed }, // JSON เต็มที่ AI สกัดมา
     promptTokens: { type: Number, default: 0 },
     completionTokens: { type: Number, default: 0 },

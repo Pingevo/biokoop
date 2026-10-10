@@ -13,6 +13,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { RawExtraction } from "../models/RawExtraction.js";
+import { inSimContext } from "./simContext.js";
 import { Request } from "../models/Request.js";
 import { logAiUsage } from "./aiUsageLogger.js";
 import { openDownloadStream } from "./storageService.js";
@@ -263,6 +264,7 @@ export async function runRawExtraction({ requestId, lineUserId, imageBuffers, mi
       model: config.model,
       imageCount: imageBuffers.length,
       status: "failed",
+      channel: inSimContext() ? "sim" : "line",
     });
 
     const activeKeys = await getActiveKeyCount();
@@ -363,6 +365,7 @@ export async function runRawExtraction({ requestId, lineUserId, imageBuffers, mi
         status: "failed",
         errorMessage: `outer: ${err.message}`,
         durationMs: Date.now() - startTime,
+        channel: inSimContext() ? "sim" : "line",
       });
     } catch {}
   } finally {

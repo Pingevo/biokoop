@@ -283,6 +283,9 @@
       <div class="nav-item" id="nav-testline" onclick="nav('testline')">
         <span><i class="mi" aria-hidden="true">phone_iphone</i></span> TestLine Sim
       </div>
+      <div class="nav-item" id="nav-dashboardstat" onclick="nav('dashboardstat')">
+        <span><i class="mi" aria-hidden="true">monitoring</i></span> Dashboard Stat
+      </div>
 
       <div class="nav-section-label"><i class="mi" aria-hidden="true">science</i> เครื่องมือ &amp; ระบบ</div>
       <div class="nav-item" onclick="window.location.href='/admin#system-health'">
@@ -318,6 +321,7 @@
       <iframe title="Chat Persona" data-key="chatpersona"></iframe>
       <iframe title="Health Calendar" data-key="healthcalendar"></iframe>
       <iframe title="TestLine Sim" data-key="testline"></iframe>
+      <iframe title="Dashboard Stat" data-key="dashboardstat"></iframe>
     </main>
   </div>
 
@@ -329,6 +333,7 @@
       chatpersona:    { url: '/chatpersona?bare=1',    title: 'Chat Persona' },
       healthcalendar: { url: '/healthcalendar?bare=1', title: 'Health Calendar' },
       testline:       { url: '/testline?bare=1',       title: 'TestLine Sim' },
+      dashboardstat:  { url: '/dashboardstat?bare=1',  title: 'Dashboard Stat' },
     };
     const DEFAULT_PAGE = 'testchatbot';
     const frames = {};

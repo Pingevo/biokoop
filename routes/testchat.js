@@ -57,6 +57,194 @@ router.get("/shell", requireAdmin, (req, res) => {
   res.sendFile("private/shell/index.html", { root: process.cwd() });
 });
 
+// หน้า Dashboard Statistic — สถิติการใช้งาน LINE (push/reply/broadcast + users + extractions) แยกจาก dashboard เดิม
+router.get("/dashboardstat", requireAdmin, (req, res) => {
+  res.sendFile("private/dashboardstat/index.html", { root: process.cwd() });
+});
+
+// ── Dashboard Statistic API ──
+// นับเฉพาะ channel:"line" — log ของ simulator (channel:"sim") ไม่ปนสถิติจริง
+const BKK_OFFSET_MS = 7 * 60 * 60 * 1000;
+const bkkDayKey = (ms) => new Date(ms + BKK_OFFSET_MS).toISOString().slice(0, 10);
+const bucketKeyOf = (dayKey, group) => {
+  if (group === "day") return dayKey;
+  const [y, m] = dayKey.split("-").map(Number);
+  if (group === "month") return `${y}-${String(m).padStart(2, "0")}`;
+  if (group === "quarter") return `${y}-Q${Math.ceil(m / 3)}`;
+  return `${y}`;
+};
+
+function parseStatsRange(query) {
+  const today = bkkDayKey(Date.now());
+  const d29 = bkkDayKey(Date.now() - 29 * 86400000);
+  const from = /^\d{4}-\d{2}-\d{2}$/.test(query.from || "") ? query.from : d29;
+  const to = /^\d{4}-\d{2}-\d{2}$/.test(query.to || "") ? query.to : today;
+  const fromMs = Date.parse(`${from}T00:00:00+07:00`);
+  const toMs = Date.parse(`${to}T00:00:00+07:00`) + 86400000;
+  return { from, to, fromMs, toMs, valid: toMs > fromMs };
+}
+
+router.get("/admin/api/stats/messaging", requireAdmin, async (req, res) => {
+  try {
+    const group = ["day", "month", "quarter", "year"].includes(req.query.group) ? req.query.group : "day";
+    const { from, to, fromMs, toMs, valid } = parseStatsRange(req.query);
+    if (!valid) return res.status(400).json({ ok: false, error: "ช่วงวันที่ไม่ถูกต้อง" });
+
+    const span = toMs - fromMs;
+    const prevFromMs = fromMs - span; // period ก่อนหน้าความยาวเท่ากัน — ใช้เทียบ % โต/ลด
+    const db = mongoose.connection.db;
+    const logs = db.collection("linemessagelogs");
+    // $ne:"sim" — docs เก่าก่อนมี field channel ไม่มีค่านี้ ต้องนับเป็น line ด้วย (channel:"line" จะตัดทิ้ง)
+    const inRange = (a, b) => ({ createdAt: { $gte: new Date(a), $lt: new Date(b) }, channel: { $ne: "sim" } });
+
+    const [dayRows, totRows, prevTotRows, curUsers, prevUsers, rawRows, reqRows] = await Promise.all([
+      logs.aggregate([
+        { $match: inRange(fromMs, toMs) },
+        { $group: { _id: { d: { $dateTrunc: { date: "$createdAt", unit: "day", timezone: "Asia/Bangkok" } }, t: "$sendType" }, n: { $sum: 1 } } },
+      ]).toArray(),
+      logs.aggregate([{ $match: inRange(fromMs, toMs) }, { $group: { _id: "$sendType", n: { $sum: 1 } } }]).toArray(),
+      logs.aggregate([{ $match: inRange(prevFromMs, fromMs) }, { $group: { _id: "$sendType", n: { $sum: 1 } } }]).toArray(),
+      logs.distinct("lineUserId", { ...inRange(fromMs, toMs), sendType: "incoming" }),
+      logs.distinct("lineUserId", { ...inRange(prevFromMs, fromMs), sendType: "incoming" }),
+      db.collection("rawextractions").aggregate([
+        { $match: { createdAt: { $gte: new Date(fromMs), $lt: new Date(toMs) }, channel: { $ne: "sim" } } },
+        { $group: { _id: "$status", n: { $sum: 1 } } },
+      ]).toArray(),
+      db.collection("requests").aggregate([
+        { $match: { createdAt: { $gte: new Date(fromMs), $lt: new Date(toMs) }, reportType: "weekly", channel: { $ne: "sim" } } },
+        { $group: { _id: "$status", n: { $sum: 1 } } },
+      ]).toArray(),
+    ]);
+
+    // วัน → จำนวนแยก sendType
+    const dayMap = new Map();
+    for (const r of dayRows) {
+      const k = bkkDayKey(new Date(r._id.d).getTime());
+      if (!dayMap.has(k)) dayMap.set(k, {});
+      dayMap.get(k)[r._id.t] = r.n;
+    }
+
+    // สร้าง bucket ครบทุกช่วง (วันที่ว่าง → 0 ไม่ข้าม — user ขอให้โชว์ 0 ไม่ใช่ว่าง)
+    const buckets = [];
+    const bucketIdx = new Map();
+    for (let ms = fromMs; ms < toMs; ms += 86400000) {
+      const dayKey = bkkDayKey(ms);
+      const bk = bucketKeyOf(dayKey, group);
+      if (!bucketIdx.has(bk)) {
+        bucketIdx.set(bk, buckets.length);
+        buckets.push({ key: bk, reply: 0, push: 0, broadcast: 0, incoming: 0 });
+      }
+      const d = dayMap.get(dayKey) || {};
+      const b = buckets[bucketIdx.get(bk)];
+      b.reply += d.reply || 0;
+      b.push += d.push || 0;
+      b.incoming += d.incoming || 0;
+    }
+
+    const sumBy = (rows) => rows.reduce((o, r) => ({ ...o, [r._id]: r.n }), {});
+    const cur = sumBy(totRows);
+    const prev = sumBy(prevTotRows);
+    const deltaPct = (c, p) => (p > 0 ? Math.round(((c - p) / p) * 1000) / 10 : null); // prev=0 → null (แสดง "ใหม่")
+
+    const totals = {
+      reply: cur.reply || 0, push: cur.push || 0, broadcast: 0,
+      incoming: cur.incoming || 0, activeUsers: curUsers.length,
+    };
+    const prevTotals = {
+      reply: prev.reply || 0, push: prev.push || 0, broadcast: 0,
+      incoming: prev.incoming || 0, activeUsers: prevUsers.length,
+    };
+    const delta = Object.fromEntries(
+      Object.keys(totals).map((k) => [k, deltaPct(totals[k], prevTotals[k])])
+    );
+
+    const statusSum = (rows) => rows.reduce((o, r) => ({ ...o, [r._id]: r.n }), {});
+    const raw = statusSum(rawRows);
+    const reqS = statusSum(reqRows);
+    const extractions = {
+      raw: { total: Object.values(raw).reduce((a, b) => a + b, 0), success: raw.success || 0, failed: raw.failed || 0 },
+      flow: {
+        total: Object.values(reqS).reduce((a, b) => a + b, 0),
+        success: reqS.sent || 0,
+        failed: (reqS.failed || 0) + (reqS.quality_failed || 0),
+        other: (reqS.received || 0) + (reqS.analyzing || 0) + (reqS.needs_review || 0) + (reqS.composing || 0),
+      },
+    };
+
+    res.json({ ok: true, range: { from, to, group }, buckets, totals, prevTotals, delta, extractions });
+  } catch (err) {
+    console.error("[stats/messaging] error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// รายชื่อ user ที่ใช้งานในช่วงเวลา + feature ที่ใช้ (ครอบทั้ง flow เดิมและโหมดบอท)
+// chat ของลูกค้าจริง: chatmessages adminUsername="chat-mode" | food: assistant doc มี foodData
+router.get("/admin/api/stats/users", requireAdmin, async (req, res) => {
+  try {
+    const { fromMs, toMs, valid } = parseStatsRange(req.query);
+    if (!valid) return res.status(400).json({ ok: false, error: "ช่วงวันที่ไม่ถูกต้อง" });
+    const db = mongoose.connection.db;
+    const range = { $gte: new Date(fromMs), $lt: new Date(toMs) };
+
+    const [msgRows, chatRows, foodRows, reqRows, rawRows] = await Promise.all([
+      db.collection("linemessagelogs").aggregate([
+        { $match: { createdAt: range, channel: { $ne: "sim" }, sendType: "incoming" } },
+        { $group: { _id: "$lineUserId", msgs: { $sum: 1 },
+            images: { $sum: { $cond: [{ $eq: ["$messageType", "image"] }, 1, 0] } },
+            lastActive: { $max: "$createdAt" } } },
+      ]).toArray(),
+      db.collection("chatmessages").aggregate([
+        { $match: { createdAt: range, role: "user", adminUsername: "chat-mode" } },
+        { $group: { _id: "$lineUserId", asks: { $sum: 1 },
+            chatImages: { $sum: { $cond: ["$hasImages", 1, 0] } } } },
+      ]).toArray(),
+      db.collection("chatmessages").aggregate([
+        { $match: { createdAt: range, role: "assistant", adminUsername: "chat-mode", foodData: { $exists: true } } },
+        { $group: { _id: "$lineUserId", n: { $sum: 1 } } },
+      ]).toArray(),
+      db.collection("requests").aggregate([
+        { $match: { createdAt: range, reportType: "weekly", channel: { $ne: "sim" } } },
+        { $group: { _id: "$lineUserId", reports: { $sum: 1 },
+            sent: { $sum: { $cond: [{ $eq: ["$status", "sent"] }, 1, 0] } } } },
+      ]).toArray(),
+      db.collection("rawextractions").aggregate([
+        { $match: { createdAt: range, channel: { $ne: "sim" } } },
+        { $group: { _id: "$lineUserId", n: { $sum: 1 } } },
+      ]).toArray(),
+    ]);
+
+    const map = new Map();
+    const row = (id) => {
+      if (!map.has(id)) map.set(id, {
+        lineUserId: id, msgs: 0, images: 0, asks: 0, chatImages: 0,
+        food: 0, reports: 0, reportsSent: 0, extractions: 0, lastActive: null,
+      });
+      return map.get(id);
+    };
+    for (const r of msgRows) Object.assign(row(r._id), { msgs: r.msgs, images: r.images, lastActive: r.lastActive });
+    for (const r of chatRows) Object.assign(row(r._id), { asks: r.asks, chatImages: r.chatImages });
+    for (const r of foodRows) Object.assign(row(r._id), { food: r.n });
+    for (const r of reqRows) Object.assign(row(r._id), { reports: r.reports, reportsSent: r.sent });
+    for (const r of rawRows) Object.assign(row(r._id), { extractions: r.n });
+
+    const uids = [...map.keys()];
+    const users = await db.collection("users")
+      .find({ lineUserId: { $in: uids } })
+      .project({ lineUserId: 1, displayName: 1, nickname: 1 })
+      .toArray();
+    const nameOf = new Map(users.map((u) => [u.lineUserId, u.nickname || u.displayName || ""]));
+
+    const rows = [...map.values()]
+      .map((r) => ({ ...r, name: nameOf.get(r.lineUserId) || "" }))
+      .sort((a, b) => new Date(b.lastActive || 0) - new Date(a.lastActive || 0));
+    res.json({ ok: true, users: rows });
+  } catch (err) {
+    console.error("[stats/users] error:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // ── LINE simulator (เฉพาะ text/menu — รูปภาพต้องทดสอบบน LINE จริง) ──
 const SIM_REPLY_TOKEN = "testline-sim";
 // sim user ปัจจุบัน — สลับได้ผ่าน /testline/user (default เป็น userbot ถ้ามีใน DB)
@@ -175,7 +363,11 @@ async function runSimEvent(message) {
   let live = true;
   const sink = (kind, args) => {
     if (kind === "profile") return simProfile;
-    if (kind === "loading") return true;
+    if (kind === "loading") {
+      (live ? captured : simLate).push({ kind, messages: [{ type: "loading", seconds: args?.loadingSeconds || 20 }] });
+      if (simLate.length > 100) simLate.splice(0, simLate.length - 100);
+      return true;
+    }
     (live ? captured : simLate).push({ kind, messages: args.messages || [] });
     if (simLate.length > 100) simLate.splice(0, simLate.length - 100);
     return true;

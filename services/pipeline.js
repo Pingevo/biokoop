@@ -19,6 +19,7 @@ import { saveImage } from "./storageService.js";
 import { sendAdminAlert } from "./alertService.js";
 import { classifyWeeklyImage, analyzeWeeklyImages } from "./aiService.js";
 import { enqueueExtraction } from "./extractionQueue.js";
+import { inSimContext } from "./simContext.js";
 import { getChatMode } from "./chatMode.js";
 
 // ─── WEEKLY REPORT BATCHING ───
@@ -238,11 +239,6 @@ async function processWeeklyReport({ lineUserId, batch, replyToken }) {
   const startTime = Date.now();
 
   try {
-    replyText(
-      replyToken,
-      "ได้รับครบทั้ง 3 หน้าแล้วค่ะ ✨\nAI กำลังวิเคราะห์เทรนด์สุขภาพให้นะคะ กรุณารอสักครู่ค่ะ ⏳",
-      lineUserId
-    ).catch(() => {});
     showLoadingAnimation(lineUserId, 45).catch(() => {});
 
     // จัดลำดับภาพให้คงที่เสมอ: 1) Body Load -> 2) Recovery -> 3) Sleep Quality
@@ -259,6 +255,7 @@ async function processWeeklyReport({ lineUserId, batch, replyToken }) {
       lineUserId,
       status: REQUEST_STATUS.ANALYZING,
       reportType: "weekly",
+      channel: inSimContext() ? "sim" : "line",
       imei: user?.imei || "",
       orderSn: user?.orderSn || "",
       orderId: user?.orderId || "",
@@ -352,7 +349,7 @@ async function processWeeklyReport({ lineUserId, batch, replyToken }) {
     // ส่งรายงานสุขภาพ (Flex Carousel + ภาพรวม 1 รูป + รูปเดี่ยว 3 หน้า + ข้อความสรุป) เข้าแชทผู้ใช้
     // — โหมดแชทบอทมี onComplete ให้แทน: extraction/รูปถูกเก็บปกติ แต่ตอบกลับแบบสนทนาแทนการ์ดรายงาน
     if (batch.onComplete) {
-      await batch.onComplete(aiData);
+      await batch.onComplete(aiData, { imageUrls, combinedImageUrl });
     } else {
       await sendWeeklyReportImages(lineUserId, imageUrls, aiData, combinedImageUrl);
     }

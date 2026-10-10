@@ -66,6 +66,16 @@
   .bub img { max-width: 100%; border-radius: 8px; display: block; }
   .bub .flexnote { font-size: 11px; color: #71717a; border-top: 1px dashed #d4d4d8; margin-top: 6px; padding: 5px 12px 10px; }
   .bub.flexmsg { padding: 0; max-width: 94%; flex-shrink: 0; }
+  .bub.flexmsg .flexcar { display: flex; gap: 8px; overflow-x: auto; padding: 10px 10px 0; }
+  .bub.flexmsg .flexcar > * {
+    flex: 0 0 220px; min-width: 0; background: #fff; border-radius: 12px;
+    padding: 12px; box-shadow: 0 0 0 1px #e4e4e7;
+  }
+  .bub.typing { display: inline-flex; gap: 5px; align-items: center; padding: 12px 14px; }
+  .bub.typing i { width: 7px; height: 7px; border-radius: 50%; background: #a1a1aa; display: block; animation: tpdot 1.2s infinite; }
+  .bub.typing i:nth-child(2) { animation-delay: .18s; }
+  .bub.typing i:nth-child(3) { animation-delay: .36s; }
+  @keyframes tpdot { 0%, 60%, 100% { transform: translateY(0); opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
 
   /* input row */
   .inputrow { background: #f4f4f5; padding: 8px; display: flex; gap: 8px; align-items: center; }
@@ -276,7 +286,29 @@ function flexEl(n) {
     for (const c of n.contents || []) { const e = flexEl(c); if (e) d.appendChild(e); }
     return d;
   }
-  if (n.type === 'bubble') return flexEl(n.body);
+  if (n.type === 'image') {
+    const i = document.createElement('img');
+    i.src = n.url || ''; i.alt = '';
+    i.style.cssText = 'width:100%;display:block;' + (n.cornerRadius ? `border-radius:${parseInt(n.cornerRadius) || 8}px;` : '');
+    return i;
+  }
+  if (n.type === 'carousel') {
+    const row = document.createElement('div'); row.className = 'flexcar';
+    for (const b of n.contents || []) {
+      const w = document.createElement('div');
+      const e = flexEl(b); if (e) w.appendChild(e);
+      row.appendChild(w);
+    }
+    return row;
+  }
+  if (n.type === 'bubble') {
+    const w = document.createElement('div');
+    for (const part of [n.header, n.hero, n.body, n.footer]) {
+      const e = flexEl(part); if (e) w.appendChild(e);
+    }
+    if (n.header?.backgroundColor) w.style.background = n.header.backgroundColor;
+    return w;
+  }
   return null;
 }
 
@@ -284,6 +316,13 @@ function renderReply(m) {
   try { _renderReply(m); } catch (e) { sys('⚠️ render ' + m.type + ' failed: ' + e.message); }
 }
 function _renderReply(m) {
+  if (m.type === 'loading') {
+    const d = document.createElement('div'); d.className = 'bub bot typing';
+    d.innerHTML = '<i></i><i></i><i></i>';
+    chat.appendChild(d); chat.scrollTop = chat.scrollHeight;
+    setTimeout(() => { d.className = 'bub sys'; d.textContent = `⏳ LINE loading animation ${m.seconds || 20}s (ใน LINE จริงโชว์จุดหมุนที่ห้องแชท)`; }, 2600);
+    return;
+  }
   if (m.type === 'text') { bubble(m.text, 'bot'); return; }
   if (m.type === 'flex') {
     const d = document.createElement('div'); d.className = 'bub bot flexmsg';

@@ -7,17 +7,19 @@ import {
   replyText,
   replyTextWithQuickReply,
   replyImage,
-  replyFlex,
   sendResultCardWithShare,
   sendWeeklyReportImages,
   getProfile,
   getImageContent,
   pushText,
+  pushFlex,
+  replyMessages,
+  showLoadingAnimation,
 } from "../services/lineService.js";
 import { queueWeeklyImage } from "../services/pipeline.js";
 import { classifyWeeklyImage } from "../services/aiService.js";
 import { optimizeImageForAi } from "../services/imageService.js";
-import { buildFoodFlex } from "../services/foodFlexTemplate.js";
+import { buildFoodFlex, buildFoodLoadingFlex } from "../services/foodFlexTemplate.js";
 import { addIncomingText, draftConfig } from "../services/chatDraftBuffer.js";
 import {
   CHAT_ENTER_TEXT,
@@ -28,6 +30,7 @@ import {
   exitChatMode,
 } from "../services/chatMode.js";
 import { getBotMessagesConfig } from "../services/botMessagesConfigService.js";
+import { inSimContext } from "../services/simContext.js";
 import { getRegistrationConfig } from "../services/registrationConfigService.js";
 import mongoose from "mongoose";
 import { User } from "../models/User.js";
@@ -106,7 +109,7 @@ async function askHealthChatbotJson(lineUserId, text, sessionId, images = [], ta
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         lineUserId, message: text, sessionId,
-        adminUsername: "chat-mode", images,
+        adminUsername: inSimContext() ? "chat-mode-sim" : "chat-mode", images,
         ...(task ? { task } : {}),
       }),
       signal: AbortSignal.timeout(90_000),
@@ -200,6 +203,7 @@ async function queueModeText(lineUserId, text, sess) {
   clearTimeout(buf.timer);
   buf.timer = setTimeout(() => flushModeText(lineUserId), delayMs);
   buf.timer.unref?.();
+  showLoadingAnimation(lineUserId, 60).catch(() => {}); // จุดหมุน "กำลังคิด" ฟรี — หมุนค้างตอนรอ debounce + AI ตอบ
 }
 
 async function flushModeText(lineUserId) {
@@ -245,31 +249,40 @@ async function handleChatModeImage(lineUserId, messageId, replyToken, sess) {
   const image = [{ data: optimized.toString("base64"), mimeType: "image/jpeg" }];
 
   if (sess.mode === "food") {
+    // ack ทันที (reply ฟรี) + จุดหมุนกำลังคิด — ผลจริงส่งทาง push ตาม pattern flow เดิม
+    if (replyToken) {
+      await replyMessages(replyToken, [
+        { type: "text", text: "ได้รับภาพแล้วค่ะ กำลังประมวลผลภาพให้นะคะ 🍽️" },
+        buildFoodLoadingFlex(),
+      ], lineUserId).catch((e) => console.error("[webhook] food ack reply error:", e));
+    }
+    showLoadingAnimation(lineUserId, 60).catch(() => {});
     const j = await askHealthChatbotJson(lineUserId, FOOD_ANALYSIS_PROMPT, sess.sessionId, image, "food");
     touchChatMode(lineUserId);
-    if (replyToken) {
-      const food = j?.meta?.foodData || tryParseFoodJson(j?.answer);
-      if (food && Array.isArray(food.items) && food.items.length) {
-        try {
-          await replyFlex(replyToken, buildFoodFlex(food), lineUserId);
-        } catch (e) {
-          console.error("[webhook] food flex reply failed:", e);
-          const v = await botVoice();
-          await replyText(replyToken, j.answer || `ขออภัย${v.p} ระบบขัดข้องชั่วคราว${v.p}`, lineUserId).catch(() => {});
-        }
-      } else {
+    const food = j?.meta?.foodData || tryParseFoodJson(j?.answer);
+    if (food && Array.isArray(food.items) && food.items.length) {
+      try {
+        await pushFlex(lineUserId, buildFoodFlex(food));
+      } catch (e) {
+        console.error("[webhook] food flex push failed:", e);
         const v = await botVoice();
-        await replyText(replyToken, j?.answer || `ขออภัย${v.p} ระบบขัดข้องชั่วคราว${v.p}`, lineUserId).catch(() => {});
+        await pushText(lineUserId, j.answer || `ขออภัย${v.p} ระบบขัดข้องชั่วคราว${v.p}`).catch(() => {});
       }
+    } else {
+      const v = await botVoice();
+      await pushText(lineUserId, j?.answer || `ขออภัย${v.p} ระบบขัดข้องชั่วคราว${v.p}`).catch(() => {});
     }
     return;
   }
 
   const cls = await classifyWeeklyImage(optimized, "image/jpeg").catch(() => ({ page: "unknown" }));
   if (cls.page !== "unknown" && (cls.confidence ?? 0) >= 0.5) {
+    showLoadingAnimation(lineUserId, 45).catch(() => {});
     await queueWeeklyImage({
       lineUserId, messageId, replyToken,
-      onComplete: async (aiData) => {
+      onComplete: async (aiData, report) => {
+        await sendWeeklyReportImages(lineUserId, report?.imageUrls || [], aiData, report?.combinedImageUrl)
+          .catch((err) => console.error("[webhook] sendWeeklyReportImages(chat-mode) error:", err));
         const q = sess.lastQuestion;
         const ans = await askHealthChatbot(lineUserId,
           `[ระบบ] ลูกค้าเพิ่งส่งภาพครบ 3 หน้าและวิเคราะห์เสร็จแล้ว\nผลวิเคราะห์: ${JSON.stringify(aiData).slice(0, 6000)}\n` +
@@ -282,9 +295,14 @@ async function handleChatModeImage(lineUserId, messageId, replyToken, sess) {
     return;
   }
 
+  // รูปทั่วไป (ไม่ใช่ Kieslect) — ack "กำลังประมวลผล" + จุดหมุน แล้วค่อย push คำตอบ
+  if (replyToken) {
+    await replyText(replyToken, "ได้รับภาพแล้วค่ะ กำลังประมวลผลภาพให้นะคะ ⏳", lineUserId).catch(() => {});
+  }
+  showLoadingAnimation(lineUserId, 45).catch(() => {});
   const ans = await askHealthChatbot(lineUserId, "", sess.sessionId, image);
   touchChatMode(lineUserId);
-  if (replyToken) await replyText(replyToken, ans, lineUserId).catch(() => {});
+  await pushText(lineUserId, ans).catch(() => {});
 }
 
 export async function handleEvent(event) {
