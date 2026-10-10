@@ -239,11 +239,6 @@ async function processWeeklyReport({ lineUserId, batch, replyToken }) {
   const startTime = Date.now();
 
   try {
-    replyText(
-      replyToken,
-      "ได้รับครบทั้ง 3 หน้าแล้วค่ะ ✨\nAI กำลังวิเคราะห์เทรนด์สุขภาพให้นะคะ กรุณารอสักครู่ค่ะ ⏳",
-      lineUserId
-    ).catch(() => {});
     showLoadingAnimation(lineUserId, 45).catch(() => {});
 
     // จัดลำดับภาพให้คงที่เสมอ: 1) Body Load -> 2) Recovery -> 3) Sleep Quality

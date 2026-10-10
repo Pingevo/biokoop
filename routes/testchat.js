@@ -363,7 +363,11 @@ async function runSimEvent(message) {
   let live = true;
   const sink = (kind, args) => {
     if (kind === "profile") return simProfile;
-    if (kind === "loading") return true;
+    if (kind === "loading") {
+      (live ? captured : simLate).push({ kind, messages: [{ type: "loading", seconds: args?.loadingSeconds || 20 }] });
+      if (simLate.length > 100) simLate.splice(0, simLate.length - 100);
+      return true;
+    }
     (live ? captured : simLate).push({ kind, messages: args.messages || [] });
     if (simLate.length > 100) simLate.splice(0, simLate.length - 100);
     return true;
