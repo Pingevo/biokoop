@@ -1,0 +1,36 @@
+# biokoop — deploy Node (5000) + Python chatbot (5001) พร้อมกัน
+# วิธีใช้:
+#   1. cp .env.example .env แล้วกรอกค่าจริง (LINE keys, MONGODB_URI, SESSION_SECRET,
+#      LLMKEY_ENCRYPTION_KEY, PUBLIC_BASE_URL=https://<domain>)
+#   2. MongoDB รันบน host → ตั้ง MONGODB_URI=mongodb://host.docker.internal:27017/biokoop
+#      (Mac/Windows ใช้ได้เลย · Linux ต้องมี extra_hosts ด้านล่าง)
+#   3. docker compose up -d --build
+#   4. วาง reverse proxy (Caddy/Nginx/Cloudflare) หน้า port 5000 ให้ได้ HTTPS
+#      แล้วตั้ง LINE webhook = https://<domain>/webhook
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.node
+    ports:
+      - "5000:5000"
+    env_file: .env
+    environment:
+      # ชี้ Python ผ่านชื่อ service ใน compose network (ไม่ใช่ localhost)
+      PY_CHAT_URL: http://chatbot:5001
+    depends_on:
+      - chatbot
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # ให้ container เห็น MongoDB บน host (Linux)
+    restart: unless-stopped
+
+  chatbot:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.chatbot
+    env_file: .env
+    # ไม่ expose พอร์ตออกภายนอก — Express proxy เข้าหาผ่าน network เดียวกันเท่านั้น
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

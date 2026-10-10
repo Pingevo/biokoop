@@ -1,0 +1,16 @@
+# biokoop Node app — Express (port 5000)
+FROM node:20-bookworm-slim
+
+WORKDIR /app
+
+# deps ก่อน — cache layer ถ้า package*.json ไม่เปลี่ยน
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+COPY . .
+
+ENV NODE_ENV=production
+ENV PORT=5000
+EXPOSE 5000
+
+CMD ["node", "server.js"]
