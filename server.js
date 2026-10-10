@@ -5,6 +5,7 @@ import MongoStore from "connect-mongo";
 import mongoose from "mongoose";
 import { connectDB } from "./config/db.js";
 import { initImageService } from "./services/imageService.js";
+import { startExtractionWorker } from "./services/extractionQueue.js";
 import { loadAdminUser } from "./middlewares/adminAuth.js";
 import webhookRoute from "./routes/webhook.js";
 import resultsRoute from "./routes/results.js";
@@ -12,6 +13,9 @@ import adminRoute from "./routes/admin.js";
 import adminAuthRoute from "./routes/adminAuth.js";
 import registerRoute from "./routes/register.js";
 import healthRoute from "./routes/health.js";
+import llmkeyRoute from "./routes/llmkey.js";
+import testchatRoute from "./routes/testchat.js";
+import demoRoute from "./routes/demo.js";
 import { requireAdmin } from "./middlewares/adminAuth.js";
 
 const app = express();
@@ -88,6 +92,9 @@ app.get(["/admin", "/admin/", "/admin/index.html"], requireAdmin, (req, res) => 
   res.sendFile("public/admin/index.html", { root: process.cwd() });
 });
 app.use("/admin", adminRoute);
+app.use("/", llmkeyRoute); // /llmkey2 + /admin/api/llm-keys + /admin/api/raw-extractions
+app.use("/", testchatRoute); // /testchatbot + /admin/api/chat/* (proxy → Python :5001)
+app.use("/", demoRoute); // /demo — หน้าทดสอบสาธารณะ ไม่ต้องล็อกอิน (userbot ตายตัว, ไม่ยิง LINE)
 
 app.get("/", (req, res) => {
   res.send("biokoop is running");
@@ -98,6 +105,7 @@ const PORT = process.env.PORT || 3000;
 async function start() {
   await connectDB();
   await initImageService();
+  await startExtractionWorker(); // กู้ extraction job ค้าง + เปิด retry worker
   const server = app.listen(PORT, () => {
     console.log(`[server] biokoop ทำงานที่ port ${PORT} (NODE_ENV=${process.env.NODE_ENV || "development"})`);
   });

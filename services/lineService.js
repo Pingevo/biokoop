@@ -1,4 +1,5 @@
 import { messagingApi, middleware } from "@line/bot-sdk";
+import { simCtx } from "./simContext.js";
 import { getBotMessagesConfig } from "./botMessagesConfigService.js";
 import { getCardConfig } from "./cardConfigService.js";
 import { logLineMessage } from "../models/LineMessageLog.js";
@@ -16,6 +17,34 @@ const client = new messagingApi.MessagingApiClient({
 const blobClient = new messagingApi.MessagingApiBlobClient({
   channelAccessToken: config.channelAccessToken,
 });
+
+// ── simulator isolation (/testline + /demo) — sim context ผ่าน AsyncLocalStorage
+// context propagate ไปยังทุก async continuation ที่ spawn จาก sim event (promise/setTimeout/job)
+// → send ทุกครั้งใน flow ถูกดักเสมอ แม้ยิงหลัง HTTP request จบไปแล้ว — ห้ามหลุดไป LINE จริงเด็ดขาด
+// store: { sink(kind, args) } — sink คืนอะไรก็ตามถือว่า handle แล้ว; คืน undefined = swallow เฉยๆ
+export function runWithSim(sim, fn) { return simCtx.run(sim, fn); }
+
+// รูปของ sim user (testline/demo) — getImageContent คืน buffer จาก map นี้แทนยิง LINE
+const __simImages = new Map();
+export function setSimImage(messageId, buffer) {
+  __simImages.set(messageId, buffer);
+  if (__simImages.size > 20) __simImages.delete(__simImages.keys().next().value);
+}
+const _replyMessage = client.replyMessage.bind(client);
+const _pushMessage = client.pushMessage.bind(client);
+const _getProfile = client.getProfile.bind(client);
+const _showLoading = client.showLoadingAnimation?.bind(client);
+// อยู่ใน sim context → ดักทุก send โดยไม่เช็ค uid/replyToken — flow จาก sim event ห้ามแตะ LINE ทั้งหมด
+const _simHit = (kind, args) => {
+  const s = simCtx.getStore();
+  if (!s) return null;
+  const v = s.sink(kind, args);
+  return v === undefined ? true : v;
+};
+client.replyMessage = (a) => { const h = _simHit("reply", a); return h === null ? _replyMessage(a) : h; };
+client.pushMessage = (a) => { const h = _simHit("push", a); return h === null ? _pushMessage(a) : h; };
+client.getProfile = (uid) => { const h = _simHit("profile", { userId: uid }); return h === null ? _getProfile(uid) : h; };
+if (_showLoading) client.showLoadingAnimation = (a) => { const h = _simHit("loading", a); return h === null ? _showLoading(a) : h; };
 
 // สร้าง badge "🩺 AI HEALTH ASSISTANT" แบบชิปมุมโค้ง ใช้ร่วมกันในหัวการ์ด Flex Message ทุกใบ เพื่อให้หน้าตาสม่ำเสมอทั้งระบบ
 function buildBrandBadge(cfg) {
@@ -76,6 +105,7 @@ async function withRetry(fn, retries = 2, delayMs = 600) {
 
 // ดึงไฟล์รูปจริงจาก LINE ด้วย messageId -> คืนค่าเป็น Buffer
 export async function getImageContent(messageId) {
+  if (__simImages.has(messageId)) return __simImages.get(messageId);
   const res = await blobClient.getMessageContent(messageId);
 
   // 1. ถ้ารีเทิร์นมาเป็น ArrayBuffer หรือมีเมธอด arrayBuffer()
@@ -185,6 +215,53 @@ export async function replyImage(replyToken, imageUrl, lineUserId) {
   } catch (err) {
     if (lineUserId) {
       logLineMessage({ lineUserId, sendType: "reply", messageType: "image", content: imageUrl, status: "failed", errorDetail: err.message });
+    }
+    throw err;
+  }
+}
+
+// ตอบกลับรูปภาพ + ข้อความใน reply เดียวกัน (food card ฯลฯ)
+export async function replyImageText(replyToken, imageUrl, text, lineUserId) {
+  const messages = [{
+    type: "image",
+    originalContentUrl: imageUrl,
+    previewImageUrl: imageUrl,
+  }];
+  if (text) messages.push({ type: "text", text });
+  try {
+    const res = await client.replyMessage({ replyToken, messages });
+    if (lineUserId) {
+      logLineMessage({ lineUserId, sendType: "reply", messageType: "image", content: imageUrl, status: "success" });
+    }
+    return res;
+  } catch (err) {
+    if (lineUserId) {
+      logLineMessage({ lineUserId, sendType: "reply", messageType: "image", content: imageUrl, status: "failed", errorDetail: err.message });
+    }
+    throw err;
+  }
+}
+
+// ตอบกลับด้วย Flex Message ผ่าน replyToken
+export async function replyFlex(replyToken, flexMessage, lineUserId) {
+  try {
+    const res = await client.replyMessage({
+      replyToken,
+      messages: [flexMessage],
+    });
+    if (lineUserId) {
+      logLineMessage({
+        lineUserId, sendType: "reply", messageType: "flex",
+        content: flexMessage.altText || "Flex Message", status: "success",
+      });
+    }
+    return res;
+  } catch (err) {
+    if (lineUserId) {
+      logLineMessage({
+        lineUserId, sendType: "reply", messageType: "flex",
+        content: flexMessage.altText || "Flex Message", status: "failed", errorDetail: err.message,
+      });
     }
     throw err;
   }

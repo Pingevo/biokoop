@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#ff0000">
+  <title>biokoop — Bot Tools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&display=swap" rel="stylesheet">
+  <style>
+    @view-transition { navigation: auto; }
+    /* biokoop "Red Broadcast" design system — ชุดเดียวกับหน้า Admin */
+    :root {
+      --bg-dark: #f2f2f2;
+      --bg-surface: #ffffff;
+      --border-color: #e5e5e5;
+      --border-soft: #ececec;
+      --border-strong: #c7c7c7;
+      --text-main: #0f0f0f;
+      --text-sub: #383838;
+      --text-muted: #606060;
+      --primary: #ff0000;
+      --primary-hover: #cc0000;
+      --primary-light: #ffecec;
+      --link: #065fd4;
+      --success: #2ba640;
+      --danger: #ff0000;
+      --radius: 12px;
+      --radius-tight: 4px;
+      --radius-pill: 9999px;
+      --shadow-md: 0 4px 32px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.2);
+      --font-display: 'Roboto', 'Kanit', 'Sarabun', Arial, sans-serif;
+      --font-mono: 'Roboto Mono', 'JetBrains Mono', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-display); -webkit-font-smoothing: antialiased; }
+    body { background: var(--bg-surface); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; font-size: 14px; line-height: 1.43; }
+    button, input, select, textarea { font: inherit; }
+
+    .mi { font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal; font-size: 1.15em; line-height: 1; display: inline-flex; align-items: center; justify-content: center; vertical-align: -0.2em; color: inherit; -webkit-font-smoothing: antialiased; user-select: none; }
+
+    button:focus-visible, a:focus-visible, .nav-item:focus-visible, .fs-btn:focus-visible {
+      outline: 2px solid var(--text-main) !important; outline-offset: 2px !important;
+    }
+
+    .skip-link {
+      position: absolute; top: -100px; left: 16px; background: var(--text-main); color: #ffffff !important;
+      padding: 8px 16px; border-radius: var(--radius-pill); z-index: 10000; font-weight: 500; font-size: 13px;
+      text-decoration: none; transition: top 0.15s ease; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    }
+    .skip-link:focus-visible { top: 10px; outline: 2px solid var(--primary) !important; outline-offset: 2px; }
+
+    .header { height: 56px; background: #ffffff; border-bottom: 1px solid var(--border-color); box-shadow: 0 1px 2px rgba(0,0,0,0.1); padding: 0 16px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; flex-shrink: 0; }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-logo { width: 34px; height: 34px; display: grid; place-items: center; flex-shrink: 0; }
+    .brand-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .brand-title-group { display: flex; flex-direction: column; line-height: 1.2; }
+    .brand-title { font-size: 18px; font-weight: 500; color: var(--text-main); }
+    .brand-title span:not(.version-badge) { font-weight: 700; }
+    .brand-subtitle { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; }
+    .version-badge { background: var(--bg-dark); color: var(--text-muted); border: 1px solid var(--border-color); font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 6px; letter-spacing: 0.5px; vertical-align: middle; }
+    .user-actions { display: flex; align-items: center; gap: 8px; }
+
+    .btn { min-height: 36px; padding: 8px 16px; border-radius: var(--radius-pill); border: 1px solid transparent; font-weight: 500; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background 150ms ease, border-color 150ms ease, opacity 120ms ease; }
+    .btn:active { opacity: 0.85; }
+    .btn-primary { background: var(--text-main); border: 1px solid var(--text-main); color: #ffffff; }
+    .btn-primary:hover { background: #272727; border-color: #272727; }
+    .btn-outline { background: #ffffff; border: 1px solid var(--border-color); color: var(--text-main); }
+    .btn-outline:hover { background: var(--bg-dark); border-color: var(--border-strong); }
+    .btn-icon { display: inline-flex; align-items: center; }
+
+    .app-container { display: flex; flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+
+    .sidebar {
+      width: 240px; min-width: 240px; flex-shrink: 0;
+      background: #ffffff !important; border-right: 1px solid var(--border-color) !important;
+      padding: 12px 8px; display: flex; flex-direction: column; gap: 1px;
+      position: sticky; top: 56px; height: calc(100vh - 56px); height: calc(100dvh - 56px); overflow-y: auto;
+    }
+
+    .nav-item {
+      padding: 10px 12px; border-radius: var(--radius-tight); color: var(--text-main);
+      cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 400;
+      font-size: 14px; transition: background 150ms ease; border: 1px solid transparent;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .nav-item:hover { background: var(--bg-dark); color: var(--text-main); }
+    .nav-item.active { background: var(--bg-dark); color: var(--text-main); font-weight: 700; }
+
+    .nav-section-label {
+      padding: 16px 12px 4px; font-size: 12px; font-weight: 500;
+      letter-spacing: 0.02em; color: var(--text-muted); text-transform: uppercase;
+    }
+
+    /* ─── เนื้อหา = iframe 4 ตัวค้างไว้ (ซ่อน/แสดง — ไม่ reload, state ไม่หาย, ไม่กระพริบ) ─── */
+    .main-content { flex: 1; min-width: 0; overflow: hidden; height: calc(100vh - 56px); height: calc(100dvh - 56px); position: relative; }
+    .main-content iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: none; background: var(--bg-surface); opacity: 0; transition: opacity 180ms ease; }
+    .main-content iframe.on { display: block; }
+    .main-content iframe.loaded { opacity: 1; }
+
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 100; opacity: 0; pointer-events: none; transition: opacity 200ms ease; }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    .login-box { background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; padding: 44px; width: 100%; max-width: 440px; text-align: center; box-shadow: var(--shadow-lg); }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text-main); color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13.5px; box-shadow: var(--shadow-md); z-index: 300; opacity: 0; pointer-events: none; transition: opacity 200ms ease; max-width: 90vw; }
+    .toast.show { opacity: 1; }
+
+    /* ═══ Admin UX Pack — ชุดเดียวกับหน้า Admin ═══ */
+    .nav-toggle {
+      display: none; align-items: center; justify-content: center; width: 40px; height: 40px; margin-right: 8px;
+      border-radius: var(--radius-pill); border: none; background: transparent; color: var(--text-main);
+      font-size: 22px; line-height: 1; cursor: pointer; flex-shrink: 0; transition: background 150ms ease;
+    }
+    .nav-toggle:hover { background: var(--bg-dark); }
+    .nav-backdrop, .drawer-head, .scroll-top-btn { display: none; }
+
+    .fs-switch { display: inline-flex; border: 1px solid var(--border-color); border-radius: var(--radius-pill); overflow: hidden; background: #ffffff; flex-shrink: 0; }
+    .fs-btn { border: none; background: transparent; padding: 0 10px; min-height: 36px; font-size: 12px; font-weight: 500; color: var(--text-muted); cursor: pointer; }
+    .fs-btn + .fs-btn { border-left: 1px solid var(--border-color); }
+    .fs-btn:hover { background: var(--bg-dark); }
+    .fs-btn.active { background: var(--text-main); color: #ffffff; }
+
+    .header-divider { width: 1px; height: 22px; background: var(--border-color); flex-shrink: 0; }
+
+    .admin-user-badge {
+      display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px;
+      color: var(--text-muted); white-space: nowrap; flex-shrink: 0;
+    }
+    .admin-user-badge .admin-name { color: var(--text-main); font-weight: 500; }
+    .admin-user-badge .role-tag { padding: 3px 9px; border-radius: var(--radius-pill); font-weight: 700; font-size: 11px; letter-spacing: 0.02em; }
+    .role-tag.superadmin { background: var(--primary-light); color: var(--primary-hover); }
+    .role-tag.admin { background: #eaf1fc; color: var(--link); }
+
+    @media (max-width: 900px) { .header-divider { display: none; } }
+
+    button, .btn, .nav-item { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    @media (pointer: coarse) {
+      .btn { min-height: 44px !important; }
+      .fs-btn { min-height: 44px; padding: 0 12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+    }
+
+    /* ── Drawer nav (tablet & mobile ≤1100px) ── */
+    @media (max-width: 1100px) {
+      .nav-toggle { display: inline-flex; }
+      .sidebar {
+        position: fixed !important; top: 56px; left: 0; bottom: 0; width: 280px !important; min-width: 0 !important;
+        max-width: min(84vw, 300px); height: auto !important; padding: 14px 10px calc(20px + env(safe-area-inset-bottom)) !important;
+        background: #ffffff !important; border-right: 1px solid var(--border-color) !important;
+        box-shadow: var(--shadow-lg) !important; transform: translateX(-105%);
+        transition: transform 250ms cubic-bezier(.32, .72, .24, 1); z-index: 60; overflow-y: auto !important; overscroll-behavior-y: contain;
+      }
+      body.nav-open .sidebar { transform: translateX(0); }
+      .nav-backdrop {
+        display: block; position: fixed; top: 56px; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4);
+        z-index: 55; opacity: 0; pointer-events: none; transition: opacity 250ms ease;
+      }
+      body.nav-open .nav-backdrop { opacity: 1; pointer-events: auto; }
+      .drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 12px; margin-bottom: 10px; border-bottom: 1px solid var(--border-soft); }
+      .drawer-head .drawer-title { font-size: 15px; font-weight: 700; color: var(--text-main); }
+      .drawer-close { width: 40px; height: 40px; border-radius: var(--radius-pill); border: none; background: var(--bg-dark); color: var(--text-sub); font-size: 17px; cursor: pointer; }
+      .sidebar .nav-item { min-height: 48px; font-size: 15px !important; }
+      .sidebar .nav-section-label { font-size: 11px !important; }
+      .header { padding: 0 12px; }
+    }
+
+    @media (max-width: 768px) {
+      #adminUserBadge { display: none; }
+      .fs-btn { padding: 0 7px; font-size: 11px; min-height: 40px; }
+    }
+
+    @media (max-width: 560px) {
+      .brand-title { font-size: 15px !important; }
+      .login-box { padding: 28px 22px !important; }
+      .version-badge { display: none !important; }
+      .user-actions .btn { min-width: 44px; justify-content: center; padding: 8px 10px !important; }
+      .user-actions .btn .btn-icon { font-size: 17px; line-height: 1; }
+      .user-actions .btn .btn-label { display: none; }
+    }
+
+    html[data-ui-scale="lg"] body { font-size: 16px !important; }
+    html[data-ui-scale="lg"] .nav-item { font-size: 16px !important; }
+    html[data-ui-scale="lg"] .nav-section-label { font-size: 12px !important; }
+    html[data-ui-scale="lg"] .btn { font-size: 15px !important; min-height: 42px; }
+
+    html[data-ui-scale="xl"] body { font-size: 18px !important; }
+    html[data-ui-scale="xl"] .nav-item { font-size: 17.5px !important; min-height: 52px; }
+    html[data-ui-scale="xl"] .nav-section-label { font-size: 13px !important; }
+    html[data-ui-scale="xl"] .btn { font-size: 16.5px !important; min-height: 48px; }
+
+    @media (max-width: 1366px) {
+      .sidebar { width: 230px; }
+    }
+  </style>
+</head>
+<body>
+  <a href="#pageFrame" class="skip-link">ข้ามไปยังเนื้อหาหลัก</a>
+
+  <header class="header">
+    <button id="navToggle" class="nav-toggle" aria-label="เปิด/ปิดเมนูหลัก" aria-expanded="false" aria-controls="adminSidebar"><i class="mi" aria-hidden="true">menu</i></button>
+    <div class="brand">
+      <div class="brand-logo"><img src="/assets/logo/BIOKOOP_500.png" alt="Biokoop" width="34" height="34"></div>
+      <div class="brand-title-group">
+        <div class="brand-title">biokoop <span>Admin</span> <span class="version-badge" style="background: #FEF2F2; color: #DC2626; border: 1px solid #FECDD3;">v1.1.2</span></div>
+        <div class="brand-subtitle">kieselect</div>
+      </div>
+    </div>
+    <div class="user-actions">
+      <div class="fs-switch" role="group" aria-label="ปรับขนาดตัวอักษร" title="ปรับขนาดตัวอักษร">
+        <button type="button" class="fs-btn" data-scale="" title="ขนาดปกติ">A</button>
+        <button type="button" class="fs-btn" data-scale="lg" title="ตัวอักษรใหญ่">A+</button>
+        <button type="button" class="fs-btn" data-scale="xl" title="ตัวอักษรใหญ่มาก">A++</button>
+      </div>
+      <span class="header-divider" aria-hidden="true"></span>
+      <span id="adminUserBadge" class="admin-user-badge"></span>
+      <button class="btn btn-outline" onclick="logout()" aria-label="ออกจากระบบ"><span class="btn-icon" aria-hidden="true"><i class="mi" aria-hidden="true">logout</i></span><span class="btn-label"> ออกจากระบบ</span></button>
+    </div>
+  </header>
+
+  <div id="loginOverlay" class="modal-overlay">
+    <div class="login-box">
+      <div class="brand-logo" style="margin: 0 auto 16px auto; width: 56px; height: 56px;"><img src="/assets/logo/BIOKOOP_500.png" alt="Biokoop" width="56" height="56"></div>
+      <h2 style="margin-bottom: 8px; font-weight: 800; color: #0F172A;">เข้าสู่ระบบ Admin</h2>
+      <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 24px;">เข้าสู่ระบบผ่าน ITSR (ระบบ 81) เพื่อใช้งาน Bot Tools</p>
+      <button type="button" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px;" onclick="handleLogin()">
+        <i class="mi" aria-hidden="true">lock</i> เข้าสู่ระบบผ่าน ITSR
+      </button>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <aside class="sidebar" id="adminSidebar" role="navigation" aria-label="เมนูหลักหลังบ้าน">
+      <div class="drawer-head">
+        <span class="drawer-title">เมนูจัดการระบบ</span>
+        <button type="button" class="drawer-close" id="navClose" aria-label="ปิดเมนู"><i class="mi" aria-hidden="true">close</i></button>
+      </div>
+      <div class="nav-section-label"><i class="mi" aria-hidden="true">bar_chart</i> ภาพรวม &amp; บริการ</div>
+      <div class="nav-item" onclick="window.location.href='/admin#dashboard'">
+        <span><i class="mi" aria-hidden="true">bar_chart</i></span> สถิติภาพรวม
+      </div>
+      <div class="nav-item" onclick="window.location.href='/admin#requests-logs'">
+        <span><i class="mi" aria-hidden="true">content_paste</i></span> คำขอ &amp; ประวัติส่ง
+      </div>
+      <div class="nav-item" onclick="window.location.href='/admin#users'">
+        <span><i class="mi" aria-hidden="true">group</i></span> สมาชิกผู้ใช้งาน
+      </div>
+
+      <div class="nav-section-label"><i class="mi" aria-hidden="true">settings</i> ตั้งค่า AI &amp; บอท</div>
+      <div class="nav-item" onclick="window.location.href='/admin#card-builder'">
+        <span><i class="mi" aria-hidden="true">palette</i></span> การ์ดผลลัพธ์ SVG
+      </div>
+      <div class="nav-item" onclick="window.location.href='/admin#grade-config'">
+        <span><i class="mi" aria-hidden="true">emoji_events</i></span> เกณฑ์คะแนน &amp; AI
+      </div>
+      <div class="nav-item" onclick="window.location.href='/admin#kieslect-config'">
+        <span>⌚</span> Kieslect Watch
+      </div>
+      <div class="nav-item" onclick="window.location.href='/admin#bot-messages'">
+        <span><i class="mi" aria-hidden="true">chat_bubble</i></span> ข้อความบอท
+      </div>
+      <div class="nav-item" onclick="window.location.href='/admin#registration'">
+        <span><i class="mi" aria-hidden="true">sell</i></span> สิทธิ์ &amp; Whitelist
+      </div>
+      <div class="nav-item" onclick="window.location.href='/llmkey2'">
+        <span><i class="mi" aria-hidden="true">key</i></span> LLM Keys
+      </div>
+      <div class="nav-item" onclick="window.location.href='/llmkey2/extractions'">
+        <span><i class="mi" aria-hidden="true">database</i></span> Raw Extractions
+      </div>
+      <div class="nav-item" id="nav-testchatbot" onclick="nav('testchatbot')">
+        <span><i class="mi" aria-hidden="true">smart_toy</i></span> Test Chatbot
+      </div>
+      <div class="nav-item" id="nav-chatpersona" onclick="nav('chatpersona')">
+        <span><i class="mi" aria-hidden="true">face</i></span> Chat Persona
+      </div>
+      <div class="nav-item" id="nav-healthcalendar" onclick="nav('healthcalendar')">
+        <span><i class="mi" aria-hidden="true">calendar_month</i></span> Health Calendar
+      </div>
+      <div class="nav-item" id="nav-testline" onclick="nav('testline')">
+        <span><i class="mi" aria-hidden="true">phone_iphone</i></span> TestLine Sim
+      </div>
+
+      <div class="nav-section-label"><i class="mi" aria-hidden="true">science</i> เครื่องมือ &amp; ระบบ</div>
+      <div class="nav-item" onclick="window.location.href='/admin#system-health'">
+        <span><i class="mi" aria-hidden="true">stethoscope</i></span> สุขภาพระบบ
+      </div>
+
+      <div id="devToolsNavSection" style="display:none;">
+        <div class="nav-item" onclick="window.location.href='/admin#ai-test-studio'">
+          <span><i class="mi" aria-hidden="true">science</i></span> AI Test Studio
+        </div>
+        <div class="nav-item" onclick="window.location.href='/admin#monthly-lab'">
+          <span><i class="mi" aria-hidden="true">date_range</i></span> วิเคราะห์รายเดือน (Lab)
+        </div>
+      </div>
+
+      <div id="superadminNavSection" style="display:none;">
+        <div class="nav-section-label" style="color:#D97706;"><i class="mi" aria-hidden="true">star</i> Superadmin (Lv.2)</div>
+        <div class="nav-item" onclick="window.location.href='/admin#admin-management'">
+          <span><i class="mi" aria-hidden="true">shield</i></span> จัดการแอดมิน
+        </div>
+        <div class="nav-item" onclick="window.location.href='/admin#admin-audit'">
+          <span><i class="mi" aria-hidden="true">history_edu</i></span> Audit Log แอดมิน
+        </div>
+      </div>
+
+      <div style="margin-top: auto; padding: 14px 10px 6px; text-align: center;">
+        <span style="font-size: 11px; font-weight: 700; color: #64748B; background: #F1F5F9; border: 1px solid #E2E8F0; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px;">biokoop v1.1.2</span>
+      </div>
+    </aside>
+
+    <main class="main-content" id="mainContent" tabindex="-1">
+      <iframe title="Test Chatbot" data-key="testchatbot"></iframe>
+      <iframe title="Chat Persona" data-key="chatpersona"></iframe>
+      <iframe title="Health Calendar" data-key="healthcalendar"></iframe>
+      <iframe title="TestLine Sim" data-key="testline"></iframe>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status"></div>
+
+  <script>
+    const PAGES = {
+      testchatbot:    { url: '/testchatbot?bare=1',    title: 'Test Chatbot' },
+      chatpersona:    { url: '/chatpersona?bare=1',    title: 'Chat Persona' },
+      healthcalendar: { url: '/healthcalendar?bare=1', title: 'Health Calendar' },
+      testline:       { url: '/testline?bare=1',       title: 'TestLine Sim' },
+    };
+    const DEFAULT_PAGE = 'testchatbot';
+    const frames = {};
+    document.querySelectorAll('#mainContent iframe').forEach(f => {
+      frames[f.dataset.key] = f;
+      f.addEventListener('load', () => f.classList.add('loaded')); // fade-in เมื่อโหลดเสร็จ
+    });
+
+    function loadPage(key) {
+      if (!PAGES[key]) key = DEFAULT_PAGE;
+      const target = frames[key];
+      if (target && !target.getAttribute('src')) target.src = PAGES[key].url; // lazy — โหลดครั้งเดียว
+      Object.values(frames).forEach(f => f.classList.toggle('on', f === target));
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const item = document.getElementById('nav-' + key);
+      if (item) { item.classList.add('active'); item.setAttribute('aria-current', 'page'); }
+      document.title = 'biokoop — ' + PAGES[key].title;
+      if (location.hash !== '#' + key) history.replaceState(null, '', '#' + key);
+    }
+
+    function nav(key) { location.hash = key; }
+    window.addEventListener('hashchange', () => loadPage(location.hash.slice(1)));
+    loadPage(location.hash.slice(1) || DEFAULT_PAGE);
+  </script>
+
+  <script>
+    let isSuperadmin = false;
+    async function apiFetch(url, opts = {}) {
+      const res = await fetch(url, {
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+        ...opts,
+      });
+      if (res.status === 401 || res.status === 403) {
+        document.getElementById('loginOverlay').classList.add('active');
+        throw new Error('Unauthorized');
+      }
+      const ct = res.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) throw new Error(`Server returned ${res.status}`);
+      return res.json();
+    }
+    function handleLogin() { window.location.href = '/admin/auth'; }
+    function logout() { window.location.href = '/admin/auth/logout'; }
+    function escapeHtml(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+    function refreshSuperadminVisibility() {
+      const s = document.getElementById('superadminNavSection');
+      if (s) s.style.display = isSuperadmin ? '' : 'none';
+      const d = document.getElementById('devToolsNavSection');
+      if (d) d.style.display = isSuperadmin ? '' : 'none';
+    }
+
+    (async function loadMe() {
+      try {
+        const data = await apiFetch('/admin/api/me');
+        if (data.ok && data.admin) {
+          isSuperadmin = data.admin.role === 'superadmin';
+          const roleLabel = isSuperadmin ? '<span class="role-tag superadmin">Superadmin Lv.2</span>' : '<span class="role-tag admin">Admin Lv.1</span>';
+          document.getElementById('adminUserBadge').innerHTML =
+            `<span class="admin-name">${escapeHtml(data.admin.name || data.admin.displayName || data.admin.system81_username || 'admin')}</span>${roleLabel}`;
+          refreshSuperadminVisibility();
+        }
+      } catch (e) {}
+    })();
+  </script>
+
+  <script>
+    (function initAdminUX() {
+      const isDrawerMode = () => window.matchMedia('(max-width: 1100px)').matches;
+      const backdrop = document.createElement('div');
+      backdrop.className = 'nav-backdrop';
+      document.body.appendChild(backdrop);
+      const sidebar = document.getElementById('adminSidebar');
+      const navToggle = document.getElementById('navToggle');
+      const syncNavTabOrder = () => {
+        const hidden = isDrawerMode() && !document.body.classList.contains('nav-open');
+        sidebar?.setAttribute('aria-hidden', hidden ? 'true' : 'false');
+        sidebar?.querySelectorAll('.nav-item, #navClose').forEach(el => el.setAttribute('tabindex', hidden ? '-1' : '0'));
+      };
+      const openNav = () => {
+        document.body.classList.add('nav-open');
+        navToggle?.setAttribute('aria-expanded', 'true');
+        syncNavTabOrder();
+        (sidebar?.querySelector('.nav-item.active') || sidebar?.querySelector('#navClose'))?.focus({ preventScroll: true });
+      };
+      const closeNav = (returnFocus) => {
+        document.body.classList.remove('nav-open');
+        navToggle?.setAttribute('aria-expanded', 'false');
+        syncNavTabOrder();
+        if (returnFocus) navToggle?.focus({ preventScroll: true });
+      };
+      navToggle?.addEventListener('click', () => document.body.classList.contains('nav-open') ? closeNav() : openNav());
+      document.getElementById('navClose')?.addEventListener('click', () => closeNav(true));
+      backdrop.addEventListener('click', () => closeNav());
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && document.body.classList.contains('nav-open')) closeNav(true); });
+      sidebar?.addEventListener('click', (e) => { if (isDrawerMode() && e.target.closest('.nav-item')) closeNav(); });
+      window.addEventListener('resize', () => { if (!isDrawerMode()) document.body.classList.remove('nav-open'); syncNavTabOrder(); });
+      sidebar?.querySelectorAll('.nav-item').forEach(item => {
+        item.setAttribute('role', 'link');
+        item.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); item.click(); } });
+      });
+      syncNavTabOrder();
+      const SCALE_KEY = 'biokoop-admin-font-scale';
+      const fsBtns = document.querySelectorAll('.fs-btn');
+      function applyScale(scale) {
+        if (scale) document.documentElement.setAttribute('data-ui-scale', scale);
+        else document.documentElement.removeAttribute('data-ui-scale');
+        fsBtns.forEach(b => b.classList.toggle('active', b.dataset.scale === scale));
+        try { localStorage.setItem(SCALE_KEY, scale); } catch (e) {}
+      }
+      fsBtns.forEach(b => b.addEventListener('click', () => applyScale(b.dataset.scale)));
+      let saved = '';
+      try { saved = localStorage.getItem(SCALE_KEY) || ''; } catch (e) {}
+      applyScale(saved);
+    })();
+  </script>
+</body>
+</html>

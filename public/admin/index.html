@@ -9,6 +9,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Kanit:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0&display=swap" rel="stylesheet">
   <style>
+    /* cross-document view transition — ข้ามหน้าแบบนุ่มนวล ไม่กระตุกตอนเปลี่ยนหน้า */
+    @view-transition { navigation: auto; }
     .mi {
       font-family: 'Material Symbols Outlined';
       font-weight: normal;
@@ -75,7 +77,7 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    html { background: var(--bg-surface); }
+    html { background: var(--bg-surface); overscroll-behavior: none; }
 
     body {
       background: var(--bg-surface) !important;
@@ -86,6 +88,7 @@
       font-size: 14px;
       line-height: 1.43;
       letter-spacing: 0;
+      overscroll-behavior: none;
     }
 
     button, input, select, textarea { font: inherit; }
@@ -288,6 +291,7 @@
       min-width: 0;
       overflow-x: hidden;
       overflow-y: auto;
+      scrollbar-gutter: stable; /* กัน layout ขยับตอน scrollbar โผล่/หายตอนสลับ tab */
       padding: 24px 32px;
       max-width: 2200px;
       height: calc(100vh - 56px);
@@ -460,6 +464,10 @@
 
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+    /* เครื่องมือบอทฝังเป็น iframe — sidebar/header ไม่ reload เวลาสลับเมนู */
+    .tab-content.tool-tab.active { display: block; height: calc(100dvh - 170px); }
+    .tool-tab > iframe { width: 100%; height: 100%; border: 0; display: block; opacity: 0; transition: opacity 200ms ease; background: var(--bg-surface); }
+    .tool-tab > iframe.loaded { opacity: 1; }
     .tab-content > .section-header:first-child h2, .tab-content > .section-header:first-child h3 { letter-spacing: 0; }
 
     .toast { border-radius: 8px; box-shadow: var(--shadow-md); }
@@ -800,6 +808,25 @@
       </div>
       <div class="nav-item" onclick="switchTab('registration', this)">
         <span><i class="mi" aria-hidden="true">sell</i></span> สิทธิ์ & Whitelist
+      </div>
+      <!-- หน้าแยก /llmkey2 (ไม่ใช่ tab ใน SPA) — จัดการ Gemini key pool ของ flow สกัดข้อมูลดิบ -->
+      <div class="nav-item" onclick="switchTab('llmkey2', this)" title="เปิดหน้า LLM Key Management (แยกหน้า)">
+        <span><i class="mi" aria-hidden="true">key</i></span> LLM Keys
+      </div>
+      <div class="nav-item" onclick="switchTab('llmkey-extractions', this)" title="เปิดหน้ารายการผลสกัดข้อมูลดิบ (แยกหน้า)">
+        <span><i class="mi" aria-hidden="true">database</i></span> Raw Extractions
+      </div>
+      <div class="nav-item" onclick="switchTab('testchatbot', this)" title="ทดสอบบอทตอบคำถามสุขภาพจากข้อมูล extraction">
+        <span><i class="mi" aria-hidden="true">smart_toy</i></span> Test Chatbot
+      </div>
+      <div class="nav-item" onclick="switchTab('chatpersona', this)" title="ตั้งค่าตัวตน/บุคลิกของบอท">
+        <span><i class="mi" aria-hidden="true">face</i></span> Chat Persona
+      </div>
+      <div class="nav-item" onclick="switchTab('healthcalendar', this)" title="ปฏิทินวันที่ลูกค้ามีข้อมูลสุขภาพ">
+        <span><i class="mi" aria-hidden="true">calendar_month</i></span> Health Calendar
+      </div>
+      <div class="nav-item" onclick="switchTab('testline', this)" title="จำลองแชท LINE — เทสเมนู/โหมดบอทโดยไม่ยิง LINE จริง">
+        <span><i class="mi" aria-hidden="true">phone_iphone</i></span> TestLine Sim
       </div>
 
       <div class="nav-section-label"><i class="mi" aria-hidden="true">science</i> เครื่องมือ & ระบบ</div>
@@ -3162,6 +3189,14 @@
         </div>
       </div>
 
+      <!-- เครื่องมือบอท + LLM Keys ฝังเป็น tab iframe (src lazy ตอนเปิด tab ครั้งแรก — ดู script ท้ายไฟล์) -->
+      <section id="tab-llmkey2" class="tab-content tool-tab"><iframe title="LLM Keys" data-src="/llmkey2?bare=1"></iframe></section>
+      <section id="tab-llmkey-extractions" class="tab-content tool-tab"><iframe title="Raw Extractions" data-src="/llmkey2/extractions?bare=1"></iframe></section>
+      <section id="tab-testchatbot" class="tab-content tool-tab"><iframe title="Test Chatbot" data-src="/testchatbot?bare=1"></iframe></section>
+      <section id="tab-chatpersona" class="tab-content tool-tab"><iframe title="Chat Persona" data-src="/chatpersona?bare=1"></iframe></section>
+      <section id="tab-healthcalendar" class="tab-content tool-tab"><iframe title="Health Calendar" data-src="/healthcalendar?bare=1"></iframe></section>
+      <section id="tab-testline" class="tab-content tool-tab"><iframe title="TestLine Sim" data-src="/testline?bare=1"></iframe></section>
+
       <!-- Monthly Audit History Modal -->
       <div id="monthlyAuditHistoryModal" class="modal-overlay">
         <div class="modal" style="max-width: 800px; width: 95%; max-height: 85vh; overflow-y: auto;">
@@ -3665,7 +3700,13 @@
         'ai-test-studio': '<i class="mi" aria-hidden="true">science</i> AI Test Studio',
         'monthly-lab': '<i class="mi" aria-hidden="true">date_range</i> วิเคราะห์รายเดือน (Lab)',
         'admin-management': '<i class="mi" aria-hidden="true">shield</i> จัดการแอดมิน',
-        'admin-audit': '<i class="mi" aria-hidden="true">history_edu</i> Audit Log แอดมิน'
+        'admin-audit': '<i class="mi" aria-hidden="true">history_edu</i> Audit Log แอดมิน',
+        'llmkey2': '<i class="mi" aria-hidden="true">key</i> LLM Keys',
+        'llmkey-extractions': '<i class="mi" aria-hidden="true">database</i> Raw Extractions',
+        'testchatbot': '<i class="mi" aria-hidden="true">smart_toy</i> Test Chatbot',
+        'chatpersona': '<i class="mi" aria-hidden="true">face</i> Chat Persona',
+        'healthcalendar': '<i class="mi" aria-hidden="true">calendar_month</i> Health Calendar',
+        'testline': '<i class="mi" aria-hidden="true">phone_iphone</i> TestLine Sim'
       };
 
       const subLabels = {
@@ -3749,6 +3790,8 @@
       } else if (tabName === 'monthly-lab') {
         updateBreadcrumb('monthly-lab');
         initMonthlyLab();
+      } else {
+        updateBreadcrumb(tabName); // tool tabs (llmkey2/testchatbot/…) — iframe โหลดเอง แค่อัปเดต breadcrumb
       }
     }
 
@@ -9000,6 +9043,39 @@
         syncAriaCurrent();
         closeNav();
         mainContent?.scrollTo({ top: 0 });
+      };
+    })();
+  </script>
+
+  <!-- Deep-link: /admin#tab-name เปิด tab นั้นโดยตรง — ใช้ลิงก์จากหน้า /llmkey2 และ bookmark ได้ -->
+  <script>
+    (function initDeepLink() {
+      const _prev = switchTab;
+      switchTab = function(tabName, el) {
+        _prev(tabName, el);
+        try { history.replaceState(null, '', '#' + tabName); } catch (e) {}
+      };
+      const openFromHash = () => {
+        const name = (location.hash || '').slice(1);
+        if (name && document.getElementById('tab-' + name)) switchTab(name);
+      };
+      window.addEventListener('hashchange', openFromHash);
+      // ต้อง defer — lazy-load iframe wrapper (script ถัดไป) ต้องติดตั้งก่อน ไม่งั้น refresh พร้อม hash
+      // จะเปิด tab แต่ iframe ไม่ได้ src → เนื้อหาขาวเปล่า
+      setTimeout(openFromHash, 0);
+    })();
+  </script>
+
+  <!-- Tool tabs: iframe lazy-load — โหลดเฉพาะตอนเปิด tab ครั้งแรก แล้วค้างไว้ + fade-in ตอนโหลดเสร็จ -->
+  <script>
+    (function () {
+      document.querySelectorAll('.tool-tab iframe').forEach(f =>
+        f.addEventListener('load', () => f.classList.add('loaded')));
+      const _prev = switchTab;
+      switchTab = function (tabName, el) {
+        _prev(tabName, el);
+        const frame = document.getElementById('tab-' + tabName)?.querySelector('iframe[data-src]');
+        if (frame && !frame.getAttribute('src')) frame.src = frame.dataset.src;
       };
     })();
   </script>

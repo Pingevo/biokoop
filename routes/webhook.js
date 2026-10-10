@@ -7,13 +7,29 @@ import {
   replyText,
   replyTextWithQuickReply,
   replyImage,
+  replyFlex,
   sendResultCardWithShare,
   sendWeeklyReportImages,
   getProfile,
+  getImageContent,
+  pushText,
 } from "../services/lineService.js";
 import { queueWeeklyImage } from "../services/pipeline.js";
+import { classifyWeeklyImage } from "../services/aiService.js";
+import { optimizeImageForAi } from "../services/imageService.js";
+import { buildFoodFlex } from "../services/foodFlexTemplate.js";
+import { addIncomingText, draftConfig } from "../services/chatDraftBuffer.js";
+import {
+  CHAT_ENTER_TEXT,
+  FOOD_ENTER_TEXT,
+  enterChatMode,
+  getChatMode,
+  touchChatMode,
+  exitChatMode,
+} from "../services/chatMode.js";
 import { getBotMessagesConfig } from "../services/botMessagesConfigService.js";
 import { getRegistrationConfig } from "../services/registrationConfigService.js";
+import mongoose from "mongoose";
 import { User } from "../models/User.js";
 import { Request, REQUEST_STATUS } from "../models/Request.js";
 import { logLineMessage } from "../models/LineMessageLog.js";
@@ -80,7 +96,198 @@ function logIncomingEvent(event, lineUserId) {
   }
 }
 
-async function handleEvent(event) {
+const PY_CHAT_URL = (process.env.PY_CHAT_URL || "http://127.0.0.1:5001").replace(/\/$/, "");
+
+// ยิงข้อความเข้า Python chatbot (:5001) — คืน response เต็ม (answer + meta)
+async function askHealthChatbotJson(lineUserId, text, sessionId, images = [], task = null) {
+  try {
+    const r = await fetch(`${PY_CHAT_URL}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lineUserId, message: text, sessionId,
+        adminUsername: "chat-mode", images,
+        ...(task ? { task } : {}),
+      }),
+      signal: AbortSignal.timeout(90_000),
+    });
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+// เวอร์ชันเดิม — คืน answer text พร้อมใช้ reply จริง
+async function askHealthChatbot(lineUserId, text, sessionId, images = [], task = null) {
+  const j = await askHealthChatbotJson(lineUserId, text, sessionId, images, task);
+  if (j?.answer) return j.answer;
+  const v = await botVoice();
+  return `ขออภัย${v.p} ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้งนะ${v.p}`;
+}
+
+// เสียงบอทตาม persona — ถ้า config ระบุผู้ชาย/ครับ → ผม+ครับ, ไม่งั้น ดิฉัน+ค่ะ (default เดิม)
+let _voiceCache = null;
+let _voiceAt = 0;
+async function botVoice() {
+  if (_voiceCache && Date.now() - _voiceAt < 60_000) return _voiceCache;
+  let doc = {};
+  try {
+    doc = (await mongoose.connection.db
+      .collection("chatbotconfig").findOne({ _id: "persona" })) || {};
+  } catch { /* ใช้ default */ }
+  const p = `${doc.persona || ""}`;
+  const male = /ผู้ชาย/.test(p) || (p.includes("ครับ") && !/ผู้หญิง|ดิฉัน|ค่ะ/.test(p));
+  _voiceCache = {
+    botName: (doc.botName || "biokoop").trim() || "biokoop",
+    self: male ? "ผม" : "ดิฉัน",
+    p: male ? "ครับ" : "ค่ะ",
+  };
+  _voiceAt = Date.now();
+  return _voiceCache;
+}
+
+// ทักทายตอนเข้าโหมดแชท — ชื่อบอท+เสียงตาม persona + ทักด้วยชื่อเล่นลูกค้าถ้ามี
+async function chatModeGreeting(lineUserId) {
+  const v = await botVoice();
+  let custName = "";
+  try {
+    const u = await mongoose.connection.db
+      .collection("users").findOne({ lineUserId }, { projection: { nickname: 1 } });
+    const n = (u?.nickname || "").trim();
+    // ข้ามชื่อที่เป็นของระบบ/เทส (userbot, test, ทดสอบ) — เหมือนฝั่ง Python
+    if (n && n !== lineUserId && !/userbot|testline|ทดสอบ|test[_-]?script/i.test(n)) custName = n;
+  } catch { /* ไม่มีชื่อก็ทักทั่วไป */ }
+  const who = custName ? `คุณ${custName}` : "";
+  return `ยินดีให้ความช่วยเหลือ${v.p}${who ? who + " " : " "}😊 ${v.self}${v.botName} ผู้ช่วยดูแลสุขภาพประจำตัวของคุณ\n\n` +
+    `ถามเรื่องการนอน Recovery HRV หรือข้อมูลสุขภาพจากนาฬิกา Kieslect ได้เลย${v.p}\n\n` +
+    `(โหมดแชทบอท — ถ้าไม่มีการคุยต่อ 15 นาที หรือกดเมนูอื่น ระบบจะกลับสู่โหมดปกติ${v.p})`;
+}
+
+// ทักทายตอนเข้าโหมดโภชนาการ — เสียงตาม persona เช่นเดียวกัน
+async function foodModeIntro() {
+  const v = await botVoice();
+  return `เข้าสู่โหมดประเมินโภชนาการอาหาร 🍽️\n\n` +
+    `ส่งรูปอาหารมาได้เลย${v.p} — ระบบจะแยกส่วนประกอบเป็นกรัม และบอกพลังงาน โปรตีน คาร์โบไฮเดรต ไขมัน (อิ่มตัว/ไม่อิ่มตัว) เป็นตัวเลขให้\n\n` +
+    `(กดเมนูอื่นหรือไม่คุยต่อ 15 นาที เพื่อออกจากโหมดนี้${v.p})`;
+}
+
+// prompt โหมดโภชนาการ — บังคับรูปแบบ: ตารางวัตถุดิบรายชิ้น (กรัม+สารอาหาร) + ตารางสรุปรวม ห้ามตอบเป็นช่วง
+const FOOD_ANALYSIS_PROMPT =
+  `วิเคราะห์อาหารในรูปนี้ ตอบเป็น JSON object เท่านั้น (ห้ามมีข้อความอื่น ห้าม markdown/code fence) ตาม schema นี้:\n` +
+  `{"menu":"ชื่ออาหารภาษาไทย","items":[{"name":"ชื่อวัตถุดิบภาษาไทย","qty":1,"unit":null,"gram":0,"kcal":0,"carb":0,"protein":0,"fat":0}],\n` +
+  `"total":{"gram":0,"kcal":0,"carb":0,"protein":0,"fat":0,"satFat":0,"unsatFat":0,"sugar":0,"sodium":0,"fiber":0},\n` +
+  `"note":"ข้อสังเกตสั้นๆ ภาษาไทย หรือ null"}\n\n` +
+  `กฎ:\n` +
+  `- แยกทุกอย่างที่เห็นในจาน (ข้าว เนื้อสัตว์ ไข่ ผักแต่ละชนิด ซอส/น้ำมัน) ประเมินน้ำหนักเทียบขนาดจาน/ช้อนมาตรฐาน\n` +
+  `- ของที่นับเป็นชิ้นได้ (ไข่ ผลไม้ ของทอดชิ้นๆ เครื่องดื่ม) ให้ใส่ qty=จำนวนชิ้น และ unit=หน่วยนับไทย ("ฟอง","ชิ้น","ลูก","แก้ว","ขวด") เช่น ไข่ต้ม 4 ฟอง → qty:4 unit:"ฟอง" — ของที่ไม่นับชิ้น (ข้าว ซอส ผัก) ให้ qty:1 unit:null\n` +
+  `- หน่วย: gram/carb/protein/fat/satFat/unsatFat/sugar/fiber = กรัม, sodium = มิลลิกรัม, kcal = กิโลแคลอรี\n` +
+  `- ตัวเลขเดียวเท่านั้นทุกช่อง ห้ามเป็นช่วง ห้ามใช้คำว่า "ประมาณ/ถึง" — ใส่ตัวเลข number เท่านั้นไม่ใส่หน่วยในค่า\n` +
+  `- ตัวเลขแต่ละวัตถุดิบรวมกันต้องใกล้เคียงผลรวมทั้งจาน\n` +
+  `- ถ้ารูปไม่ใช่อาหารหรือมองไม่ชัดพอประเมิน ให้ตอบ {"error":"เหตุผลสั้นๆ ภาษาไทย"} แทน`;
+
+// debounce ข้อความในโหมดบอท/โภชนาการ — รอลูกค้าพิมพ์จบ (ตาม draft.debounceSeconds)
+// แล้วรวมเป็นข้อความเดียวส่ง LLM ตอบครั้งเดียวผ่าน push (replyToken หมดอายุระหว่างรอ)
+const modeTextBufs = new Map(); // lineUserId -> { texts[], timer, sessionId, task }
+
+async function queueModeText(lineUserId, text, sess) {
+  const cfg = await draftConfig().catch(() => null);
+  const delayMs = Math.min(120, Math.max(3, cfg?.debounceSeconds || 10)) * 1000;
+  let buf = modeTextBufs.get(lineUserId);
+  if (!buf) { buf = { texts: [], timer: null }; modeTextBufs.set(lineUserId, buf); }
+  buf.sessionId = sess.sessionId;
+  buf.task = sess.mode === "food" ? "food" : null;
+  buf.texts.push(text);
+  clearTimeout(buf.timer);
+  buf.timer = setTimeout(() => flushModeText(lineUserId), delayMs);
+  buf.timer.unref?.();
+}
+
+async function flushModeText(lineUserId) {
+  const buf = modeTextBufs.get(lineUserId);
+  if (!buf) return;
+  modeTextBufs.delete(lineUserId);
+  clearTimeout(buf.timer);
+  const sess = getChatMode(lineUserId);
+  if (!sess || sess.sessionId !== buf.sessionId) return; // หลุดโหมด/เปลี่ยน session แล้ว
+  const message = buf.texts.join("\n").slice(0, 4000);
+  if (!message.trim()) return;
+  try {
+    const ans = await askHealthChatbot(lineUserId, message, sess.sessionId, [], buf.task);
+    touchChatMode(lineUserId, message);
+    await pushText(lineUserId, ans).catch((e) =>
+      console.error("[webhook] modeReply push error:", e));
+  } catch (e) {
+    console.error("[webhook] modeReply flush failed:", e.message);
+  }
+}
+
+// ตาข่ายสำรอง: ถ้า python parse พลาดแต่ answer เป็น JSON ล้วน → แปลงเป็น flex แทนแสดงดิบ
+function tryParseFoodJson(s) {
+  if (!s || typeof s !== "string" || !s.trimStart().startsWith("{")) return null;
+  try {
+    const d = JSON.parse(s);
+    return Array.isArray(d?.items) && d.items.length ? d : null;
+  } catch { return null; }
+}
+
+// รูปที่ส่งในโหมดบอท: food=ประเมินโภชนาการ | chat=ถ้าเป็น screenshot สุขภาพเข้า pipeline
+// สกัดเหมือนเดิมแต่ตอบกลับแบบสนทนา (ไม่ใช่รายงานการ์ด) — รูปอื่นบอทอ่านตอบทั่วไป
+async function handleChatModeImage(lineUserId, messageId, replyToken, sess) {
+  const rawBuffer = await getImageContent(messageId).catch(() => null);
+  if (!rawBuffer) {
+    if (replyToken) {
+      const v = await botVoice();
+      await replyText(replyToken, `ขออภัย${v.p} ดึงรูปไม่สำเร็จ ลองส่งใหม่อีกครั้งนะ${v.p}`, lineUserId).catch(() => {});
+    }
+    return;
+  }
+  const optimized = await optimizeImageForAi(rawBuffer).catch(() => rawBuffer);
+  const image = [{ data: optimized.toString("base64"), mimeType: "image/jpeg" }];
+
+  if (sess.mode === "food") {
+    const j = await askHealthChatbotJson(lineUserId, FOOD_ANALYSIS_PROMPT, sess.sessionId, image, "food");
+    touchChatMode(lineUserId);
+    if (replyToken) {
+      const food = j?.meta?.foodData || tryParseFoodJson(j?.answer);
+      if (food && Array.isArray(food.items) && food.items.length) {
+        try {
+          await replyFlex(replyToken, buildFoodFlex(food), lineUserId);
+        } catch (e) {
+          console.error("[webhook] food flex reply failed:", e);
+          const v = await botVoice();
+          await replyText(replyToken, j.answer || `ขออภัย${v.p} ระบบขัดข้องชั่วคราว${v.p}`, lineUserId).catch(() => {});
+        }
+      } else {
+        const v = await botVoice();
+        await replyText(replyToken, j?.answer || `ขออภัย${v.p} ระบบขัดข้องชั่วคราว${v.p}`, lineUserId).catch(() => {});
+      }
+    }
+    return;
+  }
+
+  const cls = await classifyWeeklyImage(optimized, "image/jpeg").catch(() => ({ page: "unknown" }));
+  if (cls.page !== "unknown" && (cls.confidence ?? 0) >= 0.5) {
+    await queueWeeklyImage({
+      lineUserId, messageId, replyToken,
+      onComplete: async (aiData) => {
+        const q = sess.lastQuestion;
+        const ans = await askHealthChatbot(lineUserId,
+          `[ระบบ] ลูกค้าเพิ่งส่งภาพครบ 3 หน้าและวิเคราะห์เสร็จแล้ว\nผลวิเคราะห์: ${JSON.stringify(aiData).slice(0, 6000)}\n` +
+          `เล่าผลให้ลูกค้าฟังแบบสนทนา` + (q ? ` และตอบคำถามล่าสุดของลูกค้าด้วย: "${q}"` : ""),
+          sess.sessionId);
+        await pushText(lineUserId, ans).catch(() => {});
+      },
+    });
+    touchChatMode(lineUserId);
+    return;
+  }
+
+  const ans = await askHealthChatbot(lineUserId, "", sess.sessionId, image);
+  touchChatMode(lineUserId);
+  if (replyToken) await replyText(replyToken, ans, lineUserId).catch(() => {});
+}
+
+export async function handleEvent(event) {
   if (event.type !== "message" && event.type !== "follow") return;
 
   const lineUserId = event.source?.userId;
@@ -212,6 +419,43 @@ async function handleEvent(event) {
         `- /review : ดูรายการที่ติดธงรอตรวจสอบ (Needs Review)\n` +
         `- /admin auth <รหัสผ่าน> : ยืนยันสิทธิ์แอดมิน`;
       if (replyToken) await replyText(replyToken, helpMsg, lineUserId);
+      return;
+    }
+
+    // ── โหมดแชทบอท (Rich Menu "คุยกับบอท" / "โภชนาการอาหาร") ──
+    if (text === CHAT_ENTER_TEXT || text === FOOD_ENTER_TEXT) {
+      const mode = text === CHAT_ENTER_TEXT ? "chat" : "food";
+      if (!isRegistered) {
+        if (replyToken) {
+          await replyRegistrationPrompt(
+            replyToken, lineUserId,
+            `กรุณาลงทะเบียนก่อนใช้งาน${mode === "chat" ? "แชทบอท" : "ฟีเจอร์โภชนาการอาหาร"}นะคะ`
+          ).catch((err) => console.error("[webhook] replyRegistrationPrompt(mode-enter) error:", err));
+        }
+        return;
+      }
+      enterChatMode(lineUserId, mode);
+      if (replyToken) {
+        const greet = mode === "chat" ? await chatModeGreeting(lineUserId) : await foodModeIntro();
+        await replyText(replyToken, greet, lineUserId).catch((err) =>
+          console.error("[webhook] replyText(mode-enter) error:", err));
+      }
+      return;
+    }
+
+    // กดปุ่ม Rich Menu อื่น → หลุดโหมดบอททันที แล้วปล่อย flow เดิมทำงานตามปกติ
+    // (ข้อความที่พิมพ์เอง รวมถึงทักทาย ไม่หลุดโหมด — ให้บอทตอบ)
+    const isMenuText =
+      text === "ลงทะเบียน" || text === "ติดต่อสอบถาม" ||
+      text === "เลือกภาพเพื่อวิเคราะห์" || text === "ส่งรูปวิเคราะห์" ||
+      text === "ผลลัพธ์ล่าสุด" || text === "วิธีใช้งาน";
+    if (isMenuText) exitChatMode(lineUserId);
+
+    // อยู่ในโหมดบอท + ข้อความอิสระ → เข้า debounce buffer → รวมตอบครั้งเดียว (ไม่เข้า flow เดิม/draft)
+    const chatSess = getChatMode(lineUserId);
+    if (chatSess) {
+      queueModeText(lineUserId, text, chatSess).catch((err) =>
+        console.error("[webhook] modeText buffer error:", err));
       return;
     }
 
@@ -380,8 +624,17 @@ async function handleEvent(event) {
 
     if (isImageFile) {
       const messageId = event.message.id;
-      await queueWeeklyImage({ lineUserId, messageId, replyToken });
+      const sess = getChatMode(lineUserId);
+      if (sess) {
+        await handleChatModeImage(lineUserId, messageId, replyToken, sess);
+      } else {
+        await queueWeeklyImage({ lineUserId, messageId, replyToken });
+      }
     } else if (msgType === "text" && replyToken) {
+      // auto-draft — buffer ข้อความให้บอทเตรียมคำตอบไว้ในหน้า testchatbot (ไม่ส่งเข้า LINE)
+      addIncomingText(lineUserId, text).catch((err) =>
+        console.error("[webhook] chatDraft error:", err)
+      );
       await replyText(replyToken, autoReplies.textFallback, lineUserId).catch((err) =>
         console.error("[webhook] replyText(fallback) error:", err)
       );

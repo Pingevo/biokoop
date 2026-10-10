@@ -18,6 +18,8 @@ import {
 import { saveImage } from "./storageService.js";
 import { sendAdminAlert } from "./alertService.js";
 import { classifyWeeklyImage, analyzeWeeklyImages } from "./aiService.js";
+import { enqueueExtraction } from "./extractionQueue.js";
+import { getChatMode } from "./chatMode.js";
 
 // ─── WEEKLY REPORT BATCHING ───
 // ลูกค้าส่งภาพ Screenshot จากแอป Kieslect 3 รูป (Body Load / Recovery / Sleep Quality)
@@ -86,12 +88,13 @@ function expireBatch(lineUserId) {
   const batch = imageBatches.get(lineUserId);
   if (!batch || batch.processing) return;
   imageBatches.delete(lineUserId);
+  if (getChatMode(lineUserId)) return;  // ลูกค้าอยู่โหมดบอท → ห้ามข้อความ flow เดิมแทรก (แยกเด็ดขาด)
   console.warn(`[pipeline] ⏱️ batch ของ ${lineUserId} หมดอายุ (มี ${batch.items.length}/${WEEKLY_IMAGE_COUNT} รูป)`);
   pushText(lineUserId, expiryMessage()).catch(() => {});
 }
 
 // เรียกจาก webhook handler ทุกครั้งที่ผู้ใช้ส่งรูปเข้ามา
-export async function queueWeeklyImage({ lineUserId, messageId, replyToken }) {
+export async function queueWeeklyImage({ lineUserId, messageId, replyToken, onComplete }) {
   let batch = imageBatches.get(lineUserId);
 
   // กำลังประมวลผลรายงานชุดเดิมอยู่ -> แจ้งให้รอก่อน
@@ -107,10 +110,11 @@ export async function queueWeeklyImage({ lineUserId, messageId, replyToken }) {
   }
 
   if (!batch) {
-    batch = { items: [], timer: null, processing: false };
+    batch = { items: [], timer: null, processing: false, onComplete: null };
     batch.timer = setTimeout(() => expireBatch(lineUserId), BATCH_TTL_MS);
     imageBatches.set(lineUserId, batch);
   }
+  if (onComplete) batch.onComplete = onComplete;
 
   // ดึงภาพจาก LINE ก่อน (ป้องกัน content หมดอายุ)
   let imageBuffer;
@@ -262,6 +266,17 @@ async function processWeeklyReport({ lineUserId, batch, replyToken }) {
     });
     request.save().catch(() => {});
 
+    // ── flow สกัดข้อมูลดิบ (rawExtraction) — durable queue ──
+    // ส่งภาพต้นฉบับเต็มขนาด 3 รูปไปสกัดทุกค่าด้วย Gemini แยก key/model ของตัวเอง (จัดการที่ /llmkey2)
+    // enqueue จด job ลง Mongo ก่อนรัน — process ตายกลางทางจะถูกกู้กลับมาทำต่อตอนบูต (ไม่หลุดอีก)
+    enqueueExtraction({
+      requestId: request._id,
+      lineUserId,
+      imageBuffers: batch.items.map((it) => it.buffer),
+      mimeType: "image/jpeg",
+      userDisplayName: user?.nickname ? `คุณ${user.nickname}` : lineUserId,
+    }).catch(() => {});
+
     // เซฟรูปต้นฉบับทั้ง 3 ลง GridFS + ส่ง AI วิเคราะห์รวมครั้งเดียว
     console.log(`[pipeline] ⚡ เริ่มวิเคราะห์รายสัปดาห์ (${batch.items.length} รูป) ของ ${lineUserId}`);
     const originalImageIds = await Promise.all(
@@ -335,7 +350,12 @@ async function processWeeklyReport({ lineUserId, batch, replyToken }) {
     const imageUrls = resultImageIds.map((id) => `${process.env.PUBLIC_BASE_URL}/results/${id}.png`);
 
     // ส่งรายงานสุขภาพ (Flex Carousel + ภาพรวม 1 รูป + รูปเดี่ยว 3 หน้า + ข้อความสรุป) เข้าแชทผู้ใช้
-    await sendWeeklyReportImages(lineUserId, imageUrls, aiData, combinedImageUrl);
+    // — โหมดแชทบอทมี onComplete ให้แทน: extraction/รูปถูกเก็บปกติ แต่ตอบกลับแบบสนทนาแทนการ์ดรายงาน
+    if (batch.onComplete) {
+      await batch.onComplete(aiData);
+    } else {
+      await sendWeeklyReportImages(lineUserId, imageUrls, aiData, combinedImageUrl);
+    }
     console.log(`[pipeline] 🚀 ส่งรายงานรายสัปดาห์เรียบร้อย! (ใช้เวลาทั้งหมด ${Date.now() - startTime}ms)`);
 
     await logStep({

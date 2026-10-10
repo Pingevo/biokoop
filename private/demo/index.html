@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>biokoop Demo — ทดลองแชทบอท</title>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Kanit', sans-serif; background: #f4f4f5; min-height: 100vh;
+    display: flex; flex-direction: column;
+  }
+  .topbar {
+    background: #09090b; color: #fff; padding: 12px 20px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  .topbar h1 { font-size: 18px; font-weight: 600; }
+  .topbar .badge {
+    background: #dc2626; font-size: 12px; padding: 3px 10px; border-radius: 99px;
+  }
+  .topbar .warn {
+    background: #f59e0b; color: #09090b; font-size: 12px; padding: 3px 10px;
+    border-radius: 99px; font-weight: 500;
+  }
+
+  .wrap { display: flex; gap: 20px; padding: 20px; flex: 1; align-items: flex-start; justify-content: center; flex-wrap: wrap; }
+
+  /* ── Phone ── */
+  .phone {
+    width: 400px; height: 760px; background: #000; border-radius: 36px;
+    padding: 12px; box-shadow: 0 20px 50px rgba(0,0,0,.3); flex-shrink: 0;
+  }
+  .screen {
+    background: #8CA6CB; height: 100%; border-radius: 26px; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  /* LINE header */
+  .line-head {
+    background: #1f2c34; color: #fff; padding: 10px 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .line-head .av {
+    width: 34px; height: 34px; border-radius: 50%; background: #dc2626;
+    display: flex; align-items: center; justify-content: center; font-size: 17px;
+  }
+  .line-head .nm { font-weight: 500; font-size: 15px; }
+  .line-head .st { font-size: 11px; color: #8696a0; }
+
+  .chat { flex: 1; overflow-y: auto; padding: 14px 10px; display: flex; flex-direction: column; gap: 8px; }
+  .bub {
+    max-width: 78%; padding: 8px 12px; border-radius: 14px; font-size: 13.5px;
+    line-height: 1.55; white-space: pre-wrap; word-break: break-word;
+  }
+  .bub.bot { align-self: flex-start; background: #fff; border-bottom-left-radius: 4px; }
+  .bub.user { align-self: flex-end; background: #95EC69; border-bottom-right-radius: 4px; }
+  .bub.sys {
+    align-self: center; background: rgba(0,0,0,.25); color: #fff; font-size: 11.5px;
+    border-radius: 99px; padding: 4px 12px;
+  }
+  .bub img { max-width: 100%; border-radius: 8px; display: block; }
+  .bub .flexnote { font-size: 11px; color: #71717a; border-top: 1px dashed #d4d4d8; margin-top: 6px; padding: 5px 12px 10px; }
+  .bub.flexmsg { padding: 0; max-width: 94%; flex-shrink: 0; }
+
+  /* input row */
+  .inputrow { background: #f4f4f5; padding: 8px; display: flex; gap: 8px; align-items: center; }
+  .inputrow input {
+    flex: 1; border: none; border-radius: 18px; padding: 9px 14px; font-size: 13.5px;
+    font-family: inherit; outline: none; background: #fff;
+  }
+  .inputrow button {
+    width: 38px; height: 38px; border-radius: 50%; border: none; background: #06C755;
+    color: #fff; font-size: 16px; cursor: pointer; flex-shrink: 0;
+  }
+  #attachBtn { background: #e4e4e7; font-size: 15px; }
+  .inputrow button:disabled { background: #9ca3af; cursor: wait; }
+
+  /* rich menu — ภาพจริงจาก template + click zones (hero 58.4% / ปุ่ม 5 ช่องล่าง) */
+  .richmenu { background: #fff; border-top: 1px solid #e4e4e7; }
+  .rm-wrap { position: relative; line-height: 0; }
+  .rm-wrap img { width: 100%; display: block; }
+  .rm-zone { position: absolute; cursor: pointer; border-radius: 6px; }
+  .rm-zone:hover { background: rgba(220,38,38,.10); }
+  .rm-zone:active { background: rgba(220,38,38,.22); }
+
+  /* ── Side panel ── */
+  .panel { width: 340px; flex-shrink: 0; display: flex; flex-direction: column; gap: 14px; }
+  .card {
+    background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .card h3 { font-size: 14px; font-weight: 600; margin-bottom: 10px; color: #18181b; }
+  .mode-pill {
+    display: inline-block; padding: 4px 14px; border-radius: 99px; font-size: 13px; font-weight: 600;
+    background: #e4e4e7; color: #52525b;
+  }
+  .mode-pill.on { background: #dcfce7; color: #15803d; }
+  .mode-pill.food { background: #fef3c7; color: #b45309; }
+  .stat { font-size: 13px; color: #52525b; margin-top: 6px; }
+  .stat b { color: #18181b; }
+  .card button {
+    border: 1px solid #d4d4d8; background: #fff; border-radius: 8px; padding: 7px 12px;
+    font-family: inherit; font-size: 12.5px; cursor: pointer; margin: 3px 4px 3px 0;
+  }
+  .card button:hover { background: #f4f4f5; }
+  .card button.danger { border-color: #fecaca; color: #dc2626; }
+  .card button.primary { background: #09090b; color: #fff; border-color: #09090b; }
+  .chk { font-size: 12.5px; color: #3f3f46; padding: 5px 0; }
+  .chk .ok { color: #16a34a; } .chk .no { color: #dc2626; }
+  #log { font-size: 11px; color: #71717a; max-height: 150px; overflow-y: auto; white-space: pre-wrap; }
+
+  /* ── responsive: tablet ≤920px stack panel, phone ≤480px เต็มจอ ── */
+  @media (max-width: 920px) {
+    .wrap { padding: 14px; gap: 14px; }
+    .panel { width: min(400px, 100%); }
+  }
+  @media (max-width: 480px) {
+    .topbar { padding: 10px 12px; gap: 8px; }
+    .topbar h1 { font-size: 15px; }
+    .wrap { padding: 8px; gap: 10px; }
+    .phone {
+      width: 100%; height: 74dvh; min-height: 540px;
+      padding: 8px; border-radius: 22px;
+    }
+    .panel { width: 100%; }
+  }
+  @media (max-width: 360px) {
+    .phone { min-height: 480px; }
+  }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>💬 biokoop — ทดลองแชทบอท</h1>
+  <span class="badge">demo</span>
+  <span class="warn">หน้าทดสอบ — ไม่มีข้อความถูกส่งเข้า LINE จริง</span>
+</div>
+
+<div class="wrap">
+  <!-- ═══ PHONE ═══ -->
+  <div class="phone"><div class="screen">
+    <div class="line-head">
+      <div class="av">🩺</div>
+      <div><div class="nm">biokoop</div><div class="st" id="headStatus">Official Account</div></div>
+    </div>
+    <div class="chat" id="chat"></div>
+    <div class="inputrow">
+      <button id="attachBtn" title="แนบรูป (เหมือนส่งรูปใน LINE)">📎</button>
+      <input id="inp" placeholder="พิมพ์ข้อความ…" maxlength="500">
+      <button id="sendBtn" title="ส่ง">➤</button>
+      <input type="file" id="fileInput" accept="image/*" multiple hidden>
+    </div>
+    <div class="richmenu">
+      <div class="rm-wrap" id="rmWrap">
+        <img src="/demo/api/richmenu.png" alt="rich menu" draggable="false">
+      </div>
+    </div>
+  </div></div>
+
+  <!-- ═══ SIDE ═══ -->
+  <div class="panel">
+    <div class="card">
+      <h3>สถานะโหมดบอท</h3>
+      <div><span class="mode-pill" id="modePill">โหมดปกติ</span></div>
+      <div class="stat" id="modeDetail">ยังไม่ได้เข้าโหมดแชท</div>
+      <div class="stat" id="simUserStat" style="margin-top:4px;color:#666;font-size:12px;"></div>
+    </div>
+    <div class="card">
+      <h3>เครื่องมือทดสอบ</h3>
+      <button class="primary" id="skipBtn">⏩ จำลองเวลาผ่านไป 16 นาที</button>
+      <button class="danger" id="clearBtn">ล้างหน้าจอแชท</button>
+      <div class="stat" style="margin-top:8px">ข้อความ+รูปวิ่งผ่าน <b>webhook จริง</b> — reply ถูกดักแสดงที่นี่ ไม่ยิง LINE</div>
+    </div>
+    <div class="card">
+      <h3>ลองเล่นได้ตามนี้</h3>
+      <div class="chk">1. กด <b>คุยกับแชทบอท</b> → บอททัก greeting แล้วถามข้อมูลสุขภาพได้เลย</div>
+      <div class="chk">2. ลองถาม เช่น "ช่วง 7 วันที่ผ่านมาฉันนอนเป็นยังไง" / "Recovery ของฉันเป็นไง"</div>
+      <div class="chk">3. กด <b>โภชนาการอาหาร</b> → 📎 ส่งรูปอาหาร → บอทวิเคราะห์เป็นการ์ดภาพ</div>
+      <div class="chk">4. 📎/แตะ hero → ส่งภาพ Kieslect 3 ใบ (Body Load / Recovery / Sleep) → ได้รายงานภาพ</div>
+      <div class="chk">5. ในโหมดบอท → กดเมนูอื่น หรือเงียบเกิน 15 นาที → หลุดโหมดกลับ flow เดิม</div>
+    </div>
+    <div class="card"><h3>Debug log</h3><div id="log"></div></div>
+  </div>
+</div>
+
+<script>
+const chat = document.getElementById('chat');
+const inp = document.getElementById('inp');
+const sendBtn = document.getElementById('sendBtn');
+// rich menu = ภาพจริงจาก template (hero 985px / เมนูล่าง 701px ของภาพ 2500×1686)
+const fileInput = document.getElementById('fileInput');
+const RM_BUTTON_TEXTS = ['ลงทะเบียน', 'วิธีใช้งาน', 'ผลลัพธ์ล่าสุด', 'คุยกับบอท', 'โภชนาการอาหาร'];
+{
+  const rmWrap = document.getElementById('rmWrap');
+  const hero = document.createElement('div');
+  hero.className = 'rm-zone'; hero.style.cssText = 'top:0;left:0;right:0;height:58.4%';
+  hero.title = 'เลือกภาพเพื่อวิเคราะห์ (ส่งข้อความเมนู → ออกโหมดบอท → เปิดแกลเลอรี)';
+  hero.onclick = async () => { await send('เลือกภาพเพื่อวิเคราะห์'); fileInput.click(); };
+  rmWrap.appendChild(hero);
+  RM_BUTTON_TEXTS.forEach((text, i) => {
+    const z = document.createElement('div');
+    z.className = 'rm-zone';
+    z.style.cssText = `left:${i * 20}%;width:20%;top:58.4%;bottom:0`;
+    z.title = text;
+    z.onclick = () => send(text);
+    rmWrap.appendChild(z);
+  });
+}
+
+function bubble(text, side) {
+  const d = document.createElement('div');
+  d.className = 'bub ' + side;
+  d.textContent = text;
+  chat.appendChild(d); chat.scrollTop = chat.scrollHeight;
+}
+function sys(text) { const d = document.createElement('div'); d.className = 'bub sys'; d.textContent = text; chat.appendChild(d); chat.scrollTop = chat.scrollHeight; }
+function log(t) { const el = document.getElementById('log'); el.textContent += t + '\n'; el.scrollTop = el.scrollHeight; }
+
+function updateMode(s) {
+  const pill = document.getElementById('modePill'), det = document.getElementById('modeDetail');
+  if (!s.active) {
+    pill.className = 'mode-pill'; pill.textContent = 'โหมดปกติ (flow เดิม)';
+    det.innerHTML = 'ข้อความอิสระ → fallback เดิม + draft buffer';
+    document.getElementById('headStatus').textContent = 'Official Account';
+    return;
+  }
+  const isFood = s.mode === 'food';
+  pill.className = 'mode-pill on' + (isFood ? ' food' : '');
+  pill.textContent = isFood ? '🍽️ โหมดโภชนาการ' : '🤖 โหมดแชทบอท';
+  det.innerHTML = `เหลือเวลา <b>${s.remainingSec}s</b> — ข้อความ → AI ตอบจริง`;
+  document.getElementById('headStatus').textContent = isFood ? 'โหมด: โภชนาการ' : 'โหมด: คุยกับบอท';
+}
+
+// render LINE Flex Message เป็น HTML card จำลองหน้าตาในแอป LINE
+const FSZ = { xxs: 10, xs: 12, sm: 13, md: 15, lg: 18, xl: 21, xxl: 24, '3xl': 28 };
+const FSP = { none: 0, xxs: 2, xs: 3, sm: 5, md: 8, lg: 12, xl: 16, xxl: 20 };
+function flexEl(n) {
+  if (!n || !n.type) return null;
+  if (n.type === 'text') {
+    const s = document.createElement('div');
+    s.textContent = n.text ?? '';
+    s.style.cssText = `font-size:${FSZ[n.size] || 13}px;color:${n.color || '#111827'};` +
+      `text-align:${n.align || 'left'};font-weight:${n.weight === 'bold' ? 700 : 400};` +
+      `flex:${n.flex ? n.flex + ' 1 0' : '0 0 auto'};min-width:0;${n.wrap ? 'white-space:pre-wrap;' : ''}` +
+      (n.gravity === 'center' ? 'align-self:center;' : '');
+    return s;
+  }
+  if (n.type === 'separator') {
+    const h = document.createElement('div');
+    h.style.cssText = `border-top:1px solid ${n.color || '#E5E7EB'};margin:2px 0`;
+    return h;
+  }
+  if (n.type === 'box') {
+    const d = document.createElement('div');
+    const horiz = n.layout === 'horizontal';
+    d.style.cssText = `display:flex;flex-direction:${horiz ? 'row' : 'column'};` +
+      `gap:${FSP[n.spacing] ?? 6}px;flex:${n.flex ? n.flex + ' 1 0' : '0 0 auto'};min-width:0;` +
+      (n.backgroundColor ? `background:${n.backgroundColor};` : '') +
+      (n.cornerRadius ? `border-radius:${parseInt(n.cornerRadius) || 8}px;` : '') +
+      (n.paddingAll ? `padding:${parseInt(n.paddingAll) || 8}px;` : '');
+    for (const c of n.contents || []) { const e = flexEl(c); if (e) d.appendChild(e); }
+    return d;
+  }
+  if (n.type === 'bubble') return flexEl(n.body);
+  return null;
+}
+
+function renderReply(m) {
+  try { _renderReply(m); } catch (e) { sys('⚠️ render ' + m.type + ' failed: ' + e.message); }
+}
+function _renderReply(m) {
+  if (m.type === 'text') { bubble(m.text, 'bot'); return; }
+  if (m.type === 'flex') {
+    const d = document.createElement('div'); d.className = 'bub bot flexmsg';
+    const card = flexEl(m.contents) || flexEl(m.contents?.body);
+    if (card) d.appendChild(card);
+    const note = document.createElement('div'); note.className = 'flexnote';
+    note.textContent = '📋 ' + (m.altText || 'Flex Message') + (card ? '' : ' — [no contents: ' + JSON.stringify(m).slice(0, 120) + ']');
+    d.appendChild(note);
+    chat.appendChild(d); chat.scrollTop = chat.scrollHeight; return;
+  }
+  if (m.type === 'image') {
+    const d = document.createElement('div'); d.className = 'bub bot';
+    d.innerHTML = `<img src="${m.originalContentUrl}" alt="รูปตอบกลับ" onerror="this.outerHTML='[image: '+(m.originalContentUrl||'')+']'">`;
+    chat.appendChild(d); chat.scrollTop = chat.scrollHeight; return;
+  }
+  bubble('[' + m.type + ']', 'bot');
+}
+
+async function send(text) {
+  if (!text || sendBtn.disabled) return;
+  sendBtn.disabled = true;
+  bubble(text, 'user');
+  log('→ send: ' + text);
+  try {
+    const r = await fetch('/demo/api/event', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    const j = await r.json();
+    if (!j.ok) { sys('⚠️ ' + (j.error || 'error')); }
+    else {
+      const msgs = (j.replies || []).flatMap(x => x.messages || []);
+      if (!msgs.length) {
+        sys(j.active
+          ? '(ไม่มี reply — อาจเข้า buffer/async)'
+          : '📥 เข้า draft buffer — บอทจะเตรียมคำตอบหลัง debounce (ดู tag DRAFT)');
+      }
+      msgs.forEach(renderReply);
+      log('← replies: ' + msgs.length + ' | mode=' + (j.mode || 'ปกติ'));
+      updateMode(j);
+    }
+  } catch (e) { sys('⚠️ ' + e.message); }
+  sendBtn.disabled = false; inp.focus();
+}
+
+async function sendImage(file) {
+  if (!file || !file.type.startsWith('image/')) { sys('⚠️ รับเฉพาะไฟล์รูปภาพ'); return; }
+  if (file.size > 10 * 1024 * 1024) { sys('⚠️ รูปใหญ่เกิน 10MB'); return; }
+  const dataUrl = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(file); });
+  const d = document.createElement('div'); d.className = 'bub user';
+  d.innerHTML = `<img src="${dataUrl}" style="max-width:180px;max-height:180px;border-radius:10px;display:block;">`;
+  chat.appendChild(d); chat.scrollTop = chat.scrollHeight;
+  log('→ image: ' + (file.name || 'image'));
+  sendBtn.disabled = true;
+  sys('กำลังประมวล… (อาจใช้เวลา 10-60s)');
+  try {
+    const r = await fetch('/demo/api/image', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: dataUrl.split(',')[1], mimeType: file.type }),
+    });
+    const j = await r.json();
+    if (!j.ok) { sys('⚠️ ' + (j.error || 'error')); }
+    else {
+      const msgs = (j.replies || []).flatMap(x => x.messages || []);
+      if (!msgs.length) sys('(ไม่มี reply ทันที — เข้า batch/pipeline แล้ว)');
+      msgs.forEach(renderReply);
+      log('← replies: ' + msgs.length + ' | mode=' + (j.mode || 'ปกติ'));
+      updateMode(j);
+    }
+  } catch (e) { sys('⚠️ ' + e.message); }
+  sendBtn.disabled = false;
+}
+
+sendBtn.onclick = () => { send(inp.value.trim()); inp.value = ''; };
+inp.addEventListener('keydown', e => { if (e.key === 'Enter') { send(inp.value.trim()); inp.value = ''; } });
+document.getElementById('attachBtn').onclick = () => fileInput.click();
+fileInput.addEventListener('change', async e => {
+  const files = [...e.target.files]; e.target.value = '';
+  for (const f of files) await sendImage(f);   // ทีละใบ = LINE ส่งรูปละ event แยกกัน
+});
+
+document.getElementById('skipBtn').onclick = async () => {
+  const r = await fetch('/demo/api/skip-time', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"minutes":16}' });
+  const j = await r.json();
+  sys(`⏩ ข้ามเวลา 16 นาที — โหมด: ${j.active ? j.mode + ' (เหลือ ' + j.remainingSec + 's)' : 'หมดอายุแล้ว'}`);
+  updateMode(j);
+};
+document.getElementById('clearBtn').onclick = () => { chat.innerHTML = ''; };
+
+(async () => {
+  const st = await fetch('/demo/api/state').then(r => r.json()).catch(() => ({}));
+  document.getElementById('simUserStat').innerHTML =
+    `บทสนทนาทั้งหมดรันในนามบัญชีทดสอบ <b>${st.simUserId || 'userbot'}</b> (ข้อมูลสุขภาพตัวอย่าง)`;
+  updateMode(st);
+})();
+// ── poll draft buffer — ข้อความโหมดปกติเข้า debounce buffer → draft โผล่หลัง flush ──
+let lastDraftAt = Date.now();
+async function pollDrafts() {
+  try {
+    const r = await fetch('/demo/api/drafts?since=' + lastDraftAt);
+    const j = await r.json();
+    if (j.ok && j.items && j.items.length) {
+      for (const d of j.items) {
+        const b = document.createElement('div');
+        b.className = 'bub bot';
+        b.textContent = d.text;
+        const tag = document.createElement('span');
+        tag.style.cssText = 'display:inline-block;font-size:9.5px;font-weight:700;color:#B45309;border:1px solid #B45309;background:#FFFBEB;border-radius:20px;padding:1px 6px;margin-left:6px;vertical-align:middle;';
+        tag.textContent = 'DRAFT';
+        b.appendChild(tag);
+        chat.appendChild(b);
+        lastDraftAt = Math.max(lastDraftAt, new Date(d.at).getTime() + 1);
+      }
+      chat.scrollTop = chat.scrollHeight;
+      log('← draft flush: ' + j.items.length + ' ข้อความ');
+    }
+    // ข้อความ async ที่ยิงหลัง event response (batch TTL, งานพื้นหลัง) — ถูกดัก sim context เสมอ
+    const late = (j.lateReplies || []).flatMap(x => x.messages || []);
+    if (late.length) {
+      late.forEach(renderReply);
+      log('← async replies หลัง event: ' + late.length);
+    }
+  } catch (e) { /* เงียบ — poll รอบหน้า */ }
+}
+setInterval(pollDrafts, 3000);
+
+sys('พร้อมทดสอบ — ลองกด "คุยกับบอท" ในเมนูด้านล่าง');
+</script>
+</body>
+</html>
