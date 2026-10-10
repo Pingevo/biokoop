@@ -6,6 +6,5 @@ __pycache__
 *.log
 .git
 .DS_Store
-samples
 docker
 docker-compose.yml
