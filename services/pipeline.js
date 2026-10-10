@@ -19,6 +19,7 @@ import { saveImage } from "./storageService.js";
 import { sendAdminAlert } from "./alertService.js";
 import { classifyWeeklyImage, analyzeWeeklyImages } from "./aiService.js";
 import { enqueueExtraction } from "./extractionQueue.js";
+import { inSimContext } from "./simContext.js";
 import { getChatMode } from "./chatMode.js";
 
 // ─── WEEKLY REPORT BATCHING ───
@@ -259,6 +260,7 @@ async function processWeeklyReport({ lineUserId, batch, replyToken }) {
       lineUserId,
       status: REQUEST_STATUS.ANALYZING,
       reportType: "weekly",
+      channel: inSimContext() ? "sim" : "line",
       imei: user?.imei || "",
       orderSn: user?.orderSn || "",
       orderId: user?.orderId || "",
@@ -352,7 +354,7 @@ async function processWeeklyReport({ lineUserId, batch, replyToken }) {
     // ส่งรายงานสุขภาพ (Flex Carousel + ภาพรวม 1 รูป + รูปเดี่ยว 3 หน้า + ข้อความสรุป) เข้าแชทผู้ใช้
     // — โหมดแชทบอทมี onComplete ให้แทน: extraction/รูปถูกเก็บปกติ แต่ตอบกลับแบบสนทนาแทนการ์ดรายงาน
     if (batch.onComplete) {
-      await batch.onComplete(aiData);
+      await batch.onComplete(aiData, { imageUrls, combinedImageUrl });
     } else {
       await sendWeeklyReportImages(lineUserId, imageUrls, aiData, combinedImageUrl);
     }

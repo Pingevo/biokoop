@@ -24,6 +24,8 @@ const requestSchema = new mongoose.Schema(
       default: "received",
       index: true,
     },
+    // "sim" = คำขอเกิดจาก simulator (/testline, /demo) — ไม่นับสถิติ LINE จริง
+    channel: { type: String, enum: ["line", "sim"], default: "line", index: true },
     originalImageId: { type: mongoose.Schema.Types.ObjectId }, // GridFS file id (legacy: การ์ดรายวัน)
     resultImageId: { type: mongoose.Schema.Types.ObjectId }, // GridFS file id (legacy: การ์ดรายวัน)
     reportType: { type: String, default: "weekly" }, // "weekly" = รายงานเทรนด์รายสัปดาห์

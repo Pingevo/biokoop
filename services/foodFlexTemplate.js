@@ -112,3 +112,49 @@ export function buildFoodFlex(d) {
     },
   };
 }
+
+// bubble "กำลังวิเคราะห์" ส่งทันทีตอนรับรูปโภชนาการ — flex ทำ animation จริงไม่ได้ ใช้สัญลักษณ์โหลด + loading dots ของ LINE คู่กัน
+export function buildFoodLoadingFlex() {
+  const dot = (bg) => ({
+    type: "box", layout: "vertical", width: "10px", height: "10px",
+    cornerRadius: "10px", backgroundColor: bg, contents: [],
+  });
+  return {
+    type: "flex",
+    altText: "⏳ กำลังวิเคราะห์โภชนาการอาหาร…",
+    contents: {
+      type: "bubble",
+      size: "kilo",
+      body: {
+        type: "box", layout: "vertical", paddingAll: "16px", spacing: "md",
+        contents: [
+          txt("BIOKOOP · วิเคราะห์โภชนาการอาหาร", { size: "xxs", color: T.faint }),
+          {
+            type: "box", layout: "horizontal", spacing: "md",
+            contents: [
+              txt("🍽️", { size: "3xl", flex: 0, gravity: "center" }),
+              {
+                type: "box", layout: "vertical", flex: 1, spacing: "xs",
+                contents: [
+                  txt("กำลังวิเคราะห์ภาพอาหาร", { size: "md", weight: "bold", color: T.ink, wrap: true }),
+                  txt("AI กำลังแยกส่วนประกอบและคำนวณค่าโภชนาการให้นะคะ", { size: "xs", color: T.sub, wrap: true }),
+                ],
+              },
+            ],
+          },
+          {
+            type: "box", layout: "vertical", backgroundColor: T.lightBg,
+            cornerRadius: "8px", paddingAll: "10px",
+            contents: [
+              {
+                type: "box", layout: "horizontal", spacing: "sm", justifyContent: "center",
+                contents: [dot(T.amber), dot("#FBBF24"), dot("#FDE68A")],
+              },
+            ],
+          },
+          txt("โดยปกติใช้เวลาไม่กี่วินาทีค่ะ", { size: "xxs", color: T.faint, align: "center" }),
+        ],
+      },
+    },
+  };
+}

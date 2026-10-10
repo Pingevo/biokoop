@@ -828,6 +828,9 @@
       <div class="nav-item" onclick="switchTab('testline', this)" title="จำลองแชท LINE — เทสเมนู/โหมดบอทโดยไม่ยิง LINE จริง">
         <span><i class="mi" aria-hidden="true">phone_iphone</i></span> TestLine Sim
       </div>
+      <div class="nav-item" onclick="switchTab('dashboardstat', this)" title="สถิติการส่งข้อความ push/reply + extraction + ผู้ใช้">
+        <span><i class="mi" aria-hidden="true">monitoring</i></span> Dashboard Stat
+      </div>
 
       <div class="nav-section-label"><i class="mi" aria-hidden="true">science</i> เครื่องมือ & ระบบ</div>
       <div class="nav-item" onclick="switchTab('system-health', this)">
@@ -3196,6 +3199,7 @@
       <section id="tab-chatpersona" class="tab-content tool-tab"><iframe title="Chat Persona" data-src="/chatpersona?bare=1"></iframe></section>
       <section id="tab-healthcalendar" class="tab-content tool-tab"><iframe title="Health Calendar" data-src="/healthcalendar?bare=1"></iframe></section>
       <section id="tab-testline" class="tab-content tool-tab"><iframe title="TestLine Sim" data-src="/testline?bare=1"></iframe></section>
+      <section id="tab-dashboardstat" class="tab-content tool-tab"><iframe title="Dashboard Stat" data-src="/dashboardstat?bare=1"></iframe></section>
 
       <!-- Monthly Audit History Modal -->
       <div id="monthlyAuditHistoryModal" class="modal-overlay">
@@ -3706,7 +3710,8 @@
         'testchatbot': '<i class="mi" aria-hidden="true">smart_toy</i> Test Chatbot',
         'chatpersona': '<i class="mi" aria-hidden="true">face</i> Chat Persona',
         'healthcalendar': '<i class="mi" aria-hidden="true">calendar_month</i> Health Calendar',
-        'testline': '<i class="mi" aria-hidden="true">phone_iphone</i> TestLine Sim'
+        'testline': '<i class="mi" aria-hidden="true">phone_iphone</i> TestLine Sim',
+        'dashboardstat': '<i class="mi" aria-hidden="true">monitoring</i> Dashboard Stat'
       };
 
       const subLabels = {

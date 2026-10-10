@@ -243,6 +243,28 @@ export async function replyImageText(replyToken, imageUrl, text, lineUserId) {
 }
 
 // ตอบกลับด้วย Flex Message ผ่าน replyToken
+// ตอบกลับหลายข้อความใน reply เดียว (สูงสุด 5 ต่อ replyToken) — ใช้ ack + การ์ด loading ก่อนผลจริงตามมาทาง push
+export async function replyMessages(replyToken, messages, lineUserId) {
+  try {
+    const res = await client.replyMessage({ replyToken, messages });
+    if (lineUserId) {
+      logLineMessage({
+        lineUserId, sendType: "reply", messageType: "mixed",
+        content: messages.map((m) => m.type).join("+"), status: "success",
+      });
+    }
+    return res;
+  } catch (err) {
+    if (lineUserId) {
+      logLineMessage({
+        lineUserId, sendType: "reply", messageType: "mixed",
+        content: messages.map((m) => m.type).join("+"), status: "failed", errorDetail: err.message,
+      });
+    }
+    throw err;
+  }
+}
+
 export async function replyFlex(replyToken, flexMessage, lineUserId) {
   try {
     const res = await client.replyMessage({
