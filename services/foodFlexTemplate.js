@@ -60,7 +60,7 @@ export function buildFoodFlex(d) {
     cornerRadius: "8px", paddingAll: "8px", spacing: "sm",
     contents: [
       txt("วัตถุดิบ", { size: "xxs", color: "#FFFFFF", flex: 5, weight: "bold", gravity: "center" }),
-      headCell("กรัม"), headCell("kcal"), headCell("carb"), headCell("protein"), headCell("fat"),
+      headCell("กรัม"), headCell("แคล"), headCell("คาร์บ"), headCell("โปรตีน"), headCell("ไขมัน"),
     ],
   };
 
@@ -76,7 +76,7 @@ export function buildFoodFlex(d) {
   };
 
   const body = [
-    txt("BIOKOOP · NUTRITION ANALYSIS", { size: "xxs", color: T.faint }),
+    txt("BIOKOOP · วิเคราะห์โภชนาการอาหาร", { size: "xxs", color: T.faint }),
     {
       type: "box", layout: "horizontal", spacing: "md",
       contents: [
@@ -89,8 +89,8 @@ export function buildFoodFlex(d) {
     {
       type: "box", layout: "horizontal", spacing: "sm",
       contents: [
-        chip("อิ่มตัว", t.satFat, "g"), chip("ไม่อิ่มตัว", t.unsatFat, "g"),
-        chip("น้ำตาล", t.sugar, "g"), chip("โซเดียม", t.sodium, "mg"), chip("ใยอาหาร", t.fiber, "g"),
+        chip("อิ่มตัว", t.satFat, "ก."), chip("ไม่อิ่มตัว", t.unsatFat, "ก."),
+        chip("น้ำตาล", t.sugar, "ก."), chip("โซเดียม", t.sodium, "มก."), chip("ใยอาหาร", t.fiber, "ก."),
       ],
     },
   ];
@@ -104,7 +104,7 @@ export function buildFoodFlex(d) {
 
   return {
     type: "flex",
-    altText: `🍽️ ${menu} — รวมประมาณ ${num(t.kcal)} kcal`,
+    altText: `🍽️ ${menu} — รวมประมาณ ${num(t.kcal)} แคล`,
     contents: {
       type: "bubble",
       size: "mega",
