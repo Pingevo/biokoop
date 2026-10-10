@@ -96,7 +96,10 @@ function iFood(cx, cy, r, col) {
 const ICONS = { user: iUser, book: iBook, image: iImage, chat: iChat, bot: iBot, food: iFood };
 
 function esc(s = "") {
-  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return String(s)
+    // resvg จัดสระอำ (U+0E33) ไม่ถูก — แยกเป็นนิคหิต + สระอา แบบเดียวกับ weeklyReportTemplate.js
+    .replace(/([ก-ฮ])([่-์])?ำ/g, (m, c, t) => c + "ํ" + (t || "") + "า")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 export function renderRichMenuImage() {
