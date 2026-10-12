@@ -23,3 +23,6 @@
 - `node --check server.js`
 - HTML inline JS syntax: `node -e "const h=require('fs').readFileSync('public/admin/index.html','utf8'); [...h.matchAll(/<script>([\s\S]*?)<\/script>/g)].forEach(m=>new Function(m[1])); console.log('OK')"`
 - Start: `npm start` (ต้องมี .env + MongoDB); login หน้า admin ผ่าน ITSR SSO เท่านั้น
+
+## Backlog (อยากทำแต่ยังไม่ทำ)
+- แยกคำตอบบอทยาวเป็น 2-3 บับเบิ้ลใน push เดียว (LINE รองรับสูงสุด 5 objects/call) — ระวัง: push นับ quota ต่อ object (3 บับเบิ้ล = 3 quota); คำตอบบอทใช้ pushText ไม่ใช่ reply

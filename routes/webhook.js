@@ -35,6 +35,7 @@ import { getRegistrationConfig } from "../services/registrationConfigService.js"
 import mongoose from "mongoose";
 import { User } from "../models/User.js";
 import { Request, REQUEST_STATUS } from "../models/Request.js";
+import { RawExtraction } from "../models/RawExtraction.js";
 import { logLineMessage } from "../models/LineMessageLog.js";
 
 const router = Router();
@@ -225,6 +226,21 @@ async function flushModeText(lineUserId) {
   }
 }
 
+// รอ raw extraction ของ request นี้เสร็จก่อนเรียกบอท — ไม่งั้น context ไม่มีข้อมูลชุดใหม่
+// poll ทุก 3s สูงสุด timeoutMs; true = เสร็จ, false = ล้มเหลว/หมดเวลา (บอท fallback ตอบจาก aiData)
+async function waitExtractionDone(requestId, timeoutMs = 75_000) {
+  if (!requestId) return false;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const st = await RawExtraction.findOne({ requestId }).sort({ createdAt: -1 })
+      .select("status").lean().catch(() => null);
+    if (st?.status === "success") return true;
+    if (st?.status === "failed") return false;
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  return false;
+}
+
 // ตาข่ายสำรอง: ถ้า python parse พลาดแต่ answer เป็น JSON ล้วน → แปลงเป็น flex แทนแสดงดิบ
 function tryParseFoodJson(s) {
   if (!s || typeof s !== "string" || !s.trimStart().startsWith("{")) return null;
@@ -281,13 +297,24 @@ async function handleChatModeImage(lineUserId, messageId, replyToken, sess) {
     await queueWeeklyImage({
       lineUserId, messageId, replyToken,
       onComplete: async (aiData, report) => {
+        // การ์ดรายงาน flow เดิมไปก่อนเสมอ
         await sendWeeklyReportImages(lineUserId, report?.imageUrls || [], aiData, report?.combinedImageUrl)
           .catch((err) => console.error("[webhook] sendWeeklyReportImages(chat-mode) error:", err));
+        // รอ raw extraction เสร็จ — บอทต้องมีข้อมูลชุดใหม่ใน context ถึงตอบคำถามเจาะจงได้
+        showLoadingAnimation(lineUserId, 60).catch(() => {});
+        const ready = await waitExtractionDone(report?.requestId);
+        showLoadingAnimation(lineUserId, 45).catch(() => {});
         const q = sess.lastQuestion;
-        const ans = await askHealthChatbot(lineUserId,
-          `[ระบบ] ลูกค้าเพิ่งส่งภาพครบ 3 หน้าและวิเคราะห์เสร็จแล้ว\nผลวิเคราะห์: ${JSON.stringify(aiData).slice(0, 6000)}\n` +
-          `เล่าผลให้ลูกค้าฟังแบบสนทนา` + (q ? ` และตอบคำถามล่าสุดของลูกค้าด้วย: "${q}"` : ""),
-          sess.sessionId);
+        sess.lastQuestion = ""; // ใช้แล้วล้าง กันคำถามเก่าติดค้างไป batch ถัดไป
+        const prompt =
+          `[ระบบ] ลูกค้าเพิ่งส่งภาพ Kieslect ครบ 3 หน้า ระบบวิเคราะห์และสกัดข้อมูล` +
+          (ready ? "เสร็จเรียบร้อย — ข้อมูลชุดล่าสุดอยู่ใน context แล้ว" : "แล้ว แต่การสกัดข้อมูลดิบอาจยังไม่เสร็จ ให้ใช้ผลวิเคราะห์ที่แนบนี้เป็นหลัก") +
+          `\nผลวิเคราะห์รายงาน: ${JSON.stringify(aiData).slice(0, 6000)}\n` +
+          (q
+            ? `คำถามที่ลูกค้าถามไว้ก่อนส่งภาพ: "${q}"\n` +
+              `→ ตอบคำถามนี้เป็นประเด็นแรกและสำคัญที่สุด ใช้ตัวเลขจริงจากข้อมูลของลูกค้าคำนวณ/เทียบเกณฑ์เพื่อให้คำแนะนำที่เจาะจง แล้วค่อยสรุปภาพรวมของช่วงข้อมูลล่าสุดสั้นๆ ต่อท้าย`
+            : `ลูกค้าไม่ได้ถามอะไรค้างไว้ → เล่าผลรายงานให้ฟังแบบสนทนา เน้นจุดที่น่าสนใจที่สุด`);
+        const ans = await askHealthChatbot(lineUserId, prompt, sess.sessionId);
         await pushText(lineUserId, ans).catch(() => {});
       },
     });
